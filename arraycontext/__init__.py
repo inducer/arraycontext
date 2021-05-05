@@ -1,3 +1,9 @@
+"""
+An array context is an abstraction that helps you dispatch between multiple
+implementations of :mod:`numpy`-like :math:`n`-dimensional arrays.
+"""
+
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
