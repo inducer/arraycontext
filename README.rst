@@ -15,9 +15,6 @@ and is in the process of being moved here)
     :alt: Python Package Index Release Page
     :target: https://pypi.org/project/arraycontext/
 
-* `Source code on Github <https://github.com/inducer/arraycontext>`_
-* `Documentation <https://documen.tician.de/arraycontext>`_
-
 GPU arrays? Deferred-evaluation arrays? Just plain ``numpy`` arrays? You'd like your
 code to work with all of them? No problem! Comes with pre-made array context
 implementations for:
@@ -33,3 +30,9 @@ implementations for:
 package.
 
 Distributed under the MIT license.
+
+Links
+-----
+
+* `Source code on Github <https://github.com/inducer/arraycontext>`_
+* `Documentation <https://documen.tician.de/arraycontext>`_
