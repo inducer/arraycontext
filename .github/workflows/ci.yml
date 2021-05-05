@@ -66,37 +66,6 @@ jobs:
                 with_echo python -m pip install mpi4py
                 test_py_project
 
-    firedrake:
-        name: Pytest Firedrake
-        runs-on: ubuntu-latest
-        container:
-            image: 'firedrakeproject/firedrake'
-        steps:
-        -   uses: actions/checkout@v1
-        -   name: "Dependencies"
-            run: |
-                . .ci/install-for-firedrake.sh
-        -   name: "Test"
-            run: |
-                . /home/firedrake/firedrake/bin/activate
-                cd test
-                python -m pytest --tb=native -rxsw test_firedrake_interop.py
-
-    firedrake_examples:
-        name: Examples Firedrake
-        runs-on: ubuntu-latest
-        container:
-            image: 'firedrakeproject/firedrake'
-        steps:
-        -   uses: actions/checkout@v1
-        -   name: "Dependencies"
-            run: |
-                . .ci/install-for-firedrake.sh
-        -   name: "Examples"
-            run: |
-                . /home/firedrake/firedrake/bin/activate
-                . ./.ci/run_firedrake_examples.sh
-
     examples3:
         name: Examples Conda Py3
         runs-on: ubuntu-latest
@@ -144,7 +113,8 @@ jobs:
     downstream_tests:
         strategy:
             matrix:
-                downstream_project: [grudge, pytential, mirgecom]
+                # downstream_project: [meshmode, grudge, pytential, mirgecom]
+                downstream_project: []
         name: Tests for downstream project ${{ matrix.downstream_project }}
         runs-on: ubuntu-latest
         steps:
