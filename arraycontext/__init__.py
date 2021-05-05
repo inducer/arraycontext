@@ -23,4 +23,4 @@ THE SOFTWARE.
 """
 
 
-
+# vim: foldmethod=marker
