@@ -1,10 +1,6 @@
 arraycontext: Choose your favorite ``numpy``-workalike
 ======================================================
 
-(Caution: vaporware for now! Much of this functionality exists in
-`meshmode <https://documen.tician.de/meshmode/>`__ at the moment
-and is in the process of being moved here)
-
 .. image:: https://gitlab.tiker.net/inducer/arraycontext/badges/main/pipeline.svg
     :alt: Gitlab Build Status
     :target: https://gitlab.tiker.net/inducer/arraycontext/commits/main
@@ -25,7 +21,7 @@ implementations for:
 - Debugging
 - Profiling
 
-``arraycontext`` started life as an array abstraction for use with the 
+``arraycontext`` started life as an array abstraction for use with the
 `meshmode <https://documen.tician.de/meshmode/>`__ unstrucuted discretization
 package.
 

@@ -17,7 +17,8 @@ copyright = "2021, University of Illinois Board of Trustees"
 ver_dic = {}
 exec(
         compile(
-            open("../arraycontext/version.py").read(), "../arraycontext/version.py", "exec"),
+            open("../arraycontext/version.py").read(),
+            "../arraycontext/version.py", "exec"),
         ver_dic)
 version = ".".join(str(x) for x in ver_dic["VERSION"])
 # The full version, including alpha/beta/rc tags.
@@ -65,6 +66,8 @@ intersphinx_mapping = {
     "https://documen.tician.de/pyopencl": None,
     "https://documen.tician.de/pytato": None,
     "https://documen.tician.de/loopy": None,
+    "https://documen.tician.de/meshmode": None,
+    "https://docs.pytest.org/en/latest/": None,
 }
 
 autoclass_content = "class"

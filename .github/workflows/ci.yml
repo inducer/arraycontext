@@ -91,6 +91,8 @@ jobs:
                 . ci-support.sh
                 build_py_project_in_conda_env
                 conda install graphviz
+
+                CI_SUPPORT_SPHINX_VERSION_SPECIFIER=">=4.0"
                 build_docs
 
     downstream_tests:

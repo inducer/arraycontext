@@ -28,5 +28,59 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from .context import ArrayContext
+
+from .metadata import CommonSubexpressionTag, FirstAxisIsElementsTag
+
+from .container import (
+        ArrayContainer,
+        is_array_container, is_array_container_type,
+        get_container_context, get_container_context_recursively,
+        serialize_container, deserialize_container)
+from .container.arithmetic import with_container_arithmetic
+from .container.dataclass import dataclass_array_container
+
+from .container.traversal import (
+        map_array_container,
+        multimap_array_container,
+        rec_map_array_container,
+        rec_multimap_array_container,
+        mapped_over_array_containers,
+        multimapped_over_array_containers,
+        thaw, freeze)
+
+from .impl.pyopencl import PyOpenCLArrayContext
+
+from .pytest import pytest_generate_tests_for_pyopencl_array_context
+
+from .loopy import make_loopy_program
+
+
+__all__ = (
+        "ArrayContext",
+
+        "CommonSubexpressionTag",
+        "FirstAxisIsElementsTag",
+
+        "ArrayContainer",
+        "is_array_container", "is_array_container_type",
+        "get_container_context", "get_container_context_recursively",
+        "serialize_container", "deserialize_container",
+        "with_container_arithmetic",
+        "dataclass_array_container",
+
+        "map_array_container", "multimap_array_container",
+        "rec_map_array_container", "rec_multimap_array_container",
+        "mapped_over_array_containers",
+        "multimapped_over_array_containers",
+        "thaw", "freeze",
+
+        "PyOpenCLArrayContext",
+
+        "make_loopy_program",
+
+        "pytest_generate_tests_for_pyopencl_array_context"
+        )
+
 
 # vim: foldmethod=marker
