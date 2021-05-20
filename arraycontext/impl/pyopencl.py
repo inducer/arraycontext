@@ -208,7 +208,7 @@ class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
 class PyOpenCLArrayContext(ArrayContext):
     """
     A :class:`ArrayContext` that uses :class:`pyopencl.array.Array` instances
-    for DOF arrays.
+    for its base array class.
 
     .. attribute:: context
 
