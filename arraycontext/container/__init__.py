@@ -135,8 +135,9 @@ def is_array_container_type(cls: type) -> bool:
 
 
 def is_array_container(ary: Any) -> bool:
-    """Return *True* if the instance *ary* has a registered implementation of
-    :func:`serialize_container`.
+    """
+    :returns: *True* if the instance *ary* has a registered implementation of
+        :func:`serialize_container`.
     """
     return (serialize_container.dispatch(ary.__class__)
             is not serialize_container.__wrapped__)
