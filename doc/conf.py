@@ -65,7 +65,11 @@ intersphinx_mapping = {
     "https://documen.tician.de/pyopencl": None,
     "https://documen.tician.de/pytato": None,
     "https://documen.tician.de/loopy": None,
+    "https://documen.tician.de/meshmode": None,
+    "https://docs.pytest.org/en/latest/": None,
 }
+
+needs_sphinx = "4.0"
 
 autoclass_content = "class"
 autodoc_typehints = "description"
