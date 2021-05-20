@@ -147,7 +147,7 @@ def _flatten_array(ary):
     elif ary.flags.c_contiguous:
         return ary.reshape(-1, order="C")
     else:
-        raise ValueError("cannot flatten group array of DOFArray for norm, "
+        raise ValueError("cannot flatten array "
                 f"with strides {ary.strides} of {ary.dtype}")
 
 
