@@ -76,18 +76,13 @@ class DOFArray:
         # Why tuple([...])? https://stackoverflow.com/a/48592299
         return (f"{template_instance_name}.array_context, tuple([{arg}])")
 
-    def conj(self):
-        return self._like_me([subary.conj() for subary in self])
-
-    conjugate = conj
-
     @property
     def real(self):
         return DOFArray(self.array_context, tuple([subary.real for subary in self]))
 
     @property
     def imag(self):
-        return DOFArray(self.array_contex, tuple([subary.imag for subary in self]))
+        return DOFArray(self.array_context, tuple([subary.imag for subary in self]))
 
 
 @serialize_container.register(DOFArray)
