@@ -178,6 +178,23 @@ def test_array_context_np_workalike(actx_factory):
         # }}}
 
 
+def test_actx_concatenate(actx_factory):
+    actx = actx_factory()
+
+    ndofs = 5000
+    args = [np.random.randn(ndofs) for i in range(10)]
+    ref_result = np.concatenate(args)
+
+    # {{{ test cl.Arrays
+
+    actx_args = [actx.from_numpy(arg) for arg in args]
+    actx_result = actx.to_numpy(actx.np.concatenate(actx_args))
+
+    assert np.allclose(actx_result, ref_result)
+
+    # }}}
+
+
 def test_dof_array_arithmetic_same_as_numpy(actx_factory):
     actx = actx_factory()
 
