@@ -129,6 +129,14 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
                     queue=self._array_context.queue),
                 *arrays)
 
+    def concatenate(self, arrays, axis=0):
+        import pyopencl.array as cla
+        return cla.concatenate(
+            arrays, axis,
+            self._array_context.queue,
+            self._array_context.allocator
+        )
+
 # }}}
 
 
