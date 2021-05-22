@@ -34,7 +34,8 @@ from arraycontext import (
         FirstAxisIsElementsTag)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_pyopencl_array_context
-        as pytest_generate_tests)
+        as pytest_generate_tests,
+        _acf)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -125,12 +126,51 @@ def _thaw_dofarray(ary, actx):
 # }}}
 
 
-def test_array_context_np_workalike(actx_factory):
-    actx = actx_factory()
+# {{{ assert_close_to_numpy*
 
-    ndofs = 5000
+def assert_close_to_numpy(actx, op, args):
+    assert np.allclose(
+            actx.to_numpy(
+                op(actx.np, *[
+                    actx.from_numpy(arg) if isinstance(arg, np.ndarray) else arg
+                    for arg in args])),
+            op(np, *args))
 
-    for sym_name, n_args in [
+
+def assert_close_to_numpy_in_containers(actx, op, args):
+    assert_close_to_numpy(actx, op, args)
+
+    ref_result = op(np, *args)
+
+    # {{{ test DOFArrays
+
+    dofarray_args = [
+            DOFArray(actx, (actx.from_numpy(arg),))
+            if isinstance(arg, np.ndarray) else arg
+            for arg in args]
+    actx_result = actx.to_numpy(op(actx.np, *dofarray_args)[0])
+
+    assert np.allclose(actx_result, ref_result)
+
+    # }}}
+
+    # {{{ test object arrays of DOFArrays
+
+    obj_array_args = [
+            make_obj_array([arg]) if isinstance(arg, DOFArray) else arg
+            for arg in dofarray_args]
+    obj_array_result = actx.to_numpy(op(actx.np, *obj_array_args)[0][0])
+
+    assert np.allclose(obj_array_result, ref_result)
+
+    # }}}
+
+# }}}
+
+
+# {{{ np.function same as numpy
+
+@pytest.mark.parametrize(("sym_name", "n_args"), [
             ("sin", 1),
             ("exp", 1),
             ("arctan2", 2),
@@ -138,44 +178,30 @@ def test_array_context_np_workalike(actx_factory):
             ("maximum", 2),
             ("where", 3),
             ("conj", 1),
+            ])
+def test_array_context_np_workalike(actx_factory, sym_name, n_args):
+    actx = actx_factory()
+
+    ndofs = 5000
+    args = [np.random.randn(ndofs) for i in range(n_args)]
+    assert_close_to_numpy_in_containers(
+            actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
+
+
+@pytest.mark.parametrize(("sym_name", "n_args"), [
             # ("empty_like", 1),    # NOTE: fails np.allclose, obviously
             ("zeros_like", 1),
             ("ones_like", 1),
-            ]:
-        args = [np.random.randn(ndofs) for i in range(n_args)]
-        ref_result = getattr(np, sym_name)(*args)
+            ])
+def test_array_context_np_like(actx_factory, sym_name, n_args):
+    actx = actx_factory()
 
-        # {{{ test cl.Arrays
+    ndofs = 5000
+    args = [np.random.randn(ndofs) for i in range(n_args)]
+    assert_close_to_numpy(
+            actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
-        actx_args = [actx.from_numpy(arg) for arg in args]
-        actx_result = actx.to_numpy(getattr(actx.np, sym_name)(*actx_args))
-
-        assert np.allclose(actx_result, ref_result)
-
-        # }}}
-
-        # {{{ test DOFArrays
-
-        actx_args = [DOFArray(actx, (arg,)) for arg in actx_args]
-        actx_result = actx.to_numpy(
-                getattr(actx.np, sym_name)(*actx_args)[0])
-
-        assert np.allclose(actx_result, ref_result)
-
-        # }}}
-
-        # {{{ test object arrays
-
-        if sym_name in ("empty_like", "zeros_like", "ones_like"):
-            continue
-
-        obj_array_args = [make_obj_array([arg]) for arg in actx_args]
-        obj_array_result = actx.to_numpy(
-                getattr(actx.np, sym_name)(*obj_array_args)[0][0])
-
-        assert np.allclose(obj_array_result, ref_result)
-
-        # }}}
+# }}}
 
 
 # {{{ Array manipulations
@@ -185,34 +211,9 @@ def test_actx_stack(actx_factory):
 
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(10)]
-    ref_result = np.stack(args)
 
-    # {{{ test cl.Arrays
-
-    actx_args = [actx.from_numpy(arg) for arg in args]
-    actx_result = actx.to_numpy(actx.np.stack(actx_args))
-
-    assert np.allclose(actx_result, ref_result)
-
-    # }}}
-
-    # {{{ test DOFArrays
-
-    actx_args = [DOFArray(actx, (arg,)) for arg in actx_args]
-    actx_result = actx.to_numpy(actx.np.stack(actx_args)[0])
-
-    assert np.allclose(actx_result, ref_result)
-
-    # }}}
-
-    # {{{ test object arrays
-
-    obj_array_args = [make_obj_array([arg]) for arg in actx_args]
-    obj_array_result = actx.to_numpy(actx.np.stack(obj_array_args)[0][0])
-
-    assert np.allclose(obj_array_result, ref_result)
-
-    # }}}
+    assert_close_to_numpy_in_containers(
+            actx, lambda _np, *_args: _np.stack(_args), args)
 
 
 def test_actx_concatenate(actx_factory):
@@ -220,38 +221,23 @@ def test_actx_concatenate(actx_factory):
 
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(10)]
-    ref_result = np.concatenate(args)
 
-    # {{{ test cl.Arrays
-
-    actx_args = [actx.from_numpy(arg) for arg in args]
-    actx_result = actx.to_numpy(actx.np.concatenate(actx_args))
-
-    assert np.allclose(actx_result, ref_result)
-
-    # }}}
+    assert_close_to_numpy(
+            actx, lambda _np, *_args: _np.concatenate(_args), args)
 
 
 def test_actx_reshape(actx_factory):
     actx = actx_factory()
 
-    numpy_ary = np.random.randn(2, 3)
-    actx_ary = actx.from_numpy(numpy_ary)
-
-    assert np.allclose(actx.to_numpy(actx.np.reshape(actx_ary, (3, 2))),
-                       np.reshape(numpy_ary, (3, 2)))
-
-    assert np.allclose(actx.to_numpy(actx.np.reshape(actx_ary, (3, -1))),
-                       np.reshape(numpy_ary, (3, -1)))
-
-    assert np.allclose(actx.to_numpy(actx.np.reshape(actx_ary, (6,))),
-                       np.reshape(numpy_ary, (6,)))
-
-    assert np.allclose(actx.to_numpy(actx.np.reshape(actx_ary, -1)),
-                       np.reshape(numpy_ary, -1))
+    for new_shape in [(3, 2), (3, -1), (6,), (-1,)]:
+        assert_close_to_numpy(
+                actx, lambda _np, *_args: _np.reshape(*_args),
+                (np.random.randn(2, 3), new_shape))
 
 # }}}
 
+
+# {{{ arithmetic same as numpy
 
 def test_dof_array_arithmetic_same_as_numpy(actx_factory):
     actx = actx_factory()
@@ -386,6 +372,10 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
 
             # }}}
 
+# }}}
+
+
+# {{{ reductions same as numpy
 
 def test_dof_array_reductions_same_as_numpy(actx_factory):
     actx = actx_factory()
@@ -398,6 +388,8 @@ def test_dof_array_reductions_same_as_numpy(actx_factory):
 
         assert isinstance(actx_red, Number)
         assert np.allclose(np_red, actx_red)
+
+# }}}
 
 
 # {{{ test array context einsum
