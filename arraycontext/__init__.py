@@ -83,4 +83,14 @@ __all__ = (
         )
 
 
+def _acf():
+    """A tiny undocumented function to pass to tests that take an ``actx_factory``
+    argument when running them from the command line.
+    """
+    import pyopencl as cl
+
+    context = cl._csc()
+    queue = cl.CommandQueue(context)
+    return PyOpenCLArrayContext(queue)
+
 # vim: foldmethod=marker
