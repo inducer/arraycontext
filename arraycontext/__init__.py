@@ -47,7 +47,8 @@ from .container.traversal import (
         rec_multimap_array_container,
         mapped_over_array_containers,
         multimapped_over_array_containers,
-        thaw, freeze)
+        thaw, freeze,
+        from_numpy, to_numpy)
 
 from .impl.pyopencl import PyOpenCLArrayContext
 
@@ -74,6 +75,7 @@ __all__ = (
         "mapped_over_array_containers",
         "multimapped_over_array_containers",
         "thaw", "freeze",
+        "from_numpy", "to_numpy",
 
         "PyOpenCLArrayContext",
 
