@@ -204,7 +204,7 @@ def test_array_context_np_like(actx_factory, sym_name, n_args):
 # }}}
 
 
-# {{{ Array manipulations
+# {{{ array manipulations
 
 def test_actx_stack(actx_factory):
     actx = actx_factory()
@@ -585,6 +585,39 @@ def test_container_norm(actx_factory, ord):
     n2 = np.linalg.norm([1, 2, 3, 5]*2, ord)
 
     assert abs(n1 - n2) < 1e-12
+
+# }}}
+
+
+# {{{ test from_numpy and to_numpy
+
+def test_numpy_conversion(actx_factory):
+    actx = actx_factory()
+
+    ac = MyContainer(
+            name="test_numpy_conversion",
+            mass=np.random.rand(42),
+            momentum=make_obj_array([np.random.rand(42) for _ in range(3)]),
+            enthalpy=np.random.rand(42),
+            )
+
+    from arraycontext import from_numpy, to_numpy
+    ac_actx = from_numpy(ac, actx)
+    ac_roundtrip = to_numpy(ac_actx, actx)
+
+    assert np.allclose(ac.mass, ac_roundtrip.mass)
+    assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
+
+    from dataclasses import replace
+    ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
+    with pytest.raises(TypeError):
+        from_numpy(ac_with_cl, actx)
+
+    with pytest.raises(TypeError):
+        from_numpy(ac_actx, actx)
+
+    with pytest.raises(ValueError):
+        to_numpy(ac, actx)
 
 # }}}
 

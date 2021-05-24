@@ -15,6 +15,11 @@ Freezing and thawing
 ~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: freeze
 .. autofunction:: thaw
+
+Numpy conversion
+~~~~~~~~~~~~~~~~
+.. autofunction:: from_numpy
+.. autofunction:: to_numpy
 """
 
 __copyright__ = """
@@ -43,6 +48,9 @@ THE SOFTWARE.
 
 from typing import Any, Callable
 from functools import update_wrapper, partial, singledispatch
+
+import numpy as np
+
 from arraycontext.container import (is_array_container,
         serialize_container, deserialize_container)
 
@@ -262,6 +270,36 @@ def thaw(ary, actx):
             ])
     else:
         return actx.thaw(ary)
+
+# }}}
+
+
+# {{{ numpy conversion
+
+def from_numpy(ary, actx):
+    """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
+    to the base array type of :class:`~arraycontext.ArrayContext`.
+
+    The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
+    """
+    def _from_numpy(subary):
+        if isinstance(subary, np.ndarray) and subary.dtype != "O":
+            return actx.from_numpy(subary)
+        elif is_array_container(subary):
+            return map_array_container(_from_numpy, subary)
+        else:
+            raise TypeError(f"unrecognized array type: '{type(subary).__name__}'")
+
+    return _from_numpy(ary)
+
+
+def to_numpy(ary, actx):
+    """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
+    :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
+
+    The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
+    """
+    return rec_map_array_container(actx.to_numpy, ary)
 
 # }}}
 
