@@ -31,7 +31,8 @@ from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
 from arraycontext.context import ArrayContext
 import numpy as np
-from typing import Any, Callable, Tuple, Union, Number
+from typing import Any, Callable, Tuple, Union
+from numbers import Number
 import loopy as lp
 
 
