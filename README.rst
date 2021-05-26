@@ -17,7 +17,7 @@ implementations for:
 
 - numpy
 - `PyOpenCL <https://documen.tician.de/pyopencl/array.html>`__
-- `Pytato <https://documen.tician.de/pytato>`__
+- `Pytato <https://documen.tician.de/pytato>`__ (for lazy/deferred evaluation)
 - Debugging
 - Profiling
 

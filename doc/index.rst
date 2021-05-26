@@ -7,7 +7,7 @@ implementations for:
 
 - :mod:`numpy`
 - :mod:`pyopencl`
-- :mod:`pytato`
+- :mod:`pytato` (for lazy/deferred evaluation)
 - Debugging
 - Profiling
 
