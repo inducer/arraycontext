@@ -31,7 +31,8 @@ from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
 from arraycontext.context import ArrayContext
 import numpy as np
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union, Sequence
+from pytools.tag import Tag
 from numbers import Number
 import loopy as lp
 
@@ -367,6 +368,14 @@ class PytatoArrayContext(ArrayContext):
         prg = lp.set_options(prg, "insert_additional_gbarriers")
 
         return gridify(prg)
+
+    def tag(self, tags: Union[Sequence[Tag], Tag], array):
+        # Sorry, not capable.
+        return array
+
+    def tag_axis(self, iaxis, tags: Union[Sequence[Tag], Tag], array):
+        # Sorry, not capable.
+        return array
 
 
 # }}}
