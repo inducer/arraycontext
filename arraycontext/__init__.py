@@ -82,7 +82,7 @@ __all__ = (
 
         "make_loopy_program",
 
-        "pytest_generate_tests_for_pyopencl_array_context"
+        "pytest_generate_tests_for_array_contexts"
         )
 
 
