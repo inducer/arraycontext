@@ -1,6 +1,6 @@
 """
 .. currentmodule:: arraycontext
-.. autofunction:: pytest_generate_tests_for_pyopencl_array_context
+.. autofunction:: pytest_generate_tests_for_array_contexts
 """
 
 
@@ -42,8 +42,8 @@ class _PyOpenCLArrayContextFactory(_ContextFactory):
         return PyOpenCLArrayContext(cl.CommandQueue(ctx))
 
     def __str__(self):
-        return ("<PyOpenCL array context factory for <pyopencl.Device '%s' on '%s'>" %
-                (self.device.name.strip(),
+        return ("<PyOpenCL array context factory for <pyopencl.Device '%s' on '%s'>"
+                % (self.device.name.strip(),
                  self.device.platform.name.strip()))
 
 
@@ -54,8 +54,8 @@ class _PytatoArrayContextFactory(_ContextFactory):
         return PytatoArrayContext(cl.CommandQueue(ctx))
 
     def __str__(self):
-        return ("<Pytato array context factory for <pyopencl.Device '%s' on '%s'>" %
-                (self.device.name.strip(),
+        return ("<Pytato array context factory for <pyopencl.Device '%s' on '%s'>"
+                % (self.device.name.strip(),
                  self.device.platform.name.strip()))
 
 
@@ -97,8 +97,10 @@ def pytest_generate_tests_for_array_contexts(metafunc) -> None:
                     "'ctx_factory' / 'ctx_getter' as arguments.")
 
         for arg_dict in arg_values:
-            arg_dict["actx_factory"] = _PyOpenCLArrayContextFactory(arg_dict["device"])
-            arg_dict["actx_factory_pytato"] = _PytatoArrayContextFactory(arg_dict["device"])
+            arg_dict["actx_factory"] = _PyOpenCLArrayContextFactory(arg_dict[
+                                                                         "device"])
+            arg_dict["actx_factory_pytato"] = _PytatoArrayContextFactory(arg_dict[
+                                                                         "device"])
 
     arg_values_out = [
             tuple(arg_dict[name] for name in arg_names)

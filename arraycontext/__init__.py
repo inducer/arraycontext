@@ -51,6 +51,7 @@ from .container.traversal import (
         from_numpy, to_numpy)
 
 from .impl.pyopencl import PyOpenCLArrayContext
+from .impl.pytato import PytatoArrayContext
 
 from .pytest import pytest_generate_tests_for_array_contexts
 
@@ -77,7 +78,7 @@ __all__ = (
         "thaw", "freeze",
         "from_numpy", "to_numpy",
 
-        "PyOpenCLArrayContext",
+        "PyOpenCLArrayContext", "PytatoArrayContext",
 
         "make_loopy_program",
 
