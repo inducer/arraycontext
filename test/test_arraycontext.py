@@ -33,7 +33,7 @@ from arraycontext import (
         freeze, thaw,
         FirstAxisIsElementsTag)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_pyopencl_array_context
+        pytest_generate_tests_for_array_contexts
         as pytest_generate_tests,
         _acf)
 
