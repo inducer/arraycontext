@@ -30,6 +30,9 @@ THE SOFTWARE.
 """
 
 
+import numpy as np
+
+
 # {{{ with_container_arithmetic
 
 class _OpClass(enum.Enum):
@@ -111,6 +114,7 @@ def _format_binary_op_str(op_str, arg1, arg2):
 
 def with_container_arithmetic(
         bcast_number=True, bcast_obj_array=None, bcast_numpy_array=False,
+        bcast_container_types=None,
         arithmetic=True, bitwise=False, shift=False,
         eq_comparison=None, rel_comparison=None):
     """A class decorator that implements built-in operators for array containers
@@ -122,6 +126,14 @@ def with_container_arithmetic(
         the container.  (with the container as the 'inner' structure)
     :arg bcast_numpy_array: If *True*, any :class:`numpy.ndarray` will broadcast
         over the container.  (with the container as the 'inner' structure)
+        If this is set to *True*, *bcast_obj_array* must also be *True*.
+    :arg bcast_container_types: A sequence of container types that will broadcast
+        over this container (with this container as the 'outer' structure).
+        :class:`numpy.ndarray` is permitted to be part of this sequence to
+        indicate that, in such broadcasting situations, this container should
+        be the 'outer' structure.)
+        In this case, *bcast_obj_array* (and consequently *bcast_numpy_array*)
+        must be *False*.
     :arg arithmetic: Implement the conventional arithmetic operators, including
         ``**``, :func:`divmod`, and ``//``. Also includes ``+`` and ``-`` as well as
         :func:`abs`.
@@ -183,6 +195,13 @@ def with_container_arithmetic(
         def numpy_pred(name):
             return "False"  # optimized away
 
+    if bcast_container_types is None:
+        bcast_container_types = ()
+
+    if np.ndarray in bcast_container_types and bcast_obj_array:
+        raise ValueError("If numpy.ndarray is part of bcast_container_types, "
+                "bcast_obj_array must be False.")
+
     desired_op_classes = set()
     if arithmetic:
         desired_op_classes.add(_OpClass.ARITHMETIC)
@@ -214,6 +233,13 @@ def with_container_arithmetic(
             from arraycontext import ArrayContainer
             """)
         gen("")
+
+        if bcast_container_types:
+            for i, bct in enumerate(bcast_container_types):
+                gen(f"from {bct.__module__} import {bct.__qualname__} as _bctype{i}")
+            gen("")
+        bcast_container_type_names = ", ".join(
+                f"_bctype{i}" for i in range(len(bcast_container_types)))
 
         def same_key(k1, k2):
             assert k1 == k2
@@ -269,6 +295,9 @@ def with_container_arithmetic(
                     if {bcast_number}:  # optimized away
                         if isinstance(arg2, Number):
                             return cls({bcast_init_args})
+                    if {bool(bcast_container_types)}:  # optimized away
+                        if isinstance(arg2, {bcast_container_type_names}):
+                            return cls({bcast_init_args})
                     if {numpy_pred("arg2")}:
                         result = np.empty_like(arg2, dtype=object)
                         for i in np.ndindex(arg2.shape):
@@ -296,6 +325,9 @@ def with_container_arithmetic(
 
                         if {bcast_number}:  # optimized away
                             if isinstance(arg1, Number):
+                                return cls({bcast_init_args})
+                        if {bool(bcast_container_types)}:  # optimized away
+                            if isinstance(arg1, {bcast_container_type_names}):
                                 return cls({bcast_init_args})
                         if {numpy_pred("arg1")}:
                             result = np.empty_like(arg1, dtype=object)
