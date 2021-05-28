@@ -105,10 +105,11 @@ def pytest_generate_tests_for_array_contexts(metafunc) -> None:
             for arg_dict in arg_values
             ]
 
-    arg_values_out += [
-            tuple((arg_dict["actx_factory_pytato"],))
-            for arg_dict in arg_values
-            ]
+    if "actx_factory" in arg_names:
+        arg_values_out += [
+                tuple((arg_dict["actx_factory_pytato"],))
+                for arg_dict in arg_values
+                ]
 
     metafunc.parametrize(arg_names, arg_values_out, ids=ids)
 
