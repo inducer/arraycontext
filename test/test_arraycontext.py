@@ -461,6 +461,24 @@ class MyContainer:
         return self.mass.array_context
 
 
+@with_container_arithmetic(
+        bcast_obj_array=False,
+        bcast_container_types=(DOFArray, np.ndarray),
+        matmul=True,
+        rel_comparison=True,)
+@dataclass_array_container
+@dataclass(frozen=True)
+class MyContainerDOFBcast:
+    name: str
+    mass: DOFArray
+    momentum: np.ndarray
+    enthalpy: DOFArray
+
+    @property
+    def array_context(self):
+        return self.mass.array_context
+
+
 def _get_test_containers(actx, ambient_dim=2):
     x = DOFArray(actx, (actx.from_numpy(np.random.randn(50_000)),))
 
@@ -471,18 +489,27 @@ def _get_test_containers(actx, ambient_dim=2):
             momentum=make_obj_array([x, x]),
             enthalpy=x)
 
+    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
+    bcast_dataclass_of_dofs = MyContainerDOFBcast(
+            name="container",
+            mass=x,
+            momentum=make_obj_array([x, x]),
+            enthalpy=x)
+
     ary_dof = x
     ary_of_dofs = make_obj_array([x, x, x])
-    mat_of_dofs = np.empty((2, 2), dtype=object)
+    mat_of_dofs = np.empty((3, 3), dtype=object)
     for i in np.ndindex(mat_of_dofs.shape):
         mat_of_dofs[i] = x
 
-    return ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs
+    return (ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs,
+            bcast_dataclass_of_dofs)
 
 
 def test_container_multimap(actx_factory):
     actx = actx_factory()
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs = _get_test_containers(actx)
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+            _get_test_containers(actx)
 
     # {{{ check
 
@@ -522,7 +549,8 @@ def test_container_multimap(actx_factory):
 
 def test_container_arithmetic(actx_factory):
     actx = actx_factory()
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs = _get_test_containers(actx)
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+            _get_test_containers(actx)
 
     # {{{ check
 
@@ -542,12 +570,38 @@ def test_container_arithmetic(actx_factory):
     with pytest.raises(TypeError):
         ary_of_dofs + dc_of_dofs
 
+    with pytest.raises(TypeError):
+        dc_of_dofs + ary_of_dofs
+
+    with pytest.raises(TypeError):
+        ary_dof + dc_of_dofs
+
+    with pytest.raises(TypeError):
+        dc_of_dofs + ary_dof
+
+    bcast_result = ary_dof + bcast_dc_of_dofs
+    bcast_dc_of_dofs + ary_dof
+
+    assert actx.np.linalg.norm(bcast_result.mass - 2*ary_of_dofs) < 1e-8
+
+    mock_gradient = MyContainerDOFBcast(
+            name="yo",
+            mass=ary_of_dofs,
+            momentum=mat_of_dofs,
+            enthalpy=ary_of_dofs)
+
+    grad_matvec_result = mock_gradient @ ary_of_dofs
+    assert isinstance(grad_matvec_result.mass, DOFArray)
+    assert grad_matvec_result.momentum.shape == (3,)
+    assert actx.np.linalg.norm(grad_matvec_result.mass - 3*ary_of_dofs**2) < 1e-8
+
     # }}}
 
 
 def test_container_freeze_thaw(actx_factory):
     actx = actx_factory()
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs = _get_test_containers(actx)
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+            _get_test_containers(actx)
 
     # {{{ check
 
@@ -577,7 +631,8 @@ def test_container_freeze_thaw(actx_factory):
 def test_container_norm(actx_factory, ord):
     actx = actx_factory()
 
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs = _get_test_containers(actx)
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+            _get_test_containers(actx)
 
     from pytools.obj_array import make_obj_array
     c = MyContainer(name="hey", mass=1, momentum=make_obj_array([2, 3]), enthalpy=5)
