@@ -131,9 +131,8 @@ def with_container_arithmetic(
         over this container (with this container as the 'outer' structure).
         :class:`numpy.ndarray` is permitted to be part of this sequence to
         indicate that, in such broadcasting situations, this container should
-        be the 'outer' structure.)
-        In this case, *bcast_obj_array* (and consequently *bcast_numpy_array*)
-        must be *False*.
+        be the 'outer' structure. In this case, *bcast_obj_array* 
+        (and consequently *bcast_numpy_array*) must be *False*.
     :arg arithmetic: Implement the conventional arithmetic operators, including
         ``**``, :func:`divmod`, and ``//``. Also includes ``+`` and ``-`` as well as
         :func:`abs`.
