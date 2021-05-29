@@ -37,6 +37,7 @@ import numpy as np
 
 class _OpClass(enum.Enum):
     ARITHMETIC = enum.auto
+    MATMUL = enum.auto
     BITWISE = enum.auto
     SHIFT = enum.auto
     EQ_COMPARISON = enum.auto
@@ -58,6 +59,8 @@ _BINARY_OP_AND_DUNDER = [
         ("pow", "{} ** {}", True, _OpClass.ARITHMETIC),
         ("mod", "{} % {}", True, _OpClass.ARITHMETIC),
         ("divmod", "divmod({}, {})", True, _OpClass.ARITHMETIC),
+
+        ("matmul", "{} @ {}", True, _OpClass.MATMUL),
 
         ("and", "{} & {}", True, _OpClass.BITWISE),
         ("or", "{} | {}", True, _OpClass.BITWISE),
@@ -112,10 +115,10 @@ def _format_binary_op_str(op_str, arg1, arg2):
         return op_str.format(arg1, arg2)
 
 
-def with_container_arithmetic(
+def with_container_arithmetic(*,
         bcast_number=True, bcast_obj_array=None, bcast_numpy_array=False,
         bcast_container_types=None,
-        arithmetic=True, bitwise=False, shift=False,
+        arithmetic=True, matmul=False, bitwise=False, shift=False,
         eq_comparison=None, rel_comparison=None):
     """A class decorator that implements built-in operators for array containers
     by propagating the operations to the elements of the container.
@@ -131,7 +134,7 @@ def with_container_arithmetic(
         over this container (with this container as the 'outer' structure).
         :class:`numpy.ndarray` is permitted to be part of this sequence to
         indicate that, in such broadcasting situations, this container should
-        be the 'outer' structure. In this case, *bcast_obj_array* 
+        be the 'outer' structure. In this case, *bcast_obj_array*
         (and consequently *bcast_numpy_array*) must be *False*.
     :arg arithmetic: Implement the conventional arithmetic operators, including
         ``**``, :func:`divmod`, and ``//``. Also includes ``+`` and ``-`` as well as
@@ -204,6 +207,8 @@ def with_container_arithmetic(
     desired_op_classes = set()
     if arithmetic:
         desired_op_classes.add(_OpClass.ARITHMETIC)
+    if matmul:
+        desired_op_classes.add(_OpClass.MATMUL)
     if bitwise:
         desired_op_classes.add(_OpClass.BITWISE)
     if shift:
@@ -237,12 +242,20 @@ def with_container_arithmetic(
             for i, bct in enumerate(bcast_container_types):
                 gen(f"from {bct.__module__} import {bct.__qualname__} as _bctype{i}")
             gen("")
-        bcast_container_type_names = ", ".join(
-                f"_bctype{i}" for i in range(len(bcast_container_types)))
+        outer_bcast_type_names = [
+                f"_bctype{i}" for i in range(len(bcast_container_types))]
+        if bcast_number:
+            outer_bcast_type_names.append("Number")
 
         def same_key(k1, k2):
             assert k1 == k2
             return k1
+
+        def tup_str(t):
+            if not t:
+                return "()"
+            else:
+                return "(%s,)" % ", ".join(t)
 
         # {{{ unary operators
 
@@ -291,13 +304,10 @@ def with_container_arithmetic(
                 def {fname}(arg1, arg2):
                     if arg2.__class__ is cls:
                         return cls({zip_init_args})
-                    if {bcast_number}:  # optimized away
-                        if isinstance(arg2, Number):
+                    if {bool(outer_bcast_type_names)}:  # optimized away
+                        if isinstance(arg2, {tup_str(outer_bcast_type_names)}):
                             return cls({bcast_init_args})
-                    if {bool(bcast_container_types)}:  # optimized away
-                        if isinstance(arg2, {bcast_container_type_names}):
-                            return cls({bcast_init_args})
-                    if {numpy_pred("arg2")}:
+                    if {numpy_pred("arg2")}:  # optimized away
                         result = np.empty_like(arg2, dtype=object)
                         for i in np.ndindex(arg2.shape):
                             result[i] = {op_str.format("arg1", "arg2[i]")}
@@ -322,13 +332,10 @@ def with_container_arithmetic(
                     def {fname}(arg2, arg1):
                         # assert other.__cls__ is not cls
 
-                        if {bcast_number}:  # optimized away
-                            if isinstance(arg1, Number):
+                        if {bool(outer_bcast_type_names)}:  # optimized away
+                            if isinstance(arg1, {tup_str(outer_bcast_type_names)}):
                                 return cls({bcast_init_args})
-                        if {bool(bcast_container_types)}:  # optimized away
-                            if isinstance(arg1, {bcast_container_type_names}):
-                                return cls({bcast_init_args})
-                        if {numpy_pred("arg1")}:
+                        if {numpy_pred("arg1")}:  # optimized away
                             result = np.empty_like(arg1, dtype=object)
                             for i in np.ndindex(arg1.shape):
                                 result[i] = {op_str.format("arg1[i]", "arg2")}
