@@ -96,6 +96,11 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         import pytato as pt
         return pt.amax(a)
 
+    def stack(self, arrays, axis=0):
+        import pytato as pt
+        from meshmode.dof_array import obj_or_dof_array_vectorize_n_args
+        return obj_or_dof_array_vectorize_n_args(pt.stack, arrays, axis)
+
 
 class PytatoCompiledOperator:
     def __init__(self, actx, pytato_program, input_spec, output_spec):
