@@ -36,57 +36,11 @@ from pytools.tag import Tag
 from numbers import Number
 import loopy as lp
 
-from arraycontext.container import serialize_container, is_array_container
-
 
 class _PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     def norm(self, ary, ord=None):
-        from numbers import Number
-        if isinstance(ary, Number):
-            return abs(ary)
-
-        if ord is None:
-            ord = 2
-
-        try:
-            from meshmode.dof_array import DOFArray
-        except ImportError:
-            pass
-        else:
-            if isinstance(ary, DOFArray):
-                from warnings import warn
-                warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
-                        "(DOFArrays use 2D arrays internally, and "
-                        "actx.np.linalg.norm should compute matrix norms of those.) "
-                        "This will stop working in 2022. "
-                        "Use meshmode.dof_array.flat_norm instead.",
-                        DeprecationWarning, stacklevel=2)
-
-                import numpy.linalg as la
-                return la.norm(
-                        [self.norm(_flatten_array(subary), ord=ord)
-                            for _, subary in serialize_container(ary)],
-                        ord=ord)
-
-        if is_array_container(ary):
-            import numpy.linalg as la
-            return la.norm(
-                    [self.norm(subary, ord=ord)
-                        for _, subary in serialize_container(ary)],
-                    ord=ord)
-
-        if len(ary.shape) != 1:
-            raise NotImplementedError("only vector norms are implemented")
-
-        if ary.size == 0:
-            return 0
-
-        if ord == np.inf:
-            return self._array_context.np.max(abs(ary))
-        elif isinstance(ord, Number) and ord > 0:
-            return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
-        else:
-            raise NotImplementedError(f"unsupported value of 'ord': {ord}")
+        # FIXME: handle isinstance(ary, DOFArray) case
+        return super().norm(ary, ord)
 
 
 class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):

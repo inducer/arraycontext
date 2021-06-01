@@ -39,7 +39,7 @@ from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
 from arraycontext.container.traversal import rec_multimap_array_container
-from arraycontext.container import serialize_container, is_array_container
+from arraycontext.container import serialize_container
 from arraycontext.context import ArrayContext
 
 
@@ -165,10 +165,6 @@ def _flatten_array(ary):
 
 class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     def norm(self, ary, ord=None):
-        from numbers import Number
-        if isinstance(ary, Number):
-            return abs(ary)
-
         if ord is None:
             ord = 2
 
@@ -192,25 +188,7 @@ class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
                             for _, subary in serialize_container(ary)],
                         ord=ord)
 
-        if is_array_container(ary):
-            import numpy.linalg as la
-            return la.norm(
-                    [self.norm(subary, ord=ord)
-                        for _, subary in serialize_container(ary)],
-                    ord=ord)
-
-        if len(ary.shape) != 1:
-            raise NotImplementedError("only vector norms are implemented")
-
-        if ary.size == 0:
-            return 0
-
-        if ord == np.inf:
-            return self._array_context.np.max(abs(ary))
-        elif isinstance(ord, Number) and ord > 0:
-            return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
-        else:
-            raise NotImplementedError(f"unsupported value of 'ord': {ord}")
+        return super().norm(ary, ord)
 
 # }}}
 

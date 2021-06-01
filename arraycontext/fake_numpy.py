@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import is_array_container
+from arraycontext.container import is_array_container, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
 
@@ -173,6 +173,32 @@ class BaseFakeNumpyNamespace:
 class BaseFakeNumpyLinalgNamespace:
     def __init__(self, array_context):
         self._array_context = array_context
+
+    def norm(self, ary, ord=None):
+        from numbers import Number
+        if isinstance(ary, Number):
+            return abs(ary)
+
+        if is_array_container(ary):
+            import numpy.linalg as la
+            return la.norm(
+                    [self.norm(subary, ord=ord)
+                        for _, subary in serialize_container(ary)],
+                    ord=ord)
+
+        if len(ary.shape) != 1:
+            raise NotImplementedError("only vector norms are implemented")
+
+        if ary.size == 0:
+            return 0
+
+        if ord == np.inf:
+            return self._array_context.np.max(abs(ary))
+        elif isinstance(ord, Number) and ord > 0:
+            return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
+        else:
+            raise NotImplementedError(f"unsupported value of 'ord': {ord}")
+
 
 # }}}
 
