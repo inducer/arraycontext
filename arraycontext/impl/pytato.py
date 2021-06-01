@@ -88,6 +88,7 @@ class _PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
         else:
             raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 
+
 class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def _get_fake_numpy_linalg_namespace(self):
         return _PytatoFakeNumpyLinalgNamespace(self._array_context)
@@ -117,6 +118,13 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         import pytato as pt
         from meshmode.dof_array import obj_or_dof_array_vectorize_n_args
         return obj_or_dof_array_vectorize_n_args(pt.concatenate, arrays, axis)
+
+    def ones_like(self, ary):
+        def _ones_like(subary):
+            import pytato as pt
+            return pt.ones(subary.shape, subary.dtype)
+
+        return self._new_like(ary, _ones_like)
 
     def maximum(self, x, y):
         import pytato as pt
