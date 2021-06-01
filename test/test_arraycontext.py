@@ -212,7 +212,7 @@ def test_actx_stack(actx_factory):
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(10)]
 
-    assert_close_to_numpy_in_containers(
+    assert_close_to_numpy(
             actx, lambda _np, *_args: _np.stack(_args), args)
 
 
