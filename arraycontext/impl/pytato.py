@@ -102,6 +102,11 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         from meshmode.dof_array import obj_or_dof_array_vectorize
         return obj_or_dof_array_vectorize(pt.exp, x)
 
+    def sin(self, x):
+        import pytato as pt
+        from meshmode.dof_array import obj_or_dof_array_vectorize
+        return obj_or_dof_array_vectorize(pt.sin, x)
+
     def reshape(self, a, newshape):
         import pytato as pt
 
