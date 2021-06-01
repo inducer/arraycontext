@@ -181,6 +181,9 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ])
 def test_array_context_np_workalike(actx_factory, sym_name, n_args):
     actx = actx_factory()
+    from arraycontext.impl.pytato import PytatoArrayContext
+    if isinstance(actx, PytatoArrayContext) and sym_name in ["arctan2", "where", "conj"]:
+        pytest.skip("unsupported configuration")
 
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(n_args)]
@@ -401,6 +404,9 @@ def test_dof_array_reductions_same_as_numpy(actx_factory):
 ])
 def test_array_context_einsum_array_manipulation(actx_factory, spec):
     actx = actx_factory()
+    from arraycontext.impl.pytato import PytatoArrayContext
+    if isinstance(actx, PytatoArrayContext):
+        pytest.skip("unsupported configuration")
 
     mat = actx.from_numpy(np.random.randn(10, 10))
     res = actx.to_numpy(actx.einsum(spec, mat,
@@ -416,6 +422,9 @@ def test_array_context_einsum_array_manipulation(actx_factory, spec):
 ])
 def test_array_context_einsum_array_matmatprods(actx_factory, spec):
     actx = actx_factory()
+    from arraycontext.impl.pytato import PytatoArrayContext
+    if isinstance(actx, PytatoArrayContext):
+        pytest.skip("unsupported configuration")
 
     mat_a = actx.from_numpy(np.random.randn(5, 5))
     mat_b = actx.from_numpy(np.random.randn(5, 5))
@@ -430,6 +439,9 @@ def test_array_context_einsum_array_matmatprods(actx_factory, spec):
 ])
 def test_array_context_einsum_array_tripleprod(actx_factory, spec):
     actx = actx_factory()
+    from arraycontext.impl.pytato import PytatoArrayContext
+    if isinstance(actx, PytatoArrayContext):
+        pytest.skip("unsupported configuration")
 
     mat_a = actx.from_numpy(np.random.randn(7, 5))
     mat_b = actx.from_numpy(np.random.randn(5, 7))
@@ -482,6 +494,9 @@ def _get_test_containers(actx, ambient_dim=2):
 
 def test_container_multimap(actx_factory):
     actx = actx_factory()
+    from arraycontext.impl.pytato import PytatoArrayContext
+    if isinstance(actx, PytatoArrayContext):
+        pytest.skip("unsupported configuration")
     ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs = _get_test_containers(actx)
 
     # {{{ check
@@ -522,6 +537,9 @@ def test_container_multimap(actx_factory):
 
 def test_container_arithmetic(actx_factory):
     actx = actx_factory()
+    from arraycontext.impl.pytato import PytatoArrayContext
+    if isinstance(actx, PytatoArrayContext):
+        pytest.skip("unsupported configuration")
     ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs = _get_test_containers(actx)
 
     # {{{ check
