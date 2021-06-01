@@ -142,6 +142,7 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return obj_or_dof_array_vectorize_n_args(pt.minimum, x, y)
 
     def where(self, criterion, then, else_):
+        # FIXME: where() does not work
         import pytato as pt
         from meshmode.dof_array import obj_or_dof_array_vectorize_n_args
         return obj_or_dof_array_vectorize_n_args(pt.where, criterion, then, else_)
