@@ -114,6 +114,34 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         import pytato as pt
         return rec_multimap_array_container(pt.stack, arrays, axis)
 
+    # {{{ relational operators
+
+    def equal(self, x, y):
+        import pytato as pt
+        return rec_multimap_array_container(pt.equal, x, y)
+
+    def not_equal(self, x, y):
+        import pytato as pt
+        return rec_multimap_array_container(pt.not_equal, x, y)
+
+    def greater(self, x, y):
+        import pytato as pt
+        return rec_multimap_array_container(pt.greater, x, y)
+
+    def greater_equal(self, x, y):
+        import pytato as pt
+        return rec_multimap_array_container(pt.greater_equal, x, y)
+
+    def less(self, x, y):
+        import pytato as pt
+        return rec_multimap_array_container(pt.less, x, y)
+
+    def less_equal(self, x, y):
+        import pytato as pt
+        return rec_multimap_array_container(pt.less_equal, x, y)
+
+    # }}}
+
 
 class PytatoCompiledOperator:
     def __init__(self, actx, pytato_program, input_spec, output_spec):
