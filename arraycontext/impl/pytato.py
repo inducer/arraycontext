@@ -30,8 +30,8 @@ THE SOFTWARE.
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
 from arraycontext.context import ArrayContext
-from arraycontext.container.traversal import (rec_multimap_array_container,)
-                                              rec_map_array_container)
+from arraycontext.container.traversal import \
+        rec_multimap_array_container, rec_map_array_container
 import numpy as np
 from typing import Any, Callable, Tuple, Union, Sequence
 from pytools.tag import Tag
