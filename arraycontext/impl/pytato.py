@@ -121,7 +121,7 @@ class PytatoCompiledOperator:
     def __call__(self, *args):
         import pytato as pt
         import pyopencl.array as cla
-        from meshmode.dof_array import DOFArray
+        from arraycontext.impl import _is_meshmode_dofarray
         from pytools.obj_array import flat_obj_array
 
         updated_kwargs = {}
@@ -149,6 +149,7 @@ class PytatoCompiledOperator:
             return input_dict
 
         def from_return_dict_to_obj_array(return_dict):
+            from meshmode.dof_array import DOFArray
             return flat_obj_array([DOFArray.from_list(self.actx,
                 [self.actx.thaw(return_dict[f"_msh_out_{i}_{j}"])
                  for j in range(self.output_spec[i])])
@@ -163,7 +164,7 @@ class PytatoCompiledOperator:
 
                 updated_kwargs[arg_name] = cla.to_device(self.actx.queue,
                         np.array(arg))
-            elif isinstance(arg, np.ndarray) and all(isinstance(el, DOFArray)
+            elif isinstance(arg, np.ndarray) and all(_is_meshmode_dofarray(el)
                                                      for el in arg):
                 updated_kwargs.update(from_obj_array_to_input_dict(arg, iarg))
             else:
@@ -270,6 +271,7 @@ class PytatoArrayContext(ArrayContext):
     def compile(self, f: Callable[[Any], Any],
             inputs_like: Tuple[Union[Number, np.array], ...]) -> Callable[..., Any]:
         from pytools.obj_array import flat_obj_array
+        from arraycontext.impl import _is_meshmode_dofarray
         from meshmode.dof_array import DOFArray
         import pytato as pt
 
@@ -277,7 +279,7 @@ class PytatoArrayContext(ArrayContext):
             if isinstance(input_like, np.number):
                 return pt.make_placeholder(input_like.dtype,
                                            f"_msh_inp_{pos}")
-            elif isinstance(input_like, np.ndarray) and all(isinstance(e, DOFArray)
+            elif isinstance(input_like, np.ndarray) and all(_is_meshmode_dofarray(e)
                                                             for e in input_like):
                 return flat_obj_array([DOFArray.from_list(self,
                     [pt.make_placeholder(grp_ary.shape,
@@ -303,7 +305,7 @@ class PytatoArrayContext(ArrayContext):
                       for iel, el in enumerate(inputs_like)])
 
         if not (isinstance(outputs, np.ndarray)
-                and all(isinstance(e, DOFArray)
+                and all(_is_meshmode_dofarray(e)
                         for e in outputs)):
             raise TypeError("Can only pass in functions that return numpy"
                             " array of DOFArrays.")

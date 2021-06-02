@@ -21,3 +21,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
+
+def _is_meshmode_dofarray(x):
+    try:
+        from meshmode.dof_array import DOFArray
+    except ImportError:
+        return False
+    else:
+        return isinstance(x, DOFArray)
