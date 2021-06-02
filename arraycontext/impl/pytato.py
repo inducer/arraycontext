@@ -65,14 +65,6 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return super().__getattr__(name)
 
-    def exp(self, x):
-        import pytato as pt
-        return rec_map_array_container(pt.exp, x)
-
-    def sin(self, x):
-        import pytato as pt
-        return rec_map_array_container(pt.sin, x)
-
     def reshape(self, a, newshape):
         import pytato as pt
         return rec_multimap_array_container(pt.reshape, a, newshape)
