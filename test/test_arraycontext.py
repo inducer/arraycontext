@@ -677,6 +677,17 @@ def test_numpy_conversion(actx_factory):
 # }}}
 
 
+@pytest.mark.parametrize("norm_ord", [2, np.inf])
+def test_norm_complex(actx_factory, norm_ord):
+    actx = actx_factory()
+    a = np.random.randn(2000) + 1j * np.random.randn(2000)
+
+    norm_a_ref = np.linalg.norm(a, norm_ord)
+    norm_a = actx.np.linalg.norm(actx.from_numpy(a), norm_ord)
+
+    assert abs(norm_a_ref - norm_a)/norm_a < 1e-13
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
