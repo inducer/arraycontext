@@ -5,7 +5,7 @@ git+https://github.com/inducer/pymbolic.git#egg=pymbolic
 git+https://github.com/inducer/pyopencl.git#egg=pyopencl
 git+https://github.com/inducer/islpy.git#egg=islpy
 
-git+https://github.com/inducer/loopy.git#egg=loopy
+git+https://github.com/inducer/loopy@kernel_callables_v3-edit2.git#egg=loopy
 git+https://github.com/kaushikcfd/pytato.git@call_loopy#egg=pytato
 
 git+https://github.com/inducer/meshmode.git#egg=meshmode

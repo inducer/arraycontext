@@ -341,12 +341,12 @@ class PytatoArrayContext(ArrayContext):
                                       output_spec)
 
     def transform_loopy_program(self, prg):
-        from loopy.program import iterate_over_kernels_if_given_program
+        from loopy.translation_unit import for_each_kernel
 
         nwg = 48
         nwi = (16, 2)
 
-        @iterate_over_kernels_if_given_program
+        @for_each_kernel
         def gridify(knl):
             # {{{ Pattern matching inames
 
