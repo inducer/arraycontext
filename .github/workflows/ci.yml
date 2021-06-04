@@ -20,7 +20,7 @@ jobs:
                 python-version: '3.6'
         -   name: "Main Script"
             run: |
-                curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/main/prepare-and-run-flake8.sh
+                curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/prepare-and-run-flake8.sh
                 . ./prepare-and-run-flake8.sh "$(basename $GITHUB_REPOSITORY)" test examples
 
     pylint:
@@ -30,18 +30,8 @@ jobs:
         -   uses: actions/checkout@v2
         -   name: "Main Script"
             run: |
-                sudo apt update
-                sudo apt install octave openmpi-bin libopenmpi-dev libhdf5-dev
-
-                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
-                echo "- mpi4py" >> $CONDA_ENVIRONMENT
-                echo "- scipy" >> $CONDA_ENVIRONMENT
-                echo "-------------------------------------------"
-                cat $CONDA_ENVIRONMENT
-                echo "-------------------------------------------"
                 USE_CONDA_BUILD=1
-                curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
-
+                curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
                 . ./prepare-and-run-pylint.sh "$(basename $GITHUB_REPOSITORY)" examples/*.py test/test_*.py
 
     pytest3:
@@ -51,15 +41,10 @@ jobs:
         -   uses: actions/checkout@v2
         -   name: "Main Script"
             run: |
-                sudo apt update
-                sudo apt install octave openmpi-bin libopenmpi-dev libhdf5-dev
-
-                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
                 export MPLBACKEND=Agg
-                curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/main/ci-support.sh
+                curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/ci-support.sh
                 . ./ci-support.sh
                 build_py_project_in_conda_env
-                with_echo python -m pip install mpi4py
                 test_py_project
 
     examples3:
@@ -70,9 +55,8 @@ jobs:
         -   name: "Main Script"
             run: |
                 export MPLBACKEND=Agg
-                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
                 USE_CONDA_BUILD=1
-                curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
+                curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
                 . ./build-py-project-and-run-examples.sh
 
     docs:
@@ -86,8 +70,7 @@ jobs:
                 python-version: '3.x'
         -   name: "Main Script"
             run: |
-                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
-                curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/main/ci-support.sh
+                curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/ci-support.sh
                 . ci-support.sh
                 build_py_project_in_conda_env
                 conda install graphviz
@@ -99,7 +82,7 @@ jobs:
         strategy:
             matrix:
                 #downstream_project: [meshmode, grudge, pytential, mirgecom]
-                downstream_project: [meshmode]
+                downstream_project: [meshmode, grudge, mirgecom]
         name: Tests for downstream project ${{ matrix.downstream_project }}
         runs-on: ubuntu-latest
         steps:
@@ -117,9 +100,7 @@ jobs:
                 cd "$DOWNSTREAM_PROJECT"
                 echo "*** $DOWNSTREAM_PROJECT version: $(git rev-parse --short HEAD)"
 
-                sed -i "/egg=meshmode/ c git+file://$(readlink -f ..)#egg=meshmode" requirements.txt
-
-                export CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+                sed -i "/egg=arraycontext/ c git+file://$(readlink -f ..)#egg=arraycontext" requirements.txt
 
                 # Avoid slow or complicated tests in downstream projects
                 export PYTEST_ADDOPTS="-k 'not (slowtest or octave or mpi)'"
@@ -134,8 +115,8 @@ jobs:
                     sed -i "/mpi4py/ d" requirements.txt
                 fi
 
-                curl -L -O -k https://gitlab.tiker.net/inducer/ci-support/raw/main/ci-support.sh
-                . ./ci-support.sh
+                curl -L -O https://tiker.net/ci-support-v0
+                . ./ci-support-v0
                 build_py_project_in_conda_env
                 test_py_project
 
