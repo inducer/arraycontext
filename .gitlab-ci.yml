@@ -89,3 +89,15 @@ Pylint:
   - python3
   except:
   - tags
+
+Mypy:
+  script: |
+    curl -L -O https://tiker.net/ci-support-v0
+    . ./ci-support-v0
+    build_py_project_in_venv
+    python -m pip install mypy
+    python -m mypy "$CI_PROJECT_NAME" test
+  tags:
+  - python3
+  except:
+  - tags
