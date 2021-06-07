@@ -88,7 +88,7 @@ def _map_array_container_impl(
 
 
 def _multimap_array_container_impl(
-        f: Callable[..., ArrayContainerT],
+        f: Callable[..., Any],
         *args: Any,
         leaf_cls: Optional[type] = None,
         recursive: bool = False) -> ArrayContainerT:
@@ -203,7 +203,7 @@ def rec_map_array_container(
 
 
 def mapped_over_array_containers(
-        f: Callable[[ArrayContainerT], Any]) -> Callable[[ArrayContainerT], Any]:
+        f: Callable[[Any], Any]) -> Callable[[ArrayContainerT], ArrayContainerT]:
     """Decorator around :func:`rec_map_array_container`."""
     wrapper = partial(rec_map_array_container, f)
     update_wrapper(wrapper, f)

@@ -80,7 +80,7 @@ def dataclass_array_container(cls: type) -> type:
         from arraycontext import serialize_container, deserialize_container
 
         @serialize_container.register(cls)
-        def _serialize_{lower_cls_name}(ary: cls):
+        def _serialize_{lower_cls_name}(ary: cls) -> Iterable[Tuple[Any, Any]]:
             return ({serialize_expr},)
 
         @deserialize_container.register(cls)
