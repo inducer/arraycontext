@@ -425,5 +425,9 @@ class PytatoArrayContext(ArrayContext):
         # Sorry, not capable.
         return array
 
+    def einsum(self, spec, *args):
+        import pytato as pt
+        return pt.einsum(spec, *args)
+
 
 # }}}
