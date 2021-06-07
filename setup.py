@@ -44,6 +44,7 @@ def main():
             "loopy>=2019.1",
             "dataclasses; python_version<='3.6'",
         ],
+        package_data={"arraycontext": ["py.typed"]},
     )
 
 

@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 """
 .. currentmodule:: arraycontext
 .. autofunction:: with_container_arithmetic
@@ -29,11 +31,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import Any, Callable, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 
 
 # {{{ with_container_arithmetic
+
+T = TypeVar("T")
+
 
 class _OpClass(enum.Enum):
     ARITHMETIC = enum.auto
@@ -79,7 +85,7 @@ _BINARY_OP_AND_DUNDER = [
         ]
 
 
-def _format_unary_op_str(op_str, arg1):
+def _format_unary_op_str(op_str: str, arg1: Union[Tuple[str, ...], str]) -> str:
     if isinstance(arg1, tuple):
         arg1_entry, arg1_container = arg1
         return (f"{op_str.format(arg1_entry)} "
@@ -88,7 +94,9 @@ def _format_unary_op_str(op_str, arg1):
         return op_str.format(arg1)
 
 
-def _format_binary_op_str(op_str, arg1, arg2):
+def _format_binary_op_str(op_str: str,
+        arg1: Union[Tuple[str, ...], str],
+        arg2: Union[Tuple[str, ...], str]) -> str:
     if isinstance(arg1, tuple) and isinstance(arg2, tuple):
         import sys
         if sys.version_info >= (3, 10):
@@ -115,11 +123,18 @@ def _format_binary_op_str(op_str, arg1, arg2):
         return op_str.format(arg1, arg2)
 
 
-def with_container_arithmetic(*,
-        bcast_number=True, bcast_obj_array=None, bcast_numpy_array=False,
-        bcast_container_types=None,
-        arithmetic=True, matmul=False, bitwise=False, shift=False,
-        eq_comparison=None, rel_comparison=None):
+def with_container_arithmetic(
+        *,
+        bcast_number: bool = True,
+        bcast_obj_array: Optional[bool] = None,
+        bcast_numpy_array: bool = False,
+        bcast_container_types: Optional[Tuple[type, ...]] = None,
+        arithmetic: bool = True,
+        matmul: bool = False,
+        bitwise: bool = False,
+        shift: bool = False,
+        eq_comparison: Optional[bool] = None,
+        rel_comparison: Optional[bool] = None) -> Callable[[type], type]:
     """A class decorator that implements built-in operators for array containers
     by propagating the operations to the elements of the container.
 
@@ -188,17 +203,18 @@ def with_container_arithmetic(*,
         raise TypeError("bcast_obj_array must be set if bcast_numpy_array is")
 
     if bcast_numpy_array:
-        def numpy_pred(name):
+        def numpy_pred(name: str) -> str:
             return f"isinstance({name}, np.ndarray)"
     elif bcast_obj_array:
-        def numpy_pred(name):
+        def numpy_pred(name: str) -> str:
             return f"isinstance({name}, np.ndarray) and {name}.dtype.char == 'O'"
     else:
-        def numpy_pred(name):
+        def numpy_pred(name: str) -> str:
             return "False"  # optimized away
 
     if bcast_container_types is None:
         bcast_container_types = ()
+    bcast_container_types_count = len(bcast_container_types)
 
     if np.ndarray in bcast_container_types and bcast_obj_array:
         raise ValueError("If numpy.ndarray is part of bcast_container_types, "
@@ -220,7 +236,7 @@ def with_container_arithmetic(*,
 
     # }}}
 
-    def wrap(cls):
+    def wrap(cls: Any) -> Any:
         if (not hasattr(cls, "_serialize_init_arrays_code")
                 or not hasattr(cls, "_deserialize_init_arrays_code")):
             raise TypeError(f"class '{cls.__name__}' must provide serialization "
@@ -242,16 +258,17 @@ def with_container_arithmetic(*,
             for i, bct in enumerate(bcast_container_types):
                 gen(f"from {bct.__module__} import {bct.__qualname__} as _bctype{i}")
             gen("")
-        outer_bcast_type_names = [
-                f"_bctype{i}" for i in range(len(bcast_container_types))]
+        outer_bcast_type_names = tuple([
+                f"_bctype{i}" for i in range(bcast_container_types_count)
+                ])
         if bcast_number:
-            outer_bcast_type_names.append("Number")
+            outer_bcast_type_names += ("Number",)
 
-        def same_key(k1, k2):
+        def same_key(k1: T, k2: T) -> T:
             assert k1 == k2
             return k1
 
-        def tup_str(t):
+        def tup_str(t: Tuple[str, ...]) -> str:
             if not t:
                 return "()"
             else:
