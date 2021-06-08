@@ -144,6 +144,10 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         import pytato as pt
         return rec_multimap_array_container(pt.conj, x)
 
+    def arctan2(self, y, x):
+        import pytato as pt
+        return rec_multimap_array_container(pt.arctan2, y, x)
+
     # }}}
 
 
