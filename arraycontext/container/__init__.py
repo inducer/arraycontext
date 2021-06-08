@@ -1,6 +1,12 @@
+# mypy: disallow-untyped-defs
+
 """
 .. currentmodule:: arraycontext
 
+.. class:: ArrayContainerT
+    :canonical: arraycontext.container.ArrayContainerT
+
+    :class:`~typing.TypeVar` for array container-like objects.
 
 .. autoclass:: ArrayContainer
 
@@ -43,8 +49,10 @@ THE SOFTWARE.
 
 from functools import singledispatch
 from arraycontext.context import ArrayContext
-from typing import Any, Iterable, Tuple, Optional
+from typing import Any, Iterable, Tuple, TypeVar, Optional
 import numpy as np
+
+ArrayContainerT = TypeVar("ArrayContainerT")
 
 
 # {{{ ArrayContainer
@@ -111,7 +119,7 @@ def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
 
 
 @singledispatch
-def deserialize_container(template, iterable: Iterable[Tuple[Any, Any]]):
+def deserialize_container(template: Any, iterable: Iterable[Tuple[Any, Any]]) -> Any:
     """Deserialize an iterable into an array container.
 
     :param template: an instance of an existing object that
@@ -131,7 +139,7 @@ def is_array_container_type(cls: type) -> bool:
     return (
             cls is ArrayContainer
             or (serialize_container.dispatch(cls)
-                is not serialize_container.__wrapped__))
+                is not serialize_container.__wrapped__))    # type: ignore
 
 
 def is_array_container(ary: Any) -> bool:
@@ -140,11 +148,11 @@ def is_array_container(ary: Any) -> bool:
         :func:`serialize_container`.
     """
     return (serialize_container.dispatch(ary.__class__)
-            is not serialize_container.__wrapped__)
+            is not serialize_container.__wrapped__)         # type: ignore
 
 
 @singledispatch
-def get_container_context(ary: ArrayContainer) -> Optional["ArrayContext"]:
+def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
     """Retrieves the :class:`ArrayContext` from the container, if any.
 
     This function is not recursive, so it will only search at the root level
@@ -169,7 +177,8 @@ def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
 
 @deserialize_container.register(np.ndarray)
 def _deserialize_ndarray_container(
-        template: Any, iterable: Iterable[Tuple[Any, Any]]):
+        template: np.ndarray,
+        iterable: Iterable[Tuple[Any, Any]]) -> np.ndarray:
     # disallow subclasses
     assert type(template) is np.ndarray
     assert template.dtype.char == "O"
@@ -185,7 +194,7 @@ def _deserialize_ndarray_container(
 
 # {{{ get_container_context_recursively
 
-def get_container_context_recursively(ary) -> Optional["ArrayContext"]:
+def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 

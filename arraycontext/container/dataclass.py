@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 """
 .. currentmodule:: arraycontext
 .. autofunction:: dataclass_array_container
@@ -28,14 +30,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
 from dataclasses import fields
 from arraycontext.container import is_array_container_type
 
 
 # {{{ dataclass containers
 
-def dataclass_array_container(cls):
+def dataclass_array_container(cls: type) -> type:
     """A class decorator that makes the class to which it is applied a
     :class:`ArrayContainer` by registering appropriate implementations of
     :func:`serialize_container` and :func:`deserialize_container`.
@@ -79,7 +80,7 @@ def dataclass_array_container(cls):
         from arraycontext import serialize_container, deserialize_container
 
         @serialize_container.register(cls)
-        def _serialize_{lower_cls_name}(ary: cls):
+        def _serialize_{lower_cls_name}(ary: cls) -> Iterable[Tuple[Any, Any]]:
             return ({serialize_expr},)
 
         @deserialize_container.register(cls)

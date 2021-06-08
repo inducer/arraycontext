@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 """
 .. currentmodule:: arraycontext
 
@@ -46,18 +48,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable
+from typing import Any, Callable, List, Optional
 from functools import update_wrapper, partial, singledispatch
 
 import numpy as np
 
-from arraycontext.container import (is_array_container,
+from arraycontext.context import ArrayContext
+from arraycontext.container import (
+        ArrayContainerT, is_array_container,
         serialize_container, deserialize_container)
 
 
 # {{{ array container traversal
 
-def _map_array_container_impl(f, ary, *, leaf_cls=None, recursive=False):
+def _map_array_container_impl(
+        f: Callable[[Any], Any],
+        ary: ArrayContainerT, *,
+        leaf_cls: Optional[type] = None,
+        recursive: bool = False) -> ArrayContainerT:
     """Helper for :func:`rec_map_array_container`.
 
     :param leaf_cls: class on which we call *f* directly. This is mostly
@@ -65,7 +73,7 @@ def _map_array_container_impl(f, ary, *, leaf_cls=None, recursive=False):
         specific container classes. By default, the recursion is stopped when
         a non-:class:`ArrayContainer` class is encountered.
     """
-    def rec(_ary):
+    def rec(_ary: ArrayContainerT) -> ArrayContainerT:
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(_ary)
         elif is_array_container(_ary):
@@ -79,7 +87,11 @@ def _map_array_container_impl(f, ary, *, leaf_cls=None, recursive=False):
     return rec(ary)
 
 
-def _multimap_array_container_impl(f, *args, leaf_cls=None, recursive=False):
+def _multimap_array_container_impl(
+        f: Callable[..., Any],
+        *args: Any,
+        leaf_cls: Optional[type] = None,
+        recursive: bool = False) -> ArrayContainerT:
     """Helper for :func:`rec_multimap_array_container`.
 
     :param leaf_cls: class on which we call *f* directly. This is mostly
@@ -87,7 +99,7 @@ def _multimap_array_container_impl(f, *args, leaf_cls=None, recursive=False):
         specific container classes. By default, the recursion is stopped when
         a non-:class:`ArrayContainer` class is encountered.
     """
-    def rec(*_args):
+    def rec(*_args: Any) -> Any:
         template_ary = _args[container_indices[0]]
         assert all(
                 type(_args[i]) is type(template_ary) for i in container_indices[1:]
@@ -112,11 +124,11 @@ def _multimap_array_container_impl(f, *args, leaf_cls=None, recursive=False):
 
                 new_args[i] = subary
 
-            result.append((key, frec(*new_args)))
+            result.append((key, frec(*new_args)))       # type: ignore
 
         return deserialize_container(template_ary, result)
 
-    container_indices = [
+    container_indices: List[int] = [
             i for i, arg in enumerate(args)
             if is_array_container(arg) and type(arg) is not leaf_cls]
 
@@ -126,21 +138,24 @@ def _multimap_array_container_impl(f, *args, leaf_cls=None, recursive=False):
     if len(container_indices) == 1:
         # NOTE: if we just have one ArrayContainer in args, passing it through
         # _map_array_container_impl should be faster
-        def wrapper(ary):
+        def wrapper(ary: ArrayContainerT) -> ArrayContainerT:
             new_args = list(args)
             new_args[container_indices[0]] = ary
             return f(*new_args)
 
         update_wrapper(wrapper, f)
+        template_ary: ArrayContainerT = args[container_indices[0]]
         return _map_array_container_impl(
-                wrapper, args[container_indices[0]],
+                wrapper, template_ary,
                 leaf_cls=leaf_cls, recursive=recursive)
 
     frec = rec if recursive else f
     return rec(*args)
 
 
-def map_array_container(f: Callable[[Any], Any], ary):
+def map_array_container(
+        f: Callable[[Any], Any],
+        ary: ArrayContainerT) -> ArrayContainerT:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
 
     Works similarly to :func:`~pytools.obj_array.obj_array_vectorize`, but
@@ -159,7 +174,7 @@ def map_array_container(f: Callable[[Any], Any], ary):
         return f(ary)
 
 
-def multimap_array_container(f: Callable[[Any], Any], *args):
+def multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
     r"""Applies *f* to the components of multiple :class:`ArrayContainer`\ s.
 
     Works similarly to :func:`~pytools.obj_array.obj_array_vectorize_n_args`,
@@ -174,7 +189,9 @@ def multimap_array_container(f: Callable[[Any], Any], *args):
     return _multimap_array_container_impl(f, *args, recursive=False)
 
 
-def rec_map_array_container(f: Callable[[Any], Any], ary):
+def rec_map_array_container(
+        f: Callable[[Any], Any],
+        ary: ArrayContainerT) -> ArrayContainerT:
     r"""Applies *f* recursively to an :class:`ArrayContainer`.
 
     For a non-recursive version see :func:`map_array_container`.
@@ -185,14 +202,15 @@ def rec_map_array_container(f: Callable[[Any], Any], ary):
     return _map_array_container_impl(f, ary, recursive=True)
 
 
-def mapped_over_array_containers(f: Callable[[Any], Any]):
+def mapped_over_array_containers(
+        f: Callable[[Any], Any]) -> Callable[[ArrayContainerT], ArrayContainerT]:
     """Decorator around :func:`rec_map_array_container`."""
     wrapper = partial(rec_map_array_container, f)
     update_wrapper(wrapper, f)
     return wrapper
 
 
-def rec_multimap_array_container(f: Callable[[Any], Any], *args):
+def rec_multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
     r"""Applies *f* recursively to multiple :class:`ArrayContainer`\ s.
 
     For a non-recursive version see :func:`multimap_array_container`.
@@ -203,11 +221,12 @@ def rec_multimap_array_container(f: Callable[[Any], Any], *args):
     return _multimap_array_container_impl(f, *args, recursive=True)
 
 
-def multimapped_over_array_containers(f: Callable[[Any], Any]):
+def multimapped_over_array_containers(
+        f: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator around :func:`rec_multimap_array_container`."""
     # can't use functools.partial, because its result is insufficiently
     # function-y to be used as a method definition.
-    def wrapper(*args):
+    def wrapper(*args: Any) -> Any:
         return rec_multimap_array_container(f, *args)
 
     update_wrapper(wrapper, f)
@@ -219,7 +238,9 @@ def multimapped_over_array_containers(f: Callable[[Any], Any]):
 # {{{ freeze/thaw
 
 @singledispatch
-def freeze(ary, actx=None):
+def freeze(
+        ary: ArrayContainerT,
+        actx: Optional[ArrayContext] = None) -> ArrayContainerT:
     r"""Freezes recursively by going through all components of the
     :class:`ArrayContainer` *ary*.
 
@@ -243,7 +264,7 @@ def freeze(ary, actx=None):
 
 
 @singledispatch
-def thaw(ary, actx):
+def thaw(ary: ArrayContainerT, actx: ArrayContext) -> ArrayContainerT:
     r"""Thaws recursively by going through all components of the
     :class:`ArrayContainer` *ary*.
 
@@ -276,13 +297,13 @@ def thaw(ary, actx):
 
 # {{{ numpy conversion
 
-def from_numpy(ary, actx):
+def from_numpy(ary: Any, actx: ArrayContext) -> Any:
     """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
     to the base array type of :class:`~arraycontext.ArrayContext`.
 
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
-    def _from_numpy(subary):
+    def _from_numpy(subary: Any) -> Any:
         if isinstance(subary, np.ndarray) and subary.dtype != "O":
             return actx.from_numpy(subary)
         elif is_array_container(subary):
@@ -293,7 +314,7 @@ def from_numpy(ary, actx):
     return _from_numpy(ary)
 
 
-def to_numpy(ary, actx):
+def to_numpy(ary: Any, actx: ArrayContext) -> Any:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
     :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
 
