@@ -183,7 +183,11 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args):
     actx = actx_factory()
 
     ndofs = 5000
-    args = [np.random.randn(ndofs) for i in range(n_args)]
+    if sym_name == "conj":
+        args = [np.random.randn(ndofs) + np.random.randn(ndofs)*1j
+                    for i in range(n_args)]
+    else:
+        args = [np.random.randn(ndofs) for i in range(n_args)]
     assert_close_to_numpy_in_containers(
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
