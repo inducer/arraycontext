@@ -305,7 +305,7 @@ class PytatoArrayContext(ArrayContext):
     # }}}
 
     def compile(self, f: Callable[[Any], Any],
-            inputs_like: Tuple[Union[Number, np.array], ...]) -> Callable[..., Any]:
+            inputs_like: Tuple[Union[Number, np.ndarray], ...]) -> Callable[..., Any]:
         from pytools.obj_array import flat_obj_array
         from arraycontext.impl import _is_meshmode_dofarray
         from meshmode.dof_array import DOFArray
