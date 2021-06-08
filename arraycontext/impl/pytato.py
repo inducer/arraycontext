@@ -140,6 +140,10 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         import pytato as pt
         return rec_multimap_array_container(pt.less_equal, x, y)
 
+    def conj(self, x):
+        import pytato as pt
+        return rec_multimap_array_container(pt.conj, x)
+
     # }}}
 
 
