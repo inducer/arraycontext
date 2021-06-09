@@ -322,6 +322,25 @@ class ArrayContext(ABC):
             prg, **{arg_names[i]: arg for i, arg in enumerate(args)}
         )["out"]
 
+    @abstractmethod
+    def clone(self):
+        """If possible, return a version of *self* that is semantically
+        equivalent (i.e. implements all array operations in the same way)
+        but is a separate object. May return *self* if that is not possible.
+
+        .. note::
+
+            The main objective of this semi-documented method is to help
+            flag errors more clearly when array contexts are mixed that
+            shouldn't be. For example, at the time of this writing,
+            :class:`meshmode.meshmode.Discretization` objects have a private
+            array context that is only to be used only for setup-related tasks.
+            By using :meth:`clone` to make this a separate array context,
+            and by checking that arithmetic does not mix array contexts,
+            it becomes easier to detect and flag if unfrozen data attached to a
+            "setup-only" array context "leaks" into the application.
+        """
+
 # }}}
 
 # vim: foldmethod=marker
