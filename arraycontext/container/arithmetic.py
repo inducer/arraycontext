@@ -133,6 +133,7 @@ def with_container_arithmetic(
         matmul: bool = False,
         bitwise: bool = False,
         shift: bool = False,
+        _same_cls_check: Optional[str] = None,
         eq_comparison: Optional[bool] = None,
         rel_comparison: Optional[bool] = None) -> Callable[[type], type]:
     """A class decorator that implements built-in operators for array containers
@@ -160,6 +161,11 @@ def with_container_arithmetic(
     :arg rel_comparison: If *True*, implement ``<``, ``<=``, ``>``, ``>=``.
         In that case, if *eq_comparison* is unspecified, it is also set to
         *True*.
+    :arg _same_cls_check: A string of Python code operating on ``arg1`` and ``arg2``
+        to perform additional checks in the case where both arguments are of the
+        type of the decorated class.
+        Only inserted if :data:`__debug__` is *True*.
+        Consider this argument an unstable interface. It may disappear at any moment.
 
     Each operator class also includes the "reverse" operators if applicable.
 
@@ -245,7 +251,7 @@ def with_container_arithmetic(
                     "'_deserialize_init_arrays_code'. If this is a dataclass, "
                     "use the 'dataclass_array_container' decorator first.")
 
-        from pytools.codegen import CodeGenerator
+        from pytools.codegen import CodeGenerator, Indentation
         gen = CodeGenerator()
         gen("""
             from numbers import Number
@@ -317,20 +323,25 @@ def with_container_arithmetic(
                     cls._serialize_init_arrays_code("arg1").items()
                     })
 
-            gen(f"""
-                def {fname}(arg1, arg2):
-                    if arg2.__class__ is cls:
-                        return cls({zip_init_args})
-                    if {bool(outer_bcast_type_names)}:  # optimized away
-                        if isinstance(arg2, {tup_str(outer_bcast_type_names)}):
-                            return cls({bcast_init_args})
-                    if {numpy_pred("arg2")}:  # optimized away
-                        result = np.empty_like(arg2, dtype=object)
-                        for i in np.ndindex(arg2.shape):
-                            result[i] = {op_str.format("arg1", "arg2[i]")}
-                        return result
-                    return NotImplemented
-                cls.__{dunder_name}__ = {fname}""")
+            gen(f"def {fname}(arg1, arg2):")
+            with Indentation(gen):
+                gen("if arg2.__class__ is cls:")
+                with Indentation(gen):
+                    if __debug__ and _same_cls_check:
+                        gen(_same_cls_check)
+                    gen(f"return cls({zip_init_args})")
+                gen(f"""
+                if {bool(outer_bcast_type_names)}:  # optimized away
+                    if isinstance(arg2, {tup_str(outer_bcast_type_names)}):
+                        return cls({bcast_init_args})
+                if {numpy_pred("arg2")}:  # optimized away
+                    result = np.empty_like(arg2, dtype=object)
+                    for i in np.ndindex(arg2.shape):
+                        result[i] = {op_str.format("arg1", "arg2[i]")}
+                    return result
+                return NotImplemented
+                """)
+            gen(f"cls.__{dunder_name}__ = {fname}")
             gen("")
 
             # }}}
