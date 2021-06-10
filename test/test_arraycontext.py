@@ -47,11 +47,7 @@ logger = logging.getLogger(__name__)
         bcast_obj_array=True,
         bcast_numpy_array=True,
         rel_comparison=True,
-        _same_cls_check="""
-            if arg1.array_context is not arg2.array_context:
-                raise ValueError("both arguments must be associated with the "
-                    "same array context")
-        """)
+        _cls_has_array_context_attr=True)
 class DOFArray:
     def __init__(self, actx, data):
         if not (actx is None or isinstance(actx, ArrayContext)):

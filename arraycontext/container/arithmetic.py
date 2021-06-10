@@ -133,7 +133,7 @@ def with_container_arithmetic(
         matmul: bool = False,
         bitwise: bool = False,
         shift: bool = False,
-        _same_cls_check: Optional[str] = None,
+        _cls_has_array_context_attr: bool = False,
         eq_comparison: Optional[bool] = None,
         rel_comparison: Optional[bool] = None) -> Callable[[type], type]:
     """A class decorator that implements built-in operators for array containers
@@ -161,10 +161,10 @@ def with_container_arithmetic(
     :arg rel_comparison: If *True*, implement ``<``, ``<=``, ``>``, ``>=``.
         In that case, if *eq_comparison* is unspecified, it is also set to
         *True*.
-    :arg _same_cls_check: A string of Python code operating on ``arg1`` and ``arg2``
-        to perform additional checks in the case where both arguments are of the
-        type of the decorated class.
-        Only inserted if :data:`__debug__` is *True*.
+    :arg _cls_has_array_context_attr: A flag indicating whether the decorated
+        class has an ``array_context`` attribute. If so, and if :data:`__debug__`
+        is *True*, an additional check is performed in binary operators
+        to ensure that both containers use the same array context.
         Consider this argument an unstable interface. It may disappear at any moment.
 
     Each operator class also includes the "reverse" operators if applicable.
@@ -327,8 +327,11 @@ def with_container_arithmetic(
             with Indentation(gen):
                 gen("if arg2.__class__ is cls:")
                 with Indentation(gen):
-                    if __debug__ and _same_cls_check:
-                        gen(_same_cls_check)
+                    if __debug__ and _cls_has_array_context_attr:
+                        gen("""
+                            if arg1.array_context is not arg2.array_context:
+                                raise ValueError("array contexts of both arguments "
+                                    "must match")""")
                     gen(f"return cls({zip_init_args})")
                 gen(f"""
                 if {bool(outer_bcast_type_names)}:  # optimized away
