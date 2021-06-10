@@ -20,7 +20,9 @@ separate array in the desired state is returned.
 
 Freezing and thawing may be used to move arrays from one array context to another,
 as long as both array contexts use identical in-memory data representation.
-
+Otherwise, a common format must be agreed upon, for example using 
+:mod:`numpy` through :meth:`~arraycontext.ArrayContext.to_numpy` and
+:meth:`~arraycontext.ArrayContext.from_numpy`.
 Here are some rules of thumb to use when dealing with thawing and freezing:
 
 -   Any array that is stored for a long time needs to be frozen.
@@ -34,7 +36,7 @@ Here are some rules of thumb to use when dealing with thawing and freezing:
 -   Simply supplying thawed data suffices to provide an array context, using
     e.g.  :func:`~arraycontext.get_container_context` or
     :func:`~arraycontext.get_container_context_recursively`; the array context
-    need to be passed in as a separate function argument.
+    need not be passed in as a separate function argument.
 
 What does this mean concretely?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -54,7 +56,7 @@ actual array contexts:
     a dependent operation might begin computing before an input is fully
     available. (Since bugs of this nature would be very difficult to
     find, :class:`pyopencl.array.Array` and
-    :class:`~meshmode.dof_array.DOFArray` will not allow them.
+    :class:`~meshmode.dof_array.DOFArray` will not allow them.)
 
 -   For the lazily-evaluating array context based on :mod:`pytato`,
     "thawing" corresponds to the creation of a placeholder representing
@@ -332,9 +334,9 @@ class ArrayContext(ABC):
 
             The main objective of this semi-documented method is to help
             flag errors more clearly when array contexts are mixed that
-            shouldn't be. For example, at the time of this writing,
+            should not be. For example, at the time of this writing,
             :class:`meshmode.meshmode.Discretization` objects have a private
-            array context that is only to be used only for setup-related tasks.
+            array context that is only to be used for setup-related tasks.
             By using :meth:`clone` to make this a separate array context,
             and by checking that arithmetic does not mix array contexts,
             it becomes easier to detect and flag if unfrozen data attached to a
