@@ -604,7 +604,9 @@ def test_container_arithmetic(actx_factory):
     bcast_result = ary_dof + bcast_dc_of_dofs
     bcast_dc_of_dofs + ary_dof
 
-    assert actx.np.linalg.norm(bcast_result.mass - 2*ary_of_dofs) < 1e-8
+    res = bcast_result.mass - 2*ary_of_dofs
+
+    assert np.linalg.norm(actx.to_numpy(res[0][0]) < 1e-8)
 
     mock_gradient = MyContainerDOFBcast(
             name="yo",
@@ -615,7 +617,10 @@ def test_container_arithmetic(actx_factory):
     grad_matvec_result = mock_gradient @ ary_of_dofs
     assert isinstance(grad_matvec_result.mass, DOFArray)
     assert grad_matvec_result.momentum.shape == (3,)
-    assert actx.np.linalg.norm(grad_matvec_result.mass - 3*ary_of_dofs**2) < 1e-8
+
+    res = grad_matvec_result.mass - 3*ary_of_dofs**2
+
+    assert np.linalg.norm(actx.to_numpy(res[0][0]) < 1e-8)
 
     # }}}
 
