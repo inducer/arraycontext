@@ -196,6 +196,7 @@ class BaseFakeNumpyLinalgNamespace:
             ord = 2
 
         from arraycontext.impl import _is_meshmode_dofarray
+        from arraycontext.impl.pyopencl import _flatten_array
 
         if _is_meshmode_dofarray(ary):
             from warnings import warn
