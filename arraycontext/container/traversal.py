@@ -103,7 +103,7 @@ def _multimap_array_container_impl(
         template_ary = _args[container_indices[0]]
         assert all(
                 type(_args[i]) is type(template_ary) for i in container_indices[1:]
-                ), "expected type '{type(template_ary).__name__}'"
+                ), f"expected type '{type(template_ary).__name__}'"
 
         if (type(template_ary) is leaf_cls
                 or not is_array_container(template_ary)):
