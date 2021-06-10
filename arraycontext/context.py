@@ -20,7 +20,7 @@ separate array in the desired state is returned.
 
 Freezing and thawing may be used to move arrays from one array context to another,
 as long as both array contexts use identical in-memory data representation.
-Otherwise, a common format must be agreed upon, for example using 
+Otherwise, a common format must be agreed upon, for example using
 :mod:`numpy` through :meth:`~arraycontext.ArrayContext.to_numpy` and
 :meth:`~arraycontext.ArrayContext.from_numpy`.
 Here are some rules of thumb to use when dealing with thawing and freezing:
