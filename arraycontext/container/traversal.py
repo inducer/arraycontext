@@ -101,13 +101,13 @@ def _multimap_array_container_impl(
     """
     def rec(*_args: Any) -> Any:
         template_ary = _args[container_indices[0]]
-        assert all(
-                type(_args[i]) is type(template_ary) for i in container_indices[1:]
-                ), f"expected type '{type(template_ary).__name__}'"
-
         if (type(template_ary) is leaf_cls
                 or not is_array_container(template_ary)):
             return f(*_args)
+
+        assert all(
+                type(_args[i]) is type(template_ary) for i in container_indices[1:]
+                ), f"expected type '{type(template_ary).__name__}'"
 
         result = []
         new_args = list(_args)
