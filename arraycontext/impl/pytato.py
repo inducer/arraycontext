@@ -288,7 +288,7 @@ class PytatoArrayContext(ArrayContext):
         if isinstance(array, cla.Array):
             return array.with_queue(None)
         if not isinstance(array, pt.Array):
-            raise TypeError("PytatoArrayContext.freeze invoked with non-pt arrays")
+            raise TypeError(f"PytatoArrayContext.freeze invoked with non-pt array of type '{type(array)}'")
 
         prg = pt.generate_loopy(array, cl_device=self.queue.device)
         evt, (cl_array,) = prg(self.queue)
