@@ -1,7 +1,4 @@
 """
-An array context is an abstraction that helps you dispatch between multiple
-implementations of :mod:`numpy`-like :math:`n`-dimensional arrays.
-
 .. currentmodule:: arraycontext
 .. autoclass:: ArrayContext
 """
