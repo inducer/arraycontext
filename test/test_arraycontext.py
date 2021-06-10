@@ -535,8 +535,8 @@ def test_container_multimap(actx_factory):
 
     # {{{ check
 
-    def _check_allclose(f, arg1, arg2, atol=1.0e-14):
-        assert np.linalg.norm((f(arg1) - arg2).get()) < atol
+    def _check_allclose(f, arg1, arg2, atol=2.0e-14):
+        assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
 
     def func_all_scalar(x, y):
         return x + y
@@ -576,8 +576,8 @@ def test_container_arithmetic(actx_factory):
 
     # {{{ check
 
-    def _check_allclose(f, arg1, arg2, atol=1.0e-14):
-        assert np.linalg.norm((f(arg1) - arg2).get()) < atol
+    def _check_allclose(f, arg1, arg2, atol=5.0e-14):
+        assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
 
     from functools import partial
     from arraycontext import rec_multimap_array_container
