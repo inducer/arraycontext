@@ -407,8 +407,9 @@ def test_dof_array_reductions_same_as_numpy(actx_factory):
         ary = np.random.randn(3000)
         np_red = getattr(np, name)(ary)
         actx_red = getattr(actx.np, name)(actx.from_numpy(ary))
+        if not np.isscalar(actx_red):
+            actx_red = actx.to_numpy(actx_red)
 
-        assert isinstance(actx_red, Number)
         assert np.allclose(np_red, actx_red)
 
 # }}}
