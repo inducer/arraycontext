@@ -402,7 +402,6 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
 def test_dof_array_reductions_same_as_numpy(actx_factory):
     actx = actx_factory()
 
-    from numbers import Number
     for name in ["sum", "min", "max"]:
         ary = np.random.randn(3000)
         np_red = getattr(np, name)(ary)
