@@ -708,6 +708,9 @@ def test_norm_complex(actx_factory, norm_ord):
     norm_a_ref = np.linalg.norm(a, norm_ord)
     norm_a = actx.np.linalg.norm(actx.from_numpy(a), norm_ord)
 
+    if not np.isscalar(norm_a):
+        norm_a = actx.to_numpy(norm_a)
+
     assert abs(norm_a_ref - norm_a)/norm_a < 1e-13
 
 
