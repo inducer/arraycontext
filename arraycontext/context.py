@@ -59,10 +59,12 @@ actual array contexts:
     :class:`~meshmode.dof_array.DOFArray` will not allow them.)
 
 -   For the lazily-evaluating array context based on :mod:`pytato`,
-    "thawing" corresponds to the creation of a placeholder representing
-    an array of data that can then be used in computation, and "freezing"
+    "thawing" corresponds to the creation of a symbolic "handle"
+    (specifically, a :class:`pytato.array.DataWrapper`) representing
+    the array that can then be used in computation, and "freezing"
     corresponds to triggering (code generation and) evaluation of
-    an array expression that has been built up by the user.
+    an array expression that has been built up by the user
+    (using, e.g. :func:`pytato.generate_loopy`).
 
 The interface of an array context
 ---------------------------------
