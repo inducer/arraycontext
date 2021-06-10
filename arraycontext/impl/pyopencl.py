@@ -164,28 +164,7 @@ def _flatten_array(ary):
 
 
 class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
-    def norm(self, ary, ord=None):
-        if ord is None:
-            ord = 2
-
-        from arraycontext.impl import _is_meshmode_dofarray
-
-        if _is_meshmode_dofarray(ary):
-            from warnings import warn
-            warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
-                    "(DOFArrays use 2D arrays internally, and "
-                    "actx.np.linalg.norm should compute matrix norms of those.) "
-                    "This will stop working in 2022. "
-                    "Use meshmode.dof_array.flat_norm instead.",
-                    DeprecationWarning, stacklevel=2)
-
-            import numpy.linalg as la
-            return la.norm(
-                    [self.norm(_flatten_array(subary), ord=ord)
-                        for _, subary in serialize_container(ary)],
-                    ord=ord)
-
-        return super().norm(ary, ord)
+    pass
 
 # }}}
 
