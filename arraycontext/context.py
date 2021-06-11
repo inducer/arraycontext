@@ -1,4 +1,5 @@
 """
+.. _freeze-thaw:
 Freezing and thawing
 --------------------
 
@@ -20,6 +21,8 @@ as long as both array contexts use identical in-memory data representation.
 Otherwise, a common format must be agreed upon, for example using
 :mod:`numpy` through :meth:`~arraycontext.ArrayContext.to_numpy` and
 :meth:`~arraycontext.ArrayContext.from_numpy`.
+
+.. _freeze-thaw-guidelines:
 Usage guidelines
 ^^^^^^^^^^^^^^^^
 Here are some rules of thumb to use when dealing with thawing and freezing:
@@ -29,13 +32,13 @@ Here are some rules of thumb to use when dealing with thawing and freezing:
     of long-lived data that should be frozen.
 
 -   Within a function, if the user did not supply an array context,
-    then any data returned to the user should be frozen. Note that, array contexts
-    need not necessarily be a separate argument.
+    then any data returned to the user should be frozen.
 
--   Simply supplying thawed data suffices to provide an array context, using
-    e.g.  :func:`~arraycontext.get_container_context` or
-    :func:`~arraycontext.get_container_context_recursively`; the array context
-    need not be passed in as a separate function argument.
+-   Note that array contexts need not necessarily be passed as a separate
+    argument. Passing thawed data as an argument to a function suffices
+    to supply an array context. The array context can be extracted from
+    a thawed argument using, e.g., :func:`~arraycontext.get_container_context`
+    or :func:`~arraycontext.get_container_context_recursively`.
 
 What does this mean concretely?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
