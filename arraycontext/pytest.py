@@ -115,6 +115,14 @@ def pytest_generate_tests_for_array_contexts(metafunc) -> None:
 
     metafunc.parametrize(arg_names, arg_values_out, ids=ids)
 
+
+def pytest_generate_tests_for_pyopencl_array_context(metafunc) -> None:
+    from warnings import warn
+    warn("'pytato.pytest_generate_tests_for_pyopencl_array_context' "
+         "is deprecated, use 'pytato.pytest_generate_tests_for_array_contexts' "
+         "instead.", DeprecationWarning)
+    pytest_generate_tests_for_array_contexts(metafunc)
+
 # }}}
 
 
