@@ -246,6 +246,9 @@ class PytatoArrayContext(ArrayContext):
 
     # {{{ ArrayContext interface
 
+    def clone(self):
+        return type(self)(self.queue, self.allocator)
+
     def empty(self, shape, dtype):
         raise ValueError("PytatoArrayContext does not support empty")
 
