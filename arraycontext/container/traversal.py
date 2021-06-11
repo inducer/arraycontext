@@ -255,7 +255,7 @@ def keyed_map_array_container(
 
 
 def _keyed_map_array_container_impl(
-        f: Callable[[Any], Any],
+        f: Callable[[Tuple[Union[str, int], ...], Any], Any],
         ary: ArrayContainerT, *,
         leaf_cls: Optional[type] = None,
         recursive: bool = False) -> ArrayContainerT:
