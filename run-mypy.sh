@@ -1,3 +1,3 @@
 #!/bin/bash
 
-mypy arraycontext/ examples/ test/
+python -m mypy arraycontext/ examples/ test/
