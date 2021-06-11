@@ -50,7 +50,7 @@ actual array contexts:
 -   Each :class:`~arraycontext.PyOpenCLArrayContext` is associated with a
     :class:`pyopencl.CommandQueue`. In order to operate on array data,
     such a command queue is necessary; it is the main means of synchronization
-    structure between the host program and the compute device. "Thawing" here
+    between the host program and the compute device. "Thawing" here
     means associating an array with a command queue, and "freezing" means
     ensuring that the array data is fully computed in memory and
     decoupling the array from the command queue. It is not valid to "mix"
