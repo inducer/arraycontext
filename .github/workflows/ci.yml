@@ -49,7 +49,7 @@ jobs:
                 . ./ci-support-v0
                 build_py_project_in_conda_env
                 python -m pip install mypy
-                python -m mypy "$(basename $GITHUB_REPOSITORY)" test
+                ./run-mypy.sh
 
     pytest3:
         name: Pytest Conda Py3
