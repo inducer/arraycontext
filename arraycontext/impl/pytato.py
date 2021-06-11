@@ -250,10 +250,6 @@ class PytatoArrayContext(ArrayContext):
     def empty(self, shape, dtype):
         raise ValueError("PytatoArrayContext does not support empty")
 
-    def symbolic_array_var(self, shape, dtype, name=None):
-        import pytato as pt
-        return pt.make_placeholder(shape=shape, dtype=dtype, name=name)
-
     def zeros(self, shape, dtype):
         import pytato as pt
         return pt.zeros(shape, dtype)
