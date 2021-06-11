@@ -20,6 +20,8 @@ as long as both array contexts use identical in-memory data representation.
 Otherwise, a common format must be agreed upon, for example using
 :mod:`numpy` through :meth:`~arraycontext.ArrayContext.to_numpy` and
 :meth:`~arraycontext.ArrayContext.from_numpy`.
+Usage guidelines
+^^^^^^^^^^^^^^^^
 Here are some rules of thumb to use when dealing with thawing and freezing:
 
 -   Any array that is stored for a long time needs to be frozen.
