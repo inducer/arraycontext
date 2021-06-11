@@ -330,8 +330,18 @@ def with_container_arithmetic(
                     if __debug__ and _cls_has_array_context_attr:
                         gen("""
                             if arg1.array_context is not arg2.array_context:
-                                raise ValueError("array contexts of both arguments "
-                                    "must match")""")
+                                msg = ("array contexts of both arguments "
+                                    "must match")
+                                if arg1.array_context is None:
+                                    raise ValueError(msg
+                                        + ": left operand is frozen "
+                                        "(i.e. has no array context)")
+                                elif arg2.array_context is None:
+                                    raise ValueError(msg
+                                        + ": right operand is frozen "
+                                        "(i.e. has no array context)")
+                                else:
+                                    raise ValueError(msg)""")
                     gen(f"return cls({zip_init_args})")
                 gen(f"""
                 if {bool(outer_bcast_type_names)}:  # optimized away

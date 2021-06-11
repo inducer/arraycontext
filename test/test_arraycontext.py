@@ -654,6 +654,12 @@ def test_container_freeze_thaw(actx_factory):
 
     actx2 = actx.clone()
 
+    ary_dof_frozen = freeze(ary_dof)
+    with pytest.raises(ValueError) as exc_info:
+        ary_dof + ary_dof_frozen
+
+    assert "frozen" in str(exc_info.value)
+
     ary_dof_2 = thaw(freeze(ary_dof), actx2)
 
     with pytest.raises(ValueError):
