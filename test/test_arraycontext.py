@@ -46,7 +46,8 @@ logger = logging.getLogger(__name__)
 @with_container_arithmetic(
         bcast_obj_array=True,
         bcast_numpy_array=True,
-        rel_comparison=True)
+        rel_comparison=True,
+        _cls_has_array_context_attr=True)
 class DOFArray:
     def __init__(self, actx, data):
         if not (actx is None or isinstance(actx, ArrayContext)):
@@ -650,6 +651,13 @@ def test_container_freeze_thaw(actx_factory):
 
         assert get_container_context_recursively(frozen_ary) is None
         assert get_container_context_recursively(thawed_ary) is actx
+
+    actx2 = actx.clone()
+
+    ary_dof_2 = thaw(freeze(ary_dof), actx2)
+
+    with pytest.raises(ValueError):
+        ary_dof + ary_dof_2
 
     # }}}
 

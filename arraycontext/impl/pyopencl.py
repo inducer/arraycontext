@@ -341,6 +341,9 @@ class PyOpenCLArrayContext(ArrayContext):
         # Sorry, not capable.
         return array
 
+    def clone(self):
+        return type(self)(self.queue, self.allocator, self._wait_event_queue_length)
+
 # }}}
 
 # vim: foldmethod=marker
