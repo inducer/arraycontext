@@ -1,5 +1,6 @@
 """
 .. _freeze-thaw:
+
 Freezing and thawing
 --------------------
 
@@ -23,6 +24,7 @@ Otherwise, a common format must be agreed upon, for example using
 :meth:`~arraycontext.ArrayContext.from_numpy`.
 
 .. _freeze-thaw-guidelines:
+
 Usage guidelines
 ^^^^^^^^^^^^^^^^
 Here are some rules of thumb to use when dealing with thawing and freezing:
