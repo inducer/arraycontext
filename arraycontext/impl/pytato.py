@@ -319,7 +319,7 @@ class PytatoArrayContext(ArrayContext):
 
         def make_placeholder_like(input_like, pos):
             if isinstance(input_like, np.number):
-                return pt.make_placeholder(input_like.dtype,
+                return pt.make_placeholder((), input_like.dtype,
                                            f"_msh_inp_{pos}")
             elif isinstance(input_like, np.ndarray) and all(_is_meshmode_dofarray(e)
                                                             for e in input_like):
