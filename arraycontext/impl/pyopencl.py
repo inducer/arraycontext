@@ -26,9 +26,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Callable, Any, Tuple
 from functools import partial
 import operator
+from numbers import Number
 
 import numpy as np
 
@@ -324,10 +325,9 @@ class PyOpenCLArrayContext(ArrayContext):
             if "i1" in all_inames:
                 inner_iname = "i1"
         else:
-            raise RuntimeError(
-                "Unable to reason what outer_iname and inner_iname "
-                f"needs to be; all_inames is given as: {all_inames}"
-            )
+            # cannot "fit" the optimization strategy for the provided kernel
+            # => bail
+            return t_unit
 
         if inner_iname is not None:
             t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")
@@ -343,6 +343,11 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def clone(self):
         return type(self)(self.queue, self.allocator, self._wait_event_queue_length)
+
+    def compile(self, f: Callable[[Any], Any],
+            inputs_like: Tuple[Union[Number, np.ndarray], ...]) -> Callable[
+                ..., Any]:
+        return f
 
 # }}}
 
