@@ -232,8 +232,6 @@ class PytatoArrayContext(ArrayContext):
 
         A :class:`pyopencl.CommandQueue`.
     """
-    import pytato as pt
-    _array_type_ = pt.Array
 
     def __init__(self, queue, allocator=None):
         super().__init__()
