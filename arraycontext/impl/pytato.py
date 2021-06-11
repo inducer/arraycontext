@@ -189,7 +189,7 @@ class PytatoCompiledOperator:
             return input_dict
 
         def from_return_dict_to_obj_array(return_dict):
-            from meshmode.dof_array import DOFArray
+            from meshmode.dof_array import DOFArray  # pylint: disable=import-error
             return flat_obj_array([DOFArray.from_list(self.actx,
                 [self.actx.thaw(return_dict[f"_msh_out_{i}_{j}"])
                  for j in range(self.output_spec[i])])
@@ -315,7 +315,7 @@ class PytatoArrayContext(ArrayContext):
                 ..., Any]:
         from pytools.obj_array import flat_obj_array
         from arraycontext.impl import _is_meshmode_dofarray
-        from meshmode.dof_array import DOFArray
+        from meshmode.dof_array import DOFArray  # pylint: disable=import-error
         import pytato as pt
 
         def make_placeholder_like(input_like, pos):
