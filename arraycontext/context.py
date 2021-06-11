@@ -1,4 +1,78 @@
 """
+.. _freeze-thaw:
+
+Freezing and thawing
+--------------------
+
+One of the central concepts introduced by the array context formalism is
+the notion of :meth:`~arraycontext.ArrayContext.freeze` and
+:meth:`~arraycontext.ArrayContext.thaw`. Each array handled by the array context
+is either "thawed" or "frozen". Unlike the real-world concept of freezing and
+thawing, these operations leave the original array alone; instead, a semantically
+separate array in the desired state is returned.
+
+*   "Thawed" arrays are associated with an array context. They use that context
+    to carry out operations (arithmetic, function calls).
+
+*   "Frozen" arrays are static data. They are not associated with an array context,
+    and no operations can be performed on them.
+
+Freezing and thawing may be used to move arrays from one array context to another,
+as long as both array contexts use identical in-memory data representation.
+Otherwise, a common format must be agreed upon, for example using
+:mod:`numpy` through :meth:`~arraycontext.ArrayContext.to_numpy` and
+:meth:`~arraycontext.ArrayContext.from_numpy`.
+
+.. _freeze-thaw-guidelines:
+
+Usage guidelines
+^^^^^^^^^^^^^^^^
+Here are some rules of thumb to use when dealing with thawing and freezing:
+
+-   Any array that is stored for a long time needs to be frozen.
+    "Memoized" data (cf. :func:`pytools.memoize` and friends) is a good example
+    of long-lived data that should be frozen.
+
+-   Within a function, if the user did not supply an array context,
+    then any data returned to the user should be frozen.
+
+-   Note that array contexts need not necessarily be passed as a separate
+    argument. Passing thawed data as an argument to a function suffices
+    to supply an array context. The array context can be extracted from
+    a thawed argument using, e.g., :func:`~arraycontext.get_container_context`
+    or :func:`~arraycontext.get_container_context_recursively`.
+
+What does this mean concretely?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Freezing and thawing are abstract names for concrete operations. It may be helpful
+to understand what these operations mean in the concrete case of various
+actual array contexts:
+
+-   Each :class:`~arraycontext.PyOpenCLArrayContext` is associated with a
+    :class:`pyopencl.CommandQueue`. In order to operate on array data,
+    such a command queue is necessary; it is the main means of synchronization
+    between the host program and the compute device. "Thawing" here
+    means associating an array with a command queue, and "freezing" means
+    ensuring that the array data is fully computed in memory and
+    decoupling the array from the command queue. It is not valid to "mix"
+    arrays associated with multiple queues within an operation: if it were allowed,
+    a dependent operation might begin computing before an input is fully
+    available. (Since bugs of this nature would be very difficult to
+    find, :class:`pyopencl.array.Array` and
+    :class:`~meshmode.dof_array.DOFArray` will not allow them.)
+
+-   For the lazily-evaluating array context based on :mod:`pytato`,
+    "thawing" corresponds to the creation of a symbolic "handle"
+    (specifically, a :class:`pytato.array.DataWrapper`) representing
+    the array that can then be used in computation, and "freezing"
+    corresponds to triggering (code generation and) evaluation of
+    an array expression that has been built up by the user
+    (using, e.g. :func:`pytato.generate_loopy`).
+
+The interface of an array context
+---------------------------------
+
 .. currentmodule:: arraycontext
 .. autoclass:: ArrayContext
 """
@@ -255,6 +329,25 @@ class ArrayContext(ABC):
         return self.call_loopy(
             prg, **{arg_names[i]: arg for i, arg in enumerate(args)}
         )["out"]
+
+    @abstractmethod
+    def clone(self):
+        """If possible, return a version of *self* that is semantically
+        equivalent (i.e. implements all array operations in the same way)
+        but is a separate object. May return *self* if that is not possible.
+
+        .. note::
+
+            The main objective of this semi-documented method is to help
+            flag errors more clearly when array contexts are mixed that
+            should not be. For example, at the time of this writing,
+            :class:`meshmode.meshmode.Discretization` objects have a private
+            array context that is only to be used for setup-related tasks.
+            By using :meth:`clone` to make this a separate array context,
+            and by checking that arithmetic does not mix array contexts,
+            it becomes easier to detect and flag if unfrozen data attached to a
+            "setup-only" array context "leaks" into the application.
+        """
 
 # }}}
 
