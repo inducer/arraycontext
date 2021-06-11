@@ -51,7 +51,6 @@ def make_loopy_program(domains, statements, kernel_data=None,
             statements,
             kernel_data=kernel_data,
             options=_DEFAULT_LOOPY_OPTIONS,
-            default_offset=lp.auto,
             name=name,
             lang_version=MOST_RECENT_LANGUAGE_VERSION)
 
