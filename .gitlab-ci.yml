@@ -96,7 +96,7 @@ Mypy:
     . ./ci-support-v0
     build_py_project_in_venv
     python -m pip install mypy
-    python -m mypy "$CI_PROJECT_NAME" test
+    ./run-mypy.sh
   tags:
   - python3
   except:
