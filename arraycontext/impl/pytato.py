@@ -421,9 +421,23 @@ class PytatoArrayContext(ArrayContext):
         # Sorry, not capable.
         return array
 
-    def einsum(self, spec, *args, tagged=()):
+    def einsum(self, spec, *args, arg_names=None, tagged=()):
+        if arg_names is not None:
+            from warnings import warn
+            warn("'arg_names' don't bear any significance in PytatoArrayContext.",
+                 stacklevel=2)
+
         import pytato as pt
-        return pt.einsum(spec, *args)
+        import pyopencl.array as cla
+
+        def preprocess_arg(arg):
+            if isinstance(arg, cla.Array):
+                return self.thaw(arg)
+            else:
+                assert isinstance(arg, pt.Array)
+                return arg
+
+        return pt.einsum(spec, *(preprocess_arg(arg) for arg in args))
 
 
 # }}}
