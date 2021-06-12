@@ -271,8 +271,17 @@ def _keyed_map_array_container_impl(
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(keys, _ary)
         elif is_array_container(_ary):
+            def _tuple_if_not_tuple(x):
+                if not isinstance(x, tuple):
+                    assert isinstance(x, (str, int))
+                    return x,
+                else:
+                    assert all(isinstance(el, (str, int))
+                               for el in x)
+                    return x
+
             return deserialize_container(_ary, [
-                    (key, frec(keys+(key,), subary))
+                    (key, frec(keys+_tuple_if_not_tuple(key), subary))
                     for key, subary in serialize_container(_ary)
                     ])
         else:
