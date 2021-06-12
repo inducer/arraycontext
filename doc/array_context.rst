@@ -15,6 +15,6 @@ Array context based on :mod:`pyopencl.array`
 
 
 Array context based on :mod:`pytato`
---------------------------------------------
+------------------------------------
 
 .. automodule:: arraycontext.impl.pytato

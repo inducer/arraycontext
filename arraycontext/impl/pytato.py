@@ -224,13 +224,14 @@ class PytatoArrayContext(ArrayContext):
     A :class:`ArrayContext` that uses :mod:`pytato` data types to represent
     the DOF arrays targeting OpenCL for offloading operations.
 
-    .. attribute:: context
-
-        A :class:`pyopencl.Context`.
-
     .. attribute:: queue
 
         A :class:`pyopencl.CommandQueue`.
+
+    .. attribute:: allocator
+
+        A :mod:`pyopencl` memory allocator. Can also be None (default) or False
+        to use the default allocator.
     """
 
     def __init__(self, queue, allocator=None):

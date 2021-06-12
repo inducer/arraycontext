@@ -26,10 +26,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Sequence, Union, Callable, Any, Tuple
+from typing import Sequence, Union
 from functools import partial
 import operator
-from numbers import Number
 
 import numpy as np
 
@@ -343,11 +342,6 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def clone(self):
         return type(self)(self.queue, self.allocator, self._wait_event_queue_length)
-
-    def compile(self, f: Callable[[Any], Any],
-            inputs_like: Tuple[Union[Number, np.ndarray], ...]) -> Callable[
-                ..., Any]:
-        return f
 
 # }}}
 

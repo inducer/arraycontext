@@ -102,12 +102,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Callable, Any, Tuple
 from abc import ABC, abstractmethod
 
 import numpy as np
 from pytools import memoize_method
 from pytools.tag import Tag
+from numbers import Number
 
 
 # {{{ ArrayContext
@@ -148,6 +149,7 @@ class ArrayContext(ABC):
     .. automethod:: thaw
     .. automethod:: tag
     .. automethod:: tag_axis
+    .. automethod:: compile
     """
 
     def __init__(self):
@@ -348,6 +350,19 @@ class ArrayContext(ABC):
             it becomes easier to detect and flag if unfrozen data attached to a
             "setup-only" array context "leaks" into the application.
         """
+
+    def compile(self, f: Callable[[Any], Any],
+            inputs_like: Tuple[Union[Number, np.ndarray], ...]) -> Callable[
+                ..., Any]:
+        """Compiles a function for use on this array context. Might perform some
+        optimizations (such as kernel fusion) during compilation.
+
+        :arg f: the function to compile.
+        :arg inputs_like: the input arguments to the function.
+
+        :return: the compiled function.
+        """
+        return f
 
 # }}}
 
