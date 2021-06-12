@@ -238,7 +238,7 @@ def keyed_map_array_container(
         ary: ArrayContainerT) -> ArrayContainerT:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
 
-    Works similar to :func:`map_array_container`, but *f* also takes an
+    Works similarly to :func:`map_array_container`, but *f* also takes an
     identifier of the array in the container *ary*.
 
     For a recursive version, see :func:`rec_keyed_map_array_container`.
@@ -286,7 +286,7 @@ def rec_keyed_map_array_container(
         f: Callable[[Tuple[Union[str, int], ...], Any], Any],
         ary: ArrayContainerT) -> ArrayContainerT:
     """
-    Works similar to :func:`rec_map_array_container`, except that *f* also
+    Works similarly to :func:`rec_map_array_container`, except that *f* also
     takes in a traversal path to the leaf array. The traversal path argument is
     passed in as a tuple of identifiers of the arrays traversed before reaching
     the current array.
