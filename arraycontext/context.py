@@ -195,7 +195,7 @@ class ArrayContext(ABC):
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.
 
-        *program* is a :class:`loopy.LoopKernel` or :class:`loopy.LoopKernel`.
+        *program* is a :class:`loopy.LoopKernel` or :class:`loopy.TranslationUnit`.
         It is expected to not yet be transformed for execution speed.
         It must have :attr:`loopy.Options.return_dict` set.
 
