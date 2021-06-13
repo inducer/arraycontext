@@ -271,7 +271,7 @@ def _keyed_map_array_container_impl(
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(keys, _ary)
         elif is_array_container(_ary):
-            def _tuple_if_not_tuple(x: Any) -> tuple:
+            def _tuple_if_not_tuple(x: Any) -> Tuple[Union[str, int], ...]:
                 if not isinstance(x, tuple):
                     assert isinstance(x, (str, int))
                     return x,
