@@ -253,7 +253,7 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
         return ary.real
 
     def get_imag(ary):
-        return ary.real  # FIXME?
+        return ary.imag
 
     import operator
     from pytools import generate_nonnegative_integer_tuples_below as gnitb
@@ -295,9 +295,8 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
             (operator.neg, 1, False),
             (operator.abs, 1, False),
 
-            # Not supported in pytato:
-            # (get_real, 1, False),
-            # (get_imag, 1, False),
+            (get_real, 1, False),
+            (get_imag, 1, False),
             ]:
         for is_array_flags in gnitb(2, n_args):
             if sum(is_array_flags) == 0:
@@ -322,10 +321,6 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
                 op_func_actx = actx.np.equal
             elif op_func == operator.ne:
                 op_func_actx = actx.np.not_equal
-            elif op_func == get_real:
-                op_func_actx = actx.np.real
-            elif op_func == get_imag:
-                op_func_actx = actx.imag
             else:
                 op_func_actx = op_func
 
