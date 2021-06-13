@@ -119,6 +119,8 @@ jobs:
 
                 sed -i "/egg=arraycontext/ c git+file://$(readlink -f ..)#egg=arraycontext" requirements.txt
 
+                echo "git+https://github.com/inducer/pytato.git#egg=pytato" >> requirements.txt
+
                 # Avoid slow or complicated tests in downstream projects
                 export PYTEST_ADDOPTS="-k 'not (slowtest or octave or mpi)'"
 
