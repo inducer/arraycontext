@@ -1,6 +1,8 @@
 """
 .. autoclass:: CommonSubexpressionTag
 .. autoclass:: FirstAxisIsElementsTag
+.. autoclass:: ElementInameTag
+.. autoclass:: DOFInameTag
 """
 
 __copyright__ = """
@@ -39,11 +41,24 @@ class CommonSubexpressionTag(Tag):
     """
 
 
+# FIXME: These should probably move to meshmode at some point
 class FirstAxisIsElementsTag(Tag):
     """A tag that is applicable to array outputs indicating that the
     first index corresponds to element indices. This suggests that
     the implementation should set element indices as the outermost
     loop extent.
+    """
+
+
+class ElementInameTag(Tag):
+    """A tag applicable to an iname indicating that this iname is used to
+    iterate over elements in a discretization.
+    """
+
+
+class DOFInameTag(Tag):
+    """A tag applicable to an iname indicating that this iname is used to
+    iterate over degrees of freedom within an element in a discretization.
     """
 
 # }}}

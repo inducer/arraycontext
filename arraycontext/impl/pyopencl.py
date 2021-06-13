@@ -347,11 +347,29 @@ class PyOpenCLArrayContext(ArrayContext):
         all_inames = default_entrypoint.all_inames()
         # FIXME: This could be much smarter.
         inner_iname = None
-        if (len(default_entrypoint.instructions) == 1
-                and isinstance(default_entrypoint.instructions[0], lp.Assignment)
+
+        from arraycontext.metadata import ElementInameTag, DOFInameTag
+        el_inames = [iname
+                for iname in default_entrypoint.inames.values()
+                if ElementInameTag() in iname.tags]
+        dof_inames = [iname
+                for iname in default_entrypoint.inames.values()
+                if DOFInameTag() in iname.tags]
+
+        if el_inames:
+            # Sorting ensures the same order of transformations is used every
+            # time; avoids accidentally generating cache misses or kernel
+            # hash conflicts.
+
+            for dof_iname in sorted(dof_inames, key=lambda iname: iname.name):
+                t_unit = lp.split_iname(t_unit, dof_iname.name, 32, inner_tag="l.0")
+            for el_iname in sorted(el_inames, key=lambda iname: iname.name):
+                t_unit = lp.tag_inames(t_unit, {el_iname.name: "g.0"})
+            return t_unit
+
+        elif (isinstance(default_entrypoint.instructions[0], lp.Assignment)
                 and any(isinstance(tag, FirstAxisIsElementsTag)
-                    # FIXME: Firedrake branch lacks kernel tags
-                    for tag in getattr(default_entrypoint, "tags", ()))):
+                    for tag in default_entrypoint.tags)):
             stmt, = default_entrypoint.instructions
 
             out_inames = [v.name for v in stmt.assignee.index_tuple]
@@ -377,7 +395,7 @@ class PyOpenCLArrayContext(ArrayContext):
             )
 
         if inner_iname is not None:
-            t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")
+            t_unit = lp.split_iname(t_unit, inner_iname, 32, inner_tag="l.0")
         return lp.tag_inames(t_unit, {outer_iname: "g.0"})
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
