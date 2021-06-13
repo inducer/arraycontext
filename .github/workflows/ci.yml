@@ -122,7 +122,12 @@ jobs:
                 # downstream projects might not be using PytatoArrayContext, force
                 # pytato as a requirement so that using PytatoArrayContext in the
                 # downstream package's tests doesn't result in a failure.
-                echo "git+https://github.com/inducer/pytato.git#egg=pytato" >> requirements.txt
+                if grep -q "pytato"  requirements.txt
+                then
+                    echo "$DOWNSTREAM_PROJECT already has pytato as a requiement";
+                else
+                    echo "git+https://github.com/inducer/pytato.git#egg=pytato" >> requirements.txt
+                fi
 
                 # Avoid slow or complicated tests in downstream projects
                 export PYTEST_ADDOPTS="-k 'not (slowtest or octave or mpi)'"
