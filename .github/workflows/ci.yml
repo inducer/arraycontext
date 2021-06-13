@@ -119,6 +119,9 @@ jobs:
 
                 sed -i "/egg=arraycontext/ c git+file://$(readlink -f ..)#egg=arraycontext" requirements.txt
 
+                # downstream projects might not be using PytatoArrayContext, force
+                # pytato as a requirement so that using PytatoArrayContext in the
+                # downstream package's tests doesn't result in a failure.
                 echo "git+https://github.com/inducer/pytato.git#egg=pytato" >> requirements.txt
 
                 # Avoid slow or complicated tests in downstream projects
