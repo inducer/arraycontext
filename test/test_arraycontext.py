@@ -235,6 +235,17 @@ def test_actx_reshape(actx_factory):
                 actx, lambda _np, *_args: _np.reshape(*_args),
                 (np.random.randn(2, 3), new_shape))
 
+
+def test_actx_ravel(actx_factory):
+    from numpy.random import default_rng
+    actx = actx_factory()
+    rng = default_rng()
+    ndim = rng.integers(low=1, high=6)
+    shape = tuple(rng.integers(2, 7, ndim))
+
+    assert_close_to_numpy(actx, lambda _np, ary: _np.ravel(ary),
+                          (rng.random(shape),))
+
 # }}}
 
 
