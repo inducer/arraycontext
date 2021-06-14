@@ -149,26 +149,10 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(pt.arctan2, y, x)
 
     def ravel(self, a, order="C"):
-        def _rec_ravel(a):
-            import pytato as pt
-            if order in "FC":
-                return pt.reshape(a, (-1,), order=order)
-            elif order == "A":
-                if a.flags.f_contiguous:
-                    return pt.reshape(a, (-1,),  order="F")
-                elif a.flags.c_contiguous:
-                    return pt.reshape(a, (-1,), order="C")
-                else:
-                    raise ValueError("For `order='A'`, array should be either"
-                                     " F-contiguous or C-contiguous.")
-            elif order == "K":
-                raise NotImplementedError("PytatoArrayContext.np.ravel not "
-                                          "implemented for 'order=K'")
-            else:
-                raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
-                                 f"(got {order})")
-
-        return rec_map_array_container(_rec_ravel, a)
+        # FIXME: implement the other orders:
+        # https://github.com/inducer/arraycontext/pull/14/#issuecomment-860886719
+        import pytato as pt
+        return pt.reshape(a, (-1,), order="C")
 
     # }}}
 
