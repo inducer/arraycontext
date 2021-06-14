@@ -166,12 +166,13 @@ def map_array_container(
     :param ary: a (potentially nested) structure of :class:`ArrayContainer`\ s,
         or an instance of a base array type.
     """
-    if is_array_container(ary):
-        return deserialize_container(ary, [
-                (key, f(subary)) for key, subary in serialize_container(ary)
-                ])
-    else:
+    try:
+        ser_ctr = serialize_container(ary)
+    except TypeError:
         return f(ary)
+    else:
+        return deserialize_container(ary, [
+                (key, f(subary)) for key, subary in ser_ctr])
 
 
 def multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
