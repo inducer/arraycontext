@@ -172,7 +172,16 @@ def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
         raise ValueError(
                 f"only object arrays are supported, given dtype '{ary.dtype}'")
 
-    return np.ndenumerate(ary)
+    # special-cased for speed
+    if ary.ndim == 1:
+        return [(i, ary[i]) for i in range(ary.shape[0])]
+    elif ary.ndim == 2:
+        return [((i, j), ary[i, j])
+                for i in range(ary.shape[0])
+                for j in range(ary.shape[1])
+                ]
+    else:
+        return np.ndenumerate(ary)
 
 
 @deserialize_container.register(np.ndarray)
