@@ -106,7 +106,8 @@ def dataclass_array_container(cls: type) -> type:
         """)
 
     exec_dict = {"cls": cls, "_MODULE_SOURCE_CODE": serialize_code}
-    exec(compile(serialize_code, "<generated code>", "exec"), exec_dict)
+    exec(compile(serialize_code, f"<container serialization for {cls.__name__}>",
+        "exec"), exec_dict)
 
     return cls
 

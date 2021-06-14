@@ -235,6 +235,17 @@ def test_actx_reshape(actx_factory):
                 actx, lambda _np, *_args: _np.reshape(*_args),
                 (np.random.randn(2, 3), new_shape))
 
+
+def test_actx_ravel(actx_factory):
+    from numpy.random import default_rng
+    actx = actx_factory()
+    rng = default_rng()
+    ndim = rng.integers(low=1, high=6)
+    shape = tuple(rng.integers(2, 7, ndim))
+
+    assert_close_to_numpy(actx, lambda _np, ary: _np.ravel(ary),
+                          (rng.random(shape),))
+
 # }}}
 
 
@@ -627,6 +638,12 @@ def test_container_freeze_thaw(actx_factory):
 
     actx2 = actx.clone()
 
+    ary_dof_frozen = freeze(ary_dof)
+    with pytest.raises(ValueError) as exc_info:
+        ary_dof + ary_dof_frozen
+
+    assert "frozen" in str(exc_info.value)
+
     ary_dof_2 = thaw(freeze(ary_dof), actx2)
 
     with pytest.raises(ValueError):
@@ -694,6 +711,23 @@ def test_norm_complex(actx_factory, norm_ord):
     norm_a = actx.np.linalg.norm(actx.from_numpy(a), norm_ord)
 
     assert abs(norm_a_ref - norm_a)/norm_a < 1e-13
+
+
+@pytest.mark.parametrize("ndim", [1, 2, 3, 4, 5])
+def test_norm_ord_none(actx_factory, ndim):
+    from numpy.random import default_rng
+
+    actx = actx_factory()
+
+    rng = default_rng()
+    shape = tuple(rng.integers(2, 7, ndim))
+
+    a = rng.random(shape)
+
+    norm_a_ref = np.linalg.norm(a, ord=None)
+    norm_a = actx.np.linalg.norm(actx.from_numpy(a), ord=None)
+
+    np.testing.assert_allclose(norm_a, norm_a_ref)
 
 
 if __name__ == "__main__":

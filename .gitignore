@@ -21,3 +21,6 @@ a.out
 .pytest_cache
 
 test/nodal-dg
+
+.pylintrc.yml
+.run-pylint.py
