@@ -347,7 +347,7 @@ def with_container_arithmetic(
                 if {bool(outer_bcast_type_names)}:  # optimized away
                     if isinstance(arg2, {tup_str(outer_bcast_type_names)}):
                         return cls({bcast_init_args})
-                if {numpy_pred("arg2")}:  # optimized away
+                if {numpy_pred("arg2")}:
                     result = np.empty_like(arg2, dtype=object)
                     for i in np.ndindex(arg2.shape):
                         result[i] = {op_str.format("arg1", "arg2[i]")}
@@ -376,7 +376,7 @@ def with_container_arithmetic(
                         if {bool(outer_bcast_type_names)}:  # optimized away
                             if isinstance(arg1, {tup_str(outer_bcast_type_names)}):
                                 return cls({bcast_init_args})
-                        if {numpy_pred("arg1")}:  # optimized away
+                        if {numpy_pred("arg1")}:
                             result = np.empty_like(arg1, dtype=object)
                             for i in np.ndindex(arg1.shape):
                                 result[i] = {op_str.format("arg1[i]", "arg2")}
@@ -393,7 +393,8 @@ def with_container_arithmetic(
         # This will evaluate the module, which is all we need.
         code = gen.get().rstrip()+"\n"
         result_dict = {"_MODULE_SOURCE_CODE": code, "cls": cls}
-        exec(compile(code, "<generated code>", "exec"), result_dict)
+        exec(compile(code, f"<container arithmetic for {cls.__name__}>", "exec"),
+                result_dict)
 
         return cls
 
