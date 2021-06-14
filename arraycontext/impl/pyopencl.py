@@ -26,6 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from warnings import warn
 from typing import Sequence, Union
 from functools import partial
 import operator
@@ -274,12 +275,18 @@ class PyOpenCLArrayContext(ArrayContext):
         self._kernel_name_to_wait_event_queue = {}
 
         import pyopencl as cl
-        if allocator is None and queue.device.type & cl.device_type.GPU:
-            from warnings import warn
-            warn("PyOpenCLArrayContext created without an allocator on a GPU. "
-                 "This can lead to high numbers of memory allocations. "
-                 "Please consider using a pyopencl.tools.MemoryPool. "
-                 "Run with allocator=False to disable this warning.")
+        if queue.device.type & cl.device_type.GPU:
+            if allocator is None:
+                warn("PyOpenCLArrayContext created without an allocator on a GPU. "
+                     "This can lead to high numbers of memory allocations. "
+                     "Please consider using a pyopencl.tools.MemoryPool. "
+                     "Run with allocator=False to disable this warning.")
+
+            if __debug__:
+                # Use "running on GPU" as a proxy for "they care about speed".
+                warn("You are using the PyOpenCLArrayContext on a GPU, but you "
+                        "are running Python in debug mode. Use 'python -O' for "
+                        "a noticeable speed improvement.")
 
     def _get_fake_numpy_namespace(self):
         return PyOpenCLFakeNumpyNamespace(self)
