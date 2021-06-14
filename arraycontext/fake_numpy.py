@@ -189,9 +189,6 @@ class BaseFakeNumpyLinalgNamespace:
                         for _, subary in serialize_container(ary)],
                     ord=ord)
 
-        if len(ary.shape) != 1:
-            raise NotImplementedError("only vector norms are implemented")
-
         if ary.size == 0:
             return 0
 

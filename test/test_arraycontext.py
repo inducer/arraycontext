@@ -748,6 +748,9 @@ def test_norm_ord_none(actx_factory, ndim):
     norm_a_ref = np.linalg.norm(a, ord=None)
     norm_a = actx.np.linalg.norm(actx.from_numpy(a), ord=None)
 
+    if not np.isscalar(norm_a):
+        norm_a = actx.to_numpy(norm_a)
+
     np.testing.assert_allclose(norm_a, norm_a_ref)
 
 
