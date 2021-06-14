@@ -179,19 +179,6 @@ class BaseFakeNumpyLinalgNamespace:
         if isinstance(ary, Number):
             return abs(ary)
 
-        if is_array_container(ary):
-            import numpy.linalg as la
-            return la.norm(
-                    [self.norm(subary, ord=ord)
-                        for _, subary in serialize_container(ary)],
-                    ord=ord)
-
-        if len(ary.shape) != 1:
-            raise NotImplementedError("only vector norms are implemented")
-
-        if ary.size == 0:
-            return 0
-
         if ord is None:
             ord = 2
 
@@ -212,6 +199,19 @@ class BaseFakeNumpyLinalgNamespace:
                     [self.norm(_flatten_array(subary), ord=ord)
                         for _, subary in serialize_container(ary)],
                     ord=ord)
+
+        if is_array_container(ary):
+            import numpy.linalg as la
+            return la.norm(
+                    [self.norm(subary, ord=ord)
+                        for _, subary in serialize_container(ary)],
+                    ord=ord)
+
+        if len(ary.shape) != 1:
+            raise NotImplementedError("only vector norms are implemented")
+
+        if ary.size == 0:
+            return 0
 
         if ord == np.inf:
             return self._array_context.np.max(abs(ary))
