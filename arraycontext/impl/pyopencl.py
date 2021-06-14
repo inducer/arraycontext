@@ -40,6 +40,7 @@ from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
 from arraycontext.container.traversal import (rec_multimap_array_container,
                                               rec_map_array_container)
+from arraycontext.container import serialize_container
 from arraycontext.context import ArrayContext
 
 
