@@ -40,9 +40,8 @@ import loopy as lp
 
 
 class _PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
-    def norm(self, ary, ord=None):
-        # FIXME: handle isinstance(ary, DOFArray) case
-        return super().norm(ary, ord)
+    # Everything is implemented in the base class for now.
+    pass
 
 
 class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
