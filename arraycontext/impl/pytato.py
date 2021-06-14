@@ -46,6 +46,16 @@ class _PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
 
 
 class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
+    """
+    A :mod:`numpy` mimic for :class:`PytatoArrayContext`.
+
+
+    .. note::
+
+        :mod:`pytato` does not define any memory layout. If the caller invokes
+        any routine that depends on the input arrays' memory layout, a result is
+        returned assuming the arrays have a C-contiguous layout.
+    """
     def _get_fake_numpy_linalg_namespace(self):
         return _PytatoFakeNumpyLinalgNamespace(self._array_context)
 
@@ -149,11 +159,19 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(pt.arctan2, y, x)
 
     def ravel(self, a, order="C"):
-        # FIXME: implement the other orders:
-        # https://github.com/inducer/arraycontext/pull/14/#issuecomment-860886719
         import pytato as pt
-        return pt.reshape(a, (-1,), order="C")
 
+        def _rec_ravel(a):
+            if order in "FC":
+                return pt.reshape(a, (-1,), order=order)
+            elif order in "AK":
+                # memory layout is assumed to be "C"
+                return pt.reshape(a, (-1,), order="C")
+            else:
+                raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
+                                 f"(got {order})")
+
+        return rec_map_array_container(_rec_ravel, a)
     # }}}
 
 
