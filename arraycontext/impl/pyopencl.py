@@ -155,9 +155,9 @@ def _flatten_array(ary):
         return ary._new_with_changes(
                 data=None, offset=0, shape=(0,), strides=(ary.dtype.itemsize,))
     if ary.flags.f_contiguous:
-        return ary.ravel(order="F")
+        return ary.reshape(-1, order="F")
     elif ary.flags.c_contiguous:
-        return ary.ravel(order="C")
+        return ary.reshape(-1, order="C")
     else:
         raise ValueError("cannot flatten array "
                 f"with strides {ary.strides} of {ary.dtype}")
