@@ -734,6 +734,23 @@ def test_norm_complex(actx_factory, norm_ord):
     assert abs(norm_a_ref - norm_a)/norm_a < 1e-13
 
 
+@pytest.mark.parametrize("ndim", [1, 2, 3, 4, 5])
+def test_norm_ord_none(actx_factory, ndim):
+    from numpy.random import default_rng
+
+    actx = actx_factory()
+
+    rng = default_rng()
+    shape = tuple(rng.integers(2, 7, ndim))
+
+    a = rng.random(shape)
+
+    norm_a_ref = np.linalg.norm(a, ord=None)
+    norm_a = actx.np.linalg.norm(actx.from_numpy(a), ord=None)
+
+    np.testing.assert_allclose(norm_a, norm_a_ref)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:

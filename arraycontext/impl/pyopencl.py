@@ -187,6 +187,19 @@ def _flatten_array(ary):
 
 class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     def norm(self, ary, ord=None):
+        from numbers import Number
+        import pyopencl.array as cla
+
+        if isinstance(ary, Number):
+            return abs(ary)
+
+        if ord is None and isinstance(ary, cla.Array):
+            if ary.ndim == 1:
+                ord = 2
+            else:
+                # mimics numpy's norm computation
+                return self.norm(_flatten_array(ary), ord=2)
+
         try:
             from meshmode.dof_array import DOFArray
         except ImportError:
