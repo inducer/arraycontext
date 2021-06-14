@@ -38,7 +38,8 @@ from pytools.tag import Tag
 from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
-from arraycontext.container.traversal import rec_multimap_array_container
+from arraycontext.container.traversal import (rec_multimap_array_container,
+                                              rec_map_array_container)
 from arraycontext.container import serialize_container, is_array_container
 from arraycontext.context import ArrayContext
 
@@ -140,6 +141,25 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
             self._array_context.queue,
             self._array_context.allocator
         )
+
+    def ravel(self, a, order="C"):
+        def _rec_ravel(a):
+            if order == "K":
+                # TODO: upstream this to pyopencl.array
+                if a.flags.f_contiguous:
+                    return a.reshape(-1, order="F")
+                elif a.flags.c_contiguous:
+                    return a.reshape(-1, order="C")
+                else:
+                    raise ValueError("For `order='K'`, array should be either"
+                                     " F-contiguous or C-contiguous.")
+            else:
+                if order not in {"F", "C"}:
+                    raise ValueError("`order` can be one of 'F', 'C' or 'K'. "
+                                     f"(got {order})")
+                return a.reshape(-1, order=order)
+
+        return rec_map_array_container(_rec_ravel, a)
 
 # }}}
 
