@@ -33,13 +33,13 @@ import operator
 
 import numpy as np
 
-from pytools import memoize_method
 from pytools.tag import Tag
 
 from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
-from arraycontext.container.traversal import rec_multimap_array_container
+from arraycontext.container.traversal import (rec_multimap_array_container,
+                                              rec_map_array_container)
 from arraycontext.container import serialize_container, is_array_container
 from arraycontext.context import ArrayContext
 
@@ -141,6 +141,28 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
             self._array_context.queue,
             self._array_context.allocator
         )
+
+    def ravel(self, a, order="C"):
+        def _rec_ravel(a):
+            if order in "FC":
+                return a.reshape(-1, order=order)
+            elif order == "A":
+                # TODO: upstream this to pyopencl.array
+                if a.flags.f_contiguous:
+                    return a.reshape(-1, order="F")
+                elif a.flags.c_contiguous:
+                    return a.reshape(-1, order="C")
+                else:
+                    raise ValueError("For `order='A'`, array should be either"
+                                     " F-contiguous or C-contiguous.")
+            elif order == "K":
+                raise NotImplementedError("PyOpenCLArrayContext.np.ravel not "
+                                          "implemented for 'order=K'")
+            else:
+                raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
+                                 f"(got {order})")
+
+        return rec_map_array_container(_rec_ravel, a)
 
 # }}}
 
@@ -294,6 +316,8 @@ class PyOpenCLArrayContext(ArrayContext):
                         "are running Python in debug mode. Use 'python -O' for "
                         "a noticeable speed improvement.")
 
+        self._loopy_transform_cache = {}
+
     def _get_fake_numpy_namespace(self):
         return PyOpenCLFakeNumpyNamespace(self)
 
@@ -317,14 +341,15 @@ class PyOpenCLArrayContext(ArrayContext):
         return array.get(queue=self.queue)
 
     def call_loopy(self, t_unit, **kwargs):
-        t_unit = self.transform_loopy_program(t_unit)
-        from arraycontext.loopy import get_default_entrypoint
-        default_entrypoint = get_default_entrypoint(t_unit)
-        prg_name = default_entrypoint.name
+        try:
+            t_unit = self._loopy_transform_cache[t_unit]
+        except KeyError:
+            t_unit = self.transform_loopy_program(t_unit)
 
         evt, result = t_unit(self.queue, **kwargs, allocator=self.allocator)
 
         if self._wait_event_queue_length is not False:
+            prg_name = t_unit.default_entrypoint.name
             wait_event_queue = self._kernel_name_to_wait_event_queue.setdefault(
                     prg_name, [])
 
@@ -343,13 +368,17 @@ class PyOpenCLArrayContext(ArrayContext):
 
     # }}}
 
-    @memoize_method
     def transform_loopy_program(self, t_unit):
+        try:
+            return self._loopy_transform_cache[t_unit]
+        except KeyError:
+            pass
+        orig_t_unit = t_unit
+
         # accommodate loopy with and without kernel callables
 
         import loopy as lp
-        from arraycontext.loopy import get_default_entrypoint
-        default_entrypoint = get_default_entrypoint(t_unit)
+        default_entrypoint = t_unit.default_entrypoint
         options = default_entrypoint.options
         if not (options.return_dict and options.no_numpy):
             raise ValueError("Loopy kernel passed to call_loopy must "
@@ -391,7 +420,10 @@ class PyOpenCLArrayContext(ArrayContext):
 
         if inner_iname is not None:
             t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")
-        return lp.tag_inames(t_unit, {outer_iname: "g.0"})
+        t_unit = lp.tag_inames(t_unit, {outer_iname: "g.0"})
+
+        self._loopy_transform_cache[orig_t_unit] = t_unit
+        return t_unit
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
         # Sorry, not capable.
