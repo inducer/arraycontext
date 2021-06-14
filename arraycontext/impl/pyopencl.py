@@ -144,20 +144,23 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def ravel(self, a, order="C"):
         def _rec_ravel(a):
-            if order == "K":
+            if order in "FC":
+                return a.reshape(-1, order=order)
+            elif order == "A":
                 # TODO: upstream this to pyopencl.array
                 if a.flags.f_contiguous:
                     return a.reshape(-1, order="F")
                 elif a.flags.c_contiguous:
                     return a.reshape(-1, order="C")
                 else:
-                    raise ValueError("For `order='K'`, array should be either"
+                    raise ValueError("For `order='A'`, array should be either"
                                      " F-contiguous or C-contiguous.")
+            elif order == "K":
+                raise NotImplementedError("PyOpenCLArrayContext.np.ravel not "
+                                          "implemented for 'order=K'")
             else:
-                if order not in {"F", "C"}:
-                    raise ValueError("`order` can be one of 'F', 'C' or 'K'. "
-                                     f"(got {order})")
-                return a.reshape(-1, order=order)
+                raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
+                                 f"(got {order})")
 
         return rec_map_array_container(_rec_ravel, a)
 
