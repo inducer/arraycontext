@@ -58,10 +58,6 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def _get_fake_numpy_linalg_namespace(self):
         return _PytatoFakeNumpyLinalgNamespace(self._array_context)
 
-    @property
-    def ns(self):
-        return self._array_context.ns
-
     def __getattr__(self, name):
 
         pt_funcs = ["abs", "sin", "cos", "tan", "arcsin", "arccos", "arctan",
