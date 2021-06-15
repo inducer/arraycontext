@@ -344,7 +344,10 @@ class PyOpenCLArrayContext(ArrayContext):
         try:
             t_unit = self._loopy_transform_cache[t_unit]
         except KeyError:
+            orig_t_unit = t_unit
             t_unit = self.transform_loopy_program(t_unit)
+            self._loopy_transform_cache[orig_t_unit] = t_unit
+            del orig_t_unit
 
         evt, result = t_unit(self.queue, **kwargs, allocator=self.allocator)
 
@@ -369,12 +372,6 @@ class PyOpenCLArrayContext(ArrayContext):
     # }}}
 
     def transform_loopy_program(self, t_unit):
-        try:
-            return self._loopy_transform_cache[t_unit]
-        except KeyError:
-            pass
-        orig_t_unit = t_unit
-
         import loopy as lp
         default_entrypoint = t_unit.default_entrypoint
         options = default_entrypoint.options
@@ -438,7 +435,6 @@ class PyOpenCLArrayContext(ArrayContext):
             t_unit = lp.split_iname(t_unit, inner_iname, 32, inner_tag="l.0")
         t_unit = lp.tag_inames(t_unit, {outer_iname: "g.0"})
 
-        self._loopy_transform_cache[orig_t_unit] = t_unit
         return t_unit
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
