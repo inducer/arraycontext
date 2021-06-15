@@ -354,13 +354,23 @@ class ArrayContext(ABC):
     def compile(self, f: Callable[[Any], Any],
             inputs_like: Tuple[Union[Number, np.ndarray], ...]) -> Callable[
                 ..., Any]:
-        """Compiles a function for use on this array context. Might perform some
-        optimizations (such as kernel fusion) during compilation.
+        """Compiles *f* for repeated use on this array context. *f* is expected
+        to be a `pure function <https://en.wikipedia.org/wiki/Pure_function>`__
+        performing an array computation.
 
-        :arg f: the function to compile.
+        Control flow statements (``if``, ``while``) that might take different
+        paths depending on the data lead to undefined behavior and are illegal.
+        Any data-dependent control flow must be expressed via array functions,
+        such as ``actx.np.where``.
+
+        *f* may be called on placeholder data, to obtain a representation
+        of the computation performed, or it may be called as part of the actual
+        computation, on actual data. If *f* is called on placeholder data,
+        it may be called only once (or a few times).
+
+        :arg f: the function executing the computation.
         :arg inputs_like: the input arguments to the function.
-
-        :return: the compiled function.
+        :return: a function with the same signature as *f*.
         """
         return f
 
