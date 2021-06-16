@@ -183,7 +183,11 @@ class BaseFakeNumpyLinalgNamespace:
             ord = 2
 
         if is_array_container(ary):
-            return sum([self.norm(subary, ord=ord)**ord
+            if ord == np.inf:
+                return max([self.norm(subary, ord=ord)
+                        for _, subary in serialize_container(ary)])
+            else:
+                return sum([self.norm(subary, ord=ord)**ord
                         for _, subary in serialize_container(ary)]) ** (1/ord)
         if ary.size == 0:
             return 0

@@ -674,9 +674,6 @@ def test_container_freeze_thaw(actx_factory):
 def test_container_norm(actx_factory, ord):
     actx = actx_factory()
 
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
-            _get_test_containers(actx)
-
     from pytools.obj_array import make_obj_array
     c = MyContainer(name="hey", mass=1, momentum=make_obj_array([2, 3]), enthalpy=5)
     n1 = actx.np.linalg.norm(make_obj_array([c, c]), ord)
