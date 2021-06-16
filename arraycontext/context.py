@@ -102,13 +102,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Sequence, Union, Callable, Any, Tuple
+from typing import Sequence, Union, Callable, Any
 from abc import ABC, abstractmethod
 
 import numpy as np
 from pytools import memoize_method
 from pytools.tag import Tag
-from numbers import Number
 
 
 # {{{ ArrayContext
@@ -351,9 +350,7 @@ class ArrayContext(ABC):
             "setup-only" array context "leaks" into the application.
         """
 
-    def compile(self, f: Callable[[Any], Any],
-            inputs_like: Tuple[Union[Number, np.ndarray], ...]) -> Callable[
-                ..., Any]:
+    def compile(self, f: Callable[[Any], Any]) -> Callable[..., Any]:
         """Compiles *f* for repeated use on this array context. *f* is expected
         to be a `pure function <https://en.wikipedia.org/wiki/Pure_function>`__
         performing an array computation.
