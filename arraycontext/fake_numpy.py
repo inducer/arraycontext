@@ -183,12 +183,8 @@ class BaseFakeNumpyLinalgNamespace:
             ord = 2
 
         if is_array_container(ary):
-            import numpy.linalg as la
-            return la.norm(
-                    [self.norm(subary, ord=ord)
-                        for _, subary in serialize_container(ary)],
-                    ord=ord)
-
+            return sum([self.norm(subary, ord=ord)**ord
+                        for _, subary in serialize_container(ary)]) ** (1/ord)
         if ary.size == 0:
             return 0
 
