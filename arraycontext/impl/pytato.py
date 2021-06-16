@@ -175,7 +175,7 @@ class AbstractInputDescriptor:
     def __eq__(self, other):
         raise NotImplementedError
 
-    def __hash__(self, other):
+    def __hash__(self):
         raise NotImplementedError
 
 
