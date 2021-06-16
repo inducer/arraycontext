@@ -308,8 +308,9 @@ class PytatoExecutable:
 
         for pos, arg in enumerate(args):
             if isinstance(arg, np.number):
+
                 input_kwargs_to_loopy[self.input_id_to_name_in_program[(pos,)]] = (
-                    arg)
+                    cla.to_device(self.actx.queue, np.array(arg)))
             elif is_array_container(arg):
                 def _extract_lpy_kwargs(keys, ary):
                     if isinstance(ary, pt.array.DataWrapper):
