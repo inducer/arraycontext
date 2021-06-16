@@ -31,7 +31,7 @@ from arraycontext import (
         dataclass_array_container, with_container_arithmetic,
         serialize_container, deserialize_container,
         freeze, thaw,
-        FirstAxisIsElementsTag)
+        FirstAxisIsElementsTag, ArrayContainer)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts
         as pytest_generate_tests,
@@ -757,35 +757,37 @@ def test_norm_ord_none(actx_factory, ndim):
 @dataclass_array_container
 @dataclass(frozen=True)
 class Velocity2D:
-    u: np.ndarray
-    v: np.ndarray
+    u: ArrayContainer
+    v: ArrayContainer
     array_context: ArrayContext
 
 
-def scale_and_to_speed(alpha, vel):
+def scale_and_orthogonalize(alpha, vel):
+    from arraycontext import rec_map_array_container
     actx = vel.array_context
-    scaled_vel = alpha * vel
-    return actx.np.sqrt(scaled_vel.u**2 + scaled_vel.v**2)
+    scaled_vel = rec_map_array_container(lambda x: alpha * x,
+                                         vel)
+    return Velocity2D(-scaled_vel.v, scaled_vel.u, actx)
 
 # }}}
 
 
 def test_actx_compile(actx_factory):
+    from arraycontext import (to_numpy, from_numpy)
     actx = actx_factory()
 
-    compiled_rhs = actx.compile(scale_and_to_speed)
+    compiled_rhs = actx.compile(scale_and_orthogonalize)
 
     v_x = np.random.rand(10)
     v_y = np.random.rand(10)
 
-    from arraycontext import from_numpy
-
     vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
 
-    scaled_speed = compiled_rhs(3.14, vel)
+    scaled_speed = compiled_rhs(np.float64(3.14), vel)
 
-    np.testing.assert_allclose(actx.to_numpy(scaled_speed),
-                               3.14 * np.sqrt(v_x ** 2 + v_y ** 2))
+    result = to_numpy(scaled_speed, actx)
+    np.testing.assert_allclose(result.u, -3.14*v_y)
+    np.testing.assert_allclose(result.v, 3.14*v_x)
 
 
 if __name__ == "__main__":
