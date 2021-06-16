@@ -193,7 +193,7 @@ class ArrayContainerInputDescriptor(AbstractInputDescriptor):
 @dataclass
 class PytatoCompiledOperator:
     actx: ArrayContext
-    f: Callable[[...], Any]
+    f: Callable[[Any], Any]
     program_cache: Mapping[Tuple[AbstractInputDescriptor],
                            "PytatoExecutable"] = field(default_factory=lambda: {})
 
