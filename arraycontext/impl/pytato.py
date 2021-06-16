@@ -261,8 +261,8 @@ class PytatoCompiledOperator:
         if not is_array_container(outputs):
             # TODO: We could possibly just short-circuit this interface if the
             # returned type is a scalar. Not sure if it's worth it though.
-            raise ValueError(f"Function {self.f.__name__} to be compiled did not"
-                             " return an array container.")
+            raise ValueError(f"Function '{self.f.__name__}' to be compiled did not"
+                             f" return an array container, but '{outputs}' instead.")
 
         def _as_dict_of_named_arrays(keys, ary):
             name = "_pt_out_" + "_".join(str(key)
