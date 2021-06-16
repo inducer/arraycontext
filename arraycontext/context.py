@@ -366,7 +366,6 @@ class ArrayContext(ABC):
         it may be called only once (or a few times).
 
         :arg f: the function executing the computation.
-        :arg inputs_like: the input arguments to the function.
         :return: a function with the same signature as *f*.
         """
         return f
