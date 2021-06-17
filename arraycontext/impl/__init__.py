@@ -1,3 +1,7 @@
+"""Various (undocumented) helper functions to avoid creating dependencies
+on other packages (such as pyopencl or meshmode).
+"""
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -22,11 +26,39 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import Any
 
-def _is_meshmode_dofarray(x):
+
+def _is_meshmode_dofarray(x: Any) -> bool:
     try:
         from meshmode.dof_array import DOFArray
     except ImportError:
         return False
     else:
         return isinstance(x, DOFArray)
+
+
+def _is_pyopencl_array(x: Any) -> bool:
+    try:
+        import pyopencl.array as cla
+    except ImportError:
+        return False
+    else:
+        return isinstance(x, cla.Array)
+
+
+def _flatten_cl_array(ary):
+    import pyopencl.array as cl
+    assert isinstance(ary, cl.Array)
+
+    if ary.size == 0:
+        # Work around https://github.com/inducer/pyopencl/pull/402
+        return ary._new_with_changes(
+                data=None, offset=0, shape=(0,), strides=(ary.dtype.itemsize,))
+    if ary.flags.f_contiguous:
+        return ary.reshape(-1, order="F")
+    elif ary.flags.c_contiguous:
+        return ary.reshape(-1, order="C")
+    else:
+        raise ValueError("cannot flatten array "
+                f"with strides {ary.strides} of {ary.dtype}")

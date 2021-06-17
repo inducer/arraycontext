@@ -182,6 +182,31 @@ class BaseFakeNumpyLinalgNamespace:
         if ord is None:
             ord = 2
 
+        from arraycontext.impl import _is_meshmode_dofarray, _is_pyopencl_array
+
+        if _is_pyopencl_array(ary):
+            if ary.ndim != 1:
+                from arraycontext.impl import _flatten_cl_array
+                # mimics numpy's norm computation
+                return self.norm(_flatten_cl_array(ary), ord=2)
+
+        if _is_meshmode_dofarray(ary):
+            from arraycontext.impl import _flatten_cl_array
+
+            from warnings import warn
+            warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
+                    "(DOFArrays use 2D arrays internally, and "
+                    "actx.np.linalg.norm should compute matrix norms of those.) "
+                    "This will stop working in 2022. "
+                    "Use meshmode.dof_array.flat_norm instead.",
+                    DeprecationWarning, stacklevel=2)
+
+            import numpy.linalg as la
+            return la.norm(
+                    [self.norm(_flatten_cl_array(subary), ord=ord)
+                        for _, subary in serialize_container(ary)],
+                    ord=ord)
+
         if is_array_container(ary):
             if ord == np.inf:
                 return max([self.norm(subary, ord=ord)
