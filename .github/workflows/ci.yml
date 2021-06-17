@@ -116,7 +116,7 @@ jobs:
 
                 cd "$DOWNSTREAM_PROJECT"
                 echo "*** $DOWNSTREAM_PROJECT version: $(git rev-parse --short HEAD)"
-                
+
                 # Use this version of arraycontext instead of what downstream would install
                 sed -i "/egg=arraycontext/ c git+file://$(readlink -f ..)#egg=arraycontext" requirements.txt
 
