@@ -190,7 +190,8 @@ class BaseFakeNumpyLinalgNamespace:
                 # mimics numpy's norm computation
                 return self.norm(_flatten_cl_array(ary), ord=2)
 
-        if _is_meshmode_dofarray(ary):
+        if (_is_meshmode_dofarray(ary) and all([_is_pyopencl_array(subary)
+                                for _, subary in serialize_container(ary)])):
             from arraycontext.impl import _flatten_cl_array
 
             from warnings import warn
