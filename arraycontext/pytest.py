@@ -35,6 +35,7 @@ from arraycontext.impl.pyopencl import PyOpenCLArrayContext
 from arraycontext.impl.pytato import PytatoArrayContext
 import pyopencl as cl
 from pyopencl.tools import _ContextFactory
+from typing import List
 
 
 class _PyOpenCLArrayContextFactory(_ContextFactory):
@@ -109,7 +110,7 @@ def pytest_generate_tests_for_array_contexts(metafunc, actx_list=None) -> None:
 
         for arg_dict in arg_values:
             dev = arg_dict["device"]
-            extra_factories = []
+            extra_factories: List[str] = []
 
             for factory in actx_factories:
                 if "actx_factory" in arg_dict:
