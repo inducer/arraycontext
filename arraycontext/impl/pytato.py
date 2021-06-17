@@ -528,6 +528,7 @@ class PytatoArrayContext(ArrayContext):
 
         return pt.einsum(spec, *(preprocess_arg(arg) for arg in args))
 
+    @property
     def permits_inplace_modification(self):
         return False
 
