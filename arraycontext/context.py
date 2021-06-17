@@ -103,7 +103,7 @@ THE SOFTWARE.
 """
 
 from typing import Sequence, Union, Callable, Any
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
 import numpy as np
 from pytools import memoize_method
@@ -369,6 +369,11 @@ class ArrayContext(ABC):
         :return: a function with the same signature as *f*.
         """
         return f
+
+    # undocumented for now
+    @abstractproperty
+    def permits_inplace_modification(self):
+        pass
 
 # }}}
 
