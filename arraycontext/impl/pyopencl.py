@@ -323,6 +323,9 @@ class PyOpenCLArrayContext(ArrayContext):
         return cla.to_device(self.queue, array, allocator=self.allocator)
 
     def to_numpy(self, array):
+        from numpy import isscalar
+        if isscalar(array):
+            return array
         return array.get(queue=self.queue)
 
     def call_loopy(self, t_unit, **kwargs):
