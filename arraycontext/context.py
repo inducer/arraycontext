@@ -103,7 +103,7 @@ THE SOFTWARE.
 """
 
 from typing import Sequence, Union
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
 import numpy as np
 from pytools import memoize_method
@@ -348,6 +348,11 @@ class ArrayContext(ABC):
             it becomes easier to detect and flag if unfrozen data attached to a
             "setup-only" array context "leaks" into the application.
         """
+
+    # undocumented for now
+    @abstractproperty
+    def permits_inplace_modification(self):
+        pass
 
 # }}}
 

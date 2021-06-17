@@ -448,6 +448,10 @@ class PyOpenCLArrayContext(ArrayContext):
     def clone(self):
         return type(self)(self.queue, self.allocator, self._wait_event_queue_length)
 
+    @property
+    def permits_inplace_modification(self):
+        return True
+
 # }}}
 
 # vim: foldmethod=marker
