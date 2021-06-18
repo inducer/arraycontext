@@ -47,8 +47,6 @@ from .container.traversal import (
         rec_multimap_array_container,
         mapped_over_array_containers,
         multimapped_over_array_containers,
-        keyed_map_array_container,
-        rec_keyed_map_array_container,
         thaw, freeze,
         from_numpy, to_numpy)
 
@@ -78,8 +76,6 @@ __all__ = (
         "rec_map_array_container", "rec_multimap_array_container",
         "mapped_over_array_containers",
         "multimapped_over_array_containers",
-        "keyed_map_array_container",
-        "rec_keyed_map_array_container",
         "thaw", "freeze",
         "from_numpy", "to_numpy",
 

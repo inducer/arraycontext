@@ -195,8 +195,8 @@ class PytatoCompiledOperator:
 
     def __call__(self, *args):
 
-        from arraycontext import (rec_keyed_map_array_container,
-                                  is_array_container)
+        from arraycontext.container.traversal import (rec_keyed_map_array_container,
+                                                      is_array_container)
         import pytato as pt
 
         def to_arg_descr(arg):
@@ -295,8 +295,8 @@ class PytatoExecutable:
     def __call__(self, *args):
         import pytato as pt
         import pyopencl.array as cla
-        from arraycontext import (is_array_container,
-                                  rec_keyed_map_array_container)
+        from arraycontext.container import is_array_container
+        from arraycontext.container.traversal import rec_keyed_map_array_container
 
         input_kwargs_to_loopy = {}
 
