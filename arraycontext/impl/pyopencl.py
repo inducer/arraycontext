@@ -41,7 +41,7 @@ from arraycontext.fake_numpy import \
 from arraycontext.container.traversal import (rec_multimap_array_container,
                                               rec_map_array_container)
 from arraycontext.context import ArrayContext
-
+from numbers import Number
 
 # {{{ fake numpy
 
@@ -268,8 +268,7 @@ class PyOpenCLArrayContext(ArrayContext):
         return cla.to_device(self.queue, array, allocator=self.allocator)
 
     def to_numpy(self, array):
-        from numpy import isscalar
-        if isscalar(array):
+        if isinstance(array, Number):
             return array
         return array.get(queue=self.queue)
 
