@@ -158,11 +158,8 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         def _rec_ravel(a):
             if order in "FC":
                 return pt.reshape(a, (-1,), order=order)
-            elif order in "AK":
-                # memory layout is assumed to be "C"
-                return pt.reshape(a, (-1,), order="C")
             else:
-                raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
+                raise ValueError("`order` can be one of 'F' or 'C'. "
                                  f"(got {order})")
 
         return rec_map_array_container(_rec_ravel, a)
