@@ -48,7 +48,6 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     """
     A :mod:`numpy` mimic for :class:`PytatoArrayContext`.
 
-
     .. note::
 
         :mod:`pytato` does not define any memory layout. If the caller invokes

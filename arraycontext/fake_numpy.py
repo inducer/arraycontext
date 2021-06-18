@@ -225,7 +225,6 @@ class BaseFakeNumpyLinalgNamespace:
         else:
             raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 
-
 # }}}
 
 
