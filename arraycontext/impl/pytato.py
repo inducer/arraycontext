@@ -303,8 +303,7 @@ class PytatoExecutable:
         # {{{ extract loopy arguments execute the program
 
         for pos, arg in enumerate(args):
-            if isinstance(arg, np.number):
-
+            if np.isscalar(arg):
                 input_kwargs_to_loopy[self.input_id_to_name_in_program[(pos,)]] = (
                     cla.to_device(self.actx.queue, np.array(arg)))
             elif is_array_container(arg):
