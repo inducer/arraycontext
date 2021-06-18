@@ -41,7 +41,7 @@ from pyrsistent import pmap, PMap
 try:
     import pyopencl as cl  # noqa: F401
     import pyopencl.array as cla
-    import pytato as pt
+    import pytato as pt  # type: ignore
 except ImportError:
     pass
 
@@ -487,7 +487,6 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
             from warnings import warn
             warn("'arg_names' don't bear any significance in "
                  "PytatoPyOpenCLArrayContext.", stacklevel=2)
-
 
         def preprocess_arg(arg):
             if isinstance(arg, cla.Array):
