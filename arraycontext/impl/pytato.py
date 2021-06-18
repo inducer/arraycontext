@@ -316,7 +316,7 @@ class PytatoExecutable:
                         processed_ary = (self.actx.freeze(ary)
                                          .with_queue(self.actx.queue))
                     else:
-                        raise TypeError("Expect pt.Array or CL-array, got "
+                        raise TypeError("Expect pytato.Array or CL-array, got "
                                 f"{type(ary)}")
 
                     input_kwargs_to_loopy[
@@ -423,7 +423,7 @@ class PytatoArrayContext(ArrayContext):
         if isinstance(array, cla.Array):
             return array.with_queue(None)
         if not isinstance(array, pt.Array):
-            raise TypeError("PytatoArrayContext.freeze invoked with non-pt "
+            raise TypeError("PytatoArrayContext.freeze invoked with non-pytato "
                             f"array of type '{type(array)}'")
 
         prg = pt.generate_loopy(array, cl_device=self.queue.device)
