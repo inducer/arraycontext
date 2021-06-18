@@ -368,6 +368,8 @@ class PytatoArrayContext(ArrayContext):
 
         A :mod:`pyopencl` memory allocator. Can also be None (default) or False
         to use the default allocator.
+
+    .. automethod:: __init__
     """
 
     def __init__(self, queue, allocator=None):
