@@ -32,7 +32,7 @@ THE SOFTWARE.
 # {{{ pytest integration
 
 from arraycontext.impl.pyopencl import PyOpenCLArrayContext
-from arraycontext.impl.pytato import PytatoArrayContext
+from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
 import pyopencl as cl
 from pyopencl.tools import _ContextFactory
 from typing import List
@@ -50,11 +50,11 @@ class _PyOpenCLArrayContextFactory(_ContextFactory):
                  self.device.platform.name.strip()))
 
 
-class _PytatoArrayContextFactory(_ContextFactory):
+class _PytatoPyOpenCLArrayContextFactory(_ContextFactory):
     def __call__(self):
         ctx = super().__call__()
-        from arraycontext.impl.pytato import PytatoArrayContext
-        return PytatoArrayContext(cl.CommandQueue(ctx))
+        from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
+        return PytatoPyOpenCLArrayContext(cl.CommandQueue(ctx))
 
     def __str__(self):
         return ("<Pytato array context factory for <pyopencl.Device '%s' on '%s'>"
@@ -63,7 +63,7 @@ class _PytatoArrayContextFactory(_ContextFactory):
 
 
 types_to_factories = {PyOpenCLArrayContext: _PyOpenCLArrayContextFactory,
-    PytatoArrayContext: _PytatoArrayContextFactory}
+    PytatoPyOpenCLArrayContext: _PytatoPyOpenCLArrayContextFactory}
 
 
 def pytest_generate_tests_for_array_contexts(metafunc, actx_list=None) -> None:
@@ -91,7 +91,7 @@ def pytest_generate_tests_for_array_contexts(metafunc, actx_list=None) -> None:
     """
 
     if actx_list is None:
-        actx_list = [PyOpenCLArrayContext, PytatoArrayContext]
+        actx_list = [PyOpenCLArrayContext, PytatoPyOpenCLArrayContext]
 
     actx_factories = [types_to_factories[a] for a in actx_list]
 

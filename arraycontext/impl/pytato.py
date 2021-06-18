@@ -1,6 +1,6 @@
 """
 .. currentmodule:: arraycontext
-.. autoclass:: PytatoArrayContext
+.. autoclass:: PytatoPyOpenCLArrayContext
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -46,7 +46,7 @@ class _PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
 
 class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     """
-    A :mod:`numpy` mimic for :class:`PytatoArrayContext`.
+    A :mod:`numpy` mimic for :class:`PytatoPyOpenCLArrayContext`.
 
     .. note::
 
@@ -354,7 +354,7 @@ class PytatoExecutable:
                                              self.output_template)
 
 
-class PytatoArrayContext(ArrayContext):
+class PytatoPyOpenCLArrayContext(ArrayContext):
     """
     A :class:`ArrayContext` that uses :mod:`pytato` data types to represent
     the DOF arrays targeting OpenCL for offloading operations.
@@ -386,7 +386,7 @@ class PytatoArrayContext(ArrayContext):
         return type(self)(self.queue, self.allocator)
 
     def empty(self, shape, dtype):
-        raise ValueError("PytatoArrayContext does not support empty")
+        raise ValueError("PytatoPyOpenCLArrayContext does not support empty")
 
     def zeros(self, shape, dtype):
         import pytato as pt
@@ -423,8 +423,8 @@ class PytatoArrayContext(ArrayContext):
         if isinstance(array, cla.Array):
             return array.with_queue(None)
         if not isinstance(array, pt.Array):
-            raise TypeError("PytatoArrayContext.freeze invoked with non-pytato "
-                            f"array of type '{type(array)}'")
+            raise TypeError("PytatoPyOpenCLArrayContext.freeze invoked with "
+                            f"non-pytato array of type '{type(array)}'")
 
         prg = pt.generate_loopy(array, cl_device=self.queue.device)
         evt, (cl_array,) = prg(self.queue)
@@ -437,7 +437,7 @@ class PytatoArrayContext(ArrayContext):
         import pyopencl.array as cla
 
         if not isinstance(array, cla.Array):
-            raise TypeError("PytatoArrayContext.thaw expects CL arrays, got "
+            raise TypeError("PytatoPyOpenCLArrayContext.thaw expects CL arrays, got "
                     f"{type(array)}")
 
         return pt.make_data_wrapper(array.with_queue(self.queue))
@@ -510,8 +510,8 @@ class PytatoArrayContext(ArrayContext):
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         if arg_names is not None:
             from warnings import warn
-            warn("'arg_names' don't bear any significance in PytatoArrayContext.",
-                 stacklevel=2)
+            warn("'arg_names' don't bear any significance in "
+                 "PytatoPyOpenCLArrayContext.", stacklevel=2)
 
         import pytato as pt
         import pyopencl.array as cla
