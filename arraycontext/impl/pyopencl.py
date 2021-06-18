@@ -43,6 +43,7 @@ from arraycontext.container.traversal import (rec_multimap_array_container,
 from arraycontext.context import ArrayContext
 from numbers import Number
 
+
 # {{{ fake numpy
 
 class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
