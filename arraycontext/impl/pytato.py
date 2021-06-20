@@ -191,7 +191,7 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     """
     def _rec_str(key: Any) -> str:
         if isinstance(key, (str, int)):
-            return key
+            return str(key)
         elif isinstance(key, tuple):
             return "tup" + "_".join(_rec_str(k) for k in key) + "endtup"
         else:
