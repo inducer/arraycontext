@@ -57,9 +57,9 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     .. note::
 
-        :mod:`pytato` does not define any memory layout. If the caller invokes
-        any routine that depends on the input arrays' memory layout, a result is
-        returned assuming the arrays have a C-contiguous layout.
+        :mod:`pytato` does not define any memory layout for its arrays. See
+        `Pytato docs <https://documen.tician.de/pytato/design.html#memory-layout>`_
+        for more on this.
     """
     def _get_fake_numpy_linalg_namespace(self):
         return _PytatoFakeNumpyLinalgNamespace(self._array_context)
@@ -140,12 +140,23 @@ class _PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(pt.arctan2, y, x)
 
     def ravel(self, a, order="C"):
+        """
+        :arg order: A :class:`str` describing the order in which the elements
+            must be traversed while flattening. Can be one of 'F', 'C', 'A' or
+            'K'. Since, :mod:`pytato` arrays don't have a memory layout, if
+            *order* is 'A' or 'K', the traversal order while flattening is
+            undefined.
+        """
 
         def _rec_ravel(a):
             if order in "FC":
                 return pt.reshape(a, (-1,), order=order)
+            elif order in "AK":
+                # flattening in a C-order
+                # memory layout is assumed to be "C"
+                return pt.reshape(a, (-1,), order="C")
             else:
-                raise ValueError("`order` can be one of 'F' or 'C'. "
+                raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
                                  f"(got {order})")
 
         return rec_map_array_container(_rec_ravel, a)
