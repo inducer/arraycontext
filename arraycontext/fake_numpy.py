@@ -176,45 +176,40 @@ class BaseFakeNumpyLinalgNamespace:
 
     def norm(self, ary, ord=None):
         from numbers import Number
+
         if isinstance(ary, Number):
             return abs(ary)
 
-        if ord is None:
-            ord = 2
+        try:
+            from meshmode.dof_array import DOFArray, flat_norm
+        except ImportError:
+            pass
+        else:
+            if isinstance(ary, DOFArray):
+                from warnings import warn
+                warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
+                        "(DOFArrays use 2D arrays internally, and "
+                        "actx.np.linalg.norm should compute matrix norms of those.) "
+                        "This will stop working in 2022. "
+                        "Use meshmode.dof_array.flat_norm instead.",
+                        DeprecationWarning, stacklevel=2)
+                return flat_norm(ary, ord=ord)
 
-        from arraycontext.impl import _is_meshmode_dofarray, _is_pyopencl_array
-
-        if _is_pyopencl_array(ary):
-            if ary.ndim != 1:
-                from arraycontext.impl import _flatten_cl_array
-                # mimics numpy's norm computation
-                return self.norm(_flatten_cl_array(ary), ord=2)
-
-        if (_is_meshmode_dofarray(ary) and all([_is_pyopencl_array(subary)
-                                for _, subary in serialize_container(ary)])):
-            from arraycontext.impl import _flatten_cl_array
-
-            from warnings import warn
-            warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
-                    "(DOFArrays use 2D arrays internally, and "
-                    "actx.np.linalg.norm should compute matrix norms of those.) "
-                    "This will stop working in 2022. "
-                    "Use meshmode.dof_array.flat_norm instead.",
-                    DeprecationWarning, stacklevel=2)
-
+        if is_array_container(ary):
             import numpy.linalg as la
             return la.norm(
-                    [self.norm(_flatten_cl_array(subary), ord=ord)
+                    [self.norm(subary, ord=ord)
                         for _, subary in serialize_container(ary)],
                     ord=ord)
 
-        if is_array_container(ary):
-            if ord == np.inf:
-                return max([self.norm(subary, ord=ord)
-                        for _, subary in serialize_container(ary)])
-            else:
-                return sum([self.norm(subary, ord=ord)**ord
-                        for _, subary in serialize_container(ary)]) ** (1/ord)
+        if ord is None:
+            return self.norm(self._array_context.np.ravel(ary, order="A"), 2)
+
+        assert ord is not None
+
+        if len(ary.shape) != 1:
+            raise NotImplementedError("only vector norms are implemented")
+
         if ary.size == 0:
             return 0
 
