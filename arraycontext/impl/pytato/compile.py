@@ -28,7 +28,7 @@ THE SOFTWARE.
 """
 
 from arraycontext.container import ArrayContainer
-from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
+from arraycontext import PytatoPyOpenCLArrayContext
 import numpy as np
 from typing import Any, Callable, Tuple, Dict
 from dataclasses import dataclass, field
@@ -81,7 +81,7 @@ class PytatoCompiledOperator:
     would be specialized for different input types
     :meth:`PytatoCompiledOperator.__call__` is invoked with.
 
-    ... attribute f::
+    .. attribute:: f
 
         The callable that would be specialized into :mod:`pytato` DAGs.
 
@@ -193,6 +193,8 @@ class PytatoExecutable:
     """
     A callable which is an instance of :attr:`~PytatoCompiledOperator.f`
     specialized for a particular input type fed to it.
+
+    .. attribute:: pytato_program
 
     .. attribute:: input_id_to_name_in_program
 
