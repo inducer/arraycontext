@@ -27,7 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pytools.tag import Tag
+from pytools.tag import Tag, UniqueTag
 
 
 # {{{ program metadata
@@ -45,6 +45,14 @@ class FirstAxisIsElementsTag(Tag):
     the implementation should set element indices as the outermost
     loop extent.
     """
+
+class ParameterValue(UniqueTag):
+
+    def __init__(self, value):
+        self.value = value
+
+class IsDOFArray(Tag):
+    pass
 
 # }}}
 

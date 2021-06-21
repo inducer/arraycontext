@@ -35,7 +35,7 @@ from pytools.tag import Tag
 
 from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.context import ArrayContext
-
+from arraycontext.metadata import ParameterValue
 
 # {{{ PyOpenCLArrayContext
 
@@ -152,7 +152,7 @@ class PyOpenCLArrayContext(ArrayContext):
             if len(wait_event_queue) > self._wait_event_queue_length:
                 wait_event_queue.pop(0).wait()
 
-        return result
+        return evt, result
 
     def freeze(self, array):
         array.finish()
@@ -173,6 +173,11 @@ class PyOpenCLArrayContext(ArrayContext):
         # accommodate loopy with and without kernel callables
 
         import loopy as lp
+        
+        for arg in t_unit.args:
+            if isinstance(arg.tags, ParameterValue):
+                t_unit = lp.fix_parameters(t_unit, **{arg.name: arg.tags.value})
+
         default_entrypoint = t_unit.default_entrypoint
         options = default_entrypoint.options
         if not (options.return_dict and options.no_numpy):

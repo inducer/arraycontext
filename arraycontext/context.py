@@ -108,7 +108,7 @@ from abc import ABC, abstractmethod, abstractproperty
 import numpy as np
 from pytools import memoize_method
 from pytools.tag import Tag
-
+from arraycontext.metadata import IsDOFArray
 
 # {{{ ArrayContext
 
@@ -218,7 +218,7 @@ class ArrayContext(ABC):
 
         import loopy as lp
         from .loopy import make_loopy_program
-        return make_loopy_program(
+        prog = make_loopy_program(
                 [domain_bset],
                 [
                     lp.Assignment(
@@ -227,6 +227,14 @@ class ArrayContext(ABC):
                             var("inp%d" % i)[subscript] for i in range(nargs)]))
                     ],
                 name="actx_special_%s" % c_name)
+
+        for arg in prog.args:
+            if isinstance(arg, lp.ArrayArg):
+                arg.tags = IsDOFArray()
+            if arg.name == "out":
+                arg.is_output_only = True
+
+        return prog
 
     @abstractmethod
     def freeze(self, array):

@@ -30,7 +30,7 @@ THE SOFTWARE.
 
 from .context import ArrayContext
 
-from .metadata import CommonSubexpressionTag, FirstAxisIsElementsTag
+from .metadata import CommonSubexpressionTag, FirstAxisIsElementsTag, ParameterValue, IsDOFArray
 
 from .container import (
         ArrayContainer,
