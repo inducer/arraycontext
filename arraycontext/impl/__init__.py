@@ -1,7 +1,3 @@
-"""Various (undocumented) helper functions to avoid creating dependencies
-on other packages (such as pyopencl or meshmode).
-"""
-
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """

@@ -126,7 +126,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
 
     # }}}
 
-    def compile(self, f: Callable[[Any], Any]) -> Callable[..., Any]:
+    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
         from arraycontext.impl.pytato.compile import PytatoCompiledOperator
         return PytatoCompiledOperator(self, f)
 
