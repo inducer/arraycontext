@@ -1,6 +1,8 @@
 """
 .. currentmodule:: arraycontext
 .. autoclass:: PytatoPyOpenCLArrayContext
+
+.. automodule:: arraycontext.impl.pytato.compile
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -84,7 +86,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
 
     def call_loopy(self, program, **kwargs):
         import pyopencl.array as cla
-        from pytato.loopy import call_loopy  # type: ignore
+        from pytato.loopy import call_loopy
         entrypoint, = set(program.callables_table)
 
         # thaw frozen arrays
@@ -125,7 +127,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     # }}}
 
     def compile(self, f: Callable[[Any], Any]) -> Callable[..., Any]:
-        from arraycontext.impl.pytato import PytatoCompiledOperator
+        from arraycontext.impl.pytato.compile import PytatoCompiledOperator
         return PytatoCompiledOperator(self, f)
 
     def transform_loopy_program(self, prg):
