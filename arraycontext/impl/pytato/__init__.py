@@ -183,11 +183,13 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return gridify(prg)
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
-        # Sorry, not capable.
-        return array
+        return array.tagged(tags)
 
     def tag_axis(self, iaxis, tags: Union[Sequence[Tag], Tag], array):
-        # Sorry, not capable.
+        # TODO
+        from warnings import warn
+        warn("tagging PytatoPyOpenCLArrayContext's array axes: not yet implemented",
+             stacklevel=2)
         return array
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
