@@ -155,10 +155,13 @@ class LazilyCompilingFunctionCaller:
 
     def __call__(self, *args: Any) -> Any:
         """
-        Mimics :attr:`~LazilyCompilingFunctionCaller.f` being called with *args*.
-        Before calling :attr:`~LazilyCompilingFunctionCaller.f`, it is compiled to a
-        :mod:`pytato` DAG that would apply :attr:`~LazilyCompilingFunctionCaller.f`
-        with *args* in a lazy-sense.
+        Returns the result of :attr:`~LazilyCompilingFunctionCaller.f`'s
+        function application on *args*.
+
+        Before applying :attr:`~LazilyCompilingFunctionCaller.f`, it is compiled
+        to a :mod:`pytato` DAG that would apply
+        :attr:`~LazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
+        The intermediary pytato DAG for *args* is memoized in *self*.
         """
         arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(args)
 
