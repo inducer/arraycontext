@@ -99,9 +99,6 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         import pytato as pt
         import pyopencl.array as cla
 
-        if isinstance(array, pt.Placeholder):
-            raise ValueError("freezing placeholder would return garbage valued"
-                    " arrays")
         if isinstance(array, cla.Array):
             return array.with_queue(None)
         if not isinstance(array, pt.Array):
