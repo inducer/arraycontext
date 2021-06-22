@@ -60,16 +60,21 @@ class ArrayContainerInputDescriptor(AbstractInputDescriptor):
 def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     """
     Helper for :meth:`LazilyCompilingFunctionCaller.__call__`. Stringifies an
-    array-container's component's key. The aim is that no two different keys
-    have the same stringification.
+    array-container's component's key. Goals of this routine:
+
+    * No two different keys have the same stringification
+    * Stringified key must a valid identifier according to :meth:`str.isidentifier`
+    * (informal) Shorter identifiers are preferred
     """
     def _rec_str(key: Any) -> str:
         if isinstance(key, (str, int)):
             return str(key)
         elif isinstance(key, tuple):
-            return "tup" + "_".join(_rec_str(k) for k in key) + "endtup"
+            # t in '_actx_t': stands for tuple
+            return "_actx_t" + "_".join(_rec_str(k) for k in key) + "_actx_endt"
         else:
-            raise NotImplementedError
+            raise NotImplementedError("Key-stringication unimplemented for "
+                                      f"'{type(key).__name__}'.")
 
     return "_".join(_rec_str(key) for key in keys)
 
