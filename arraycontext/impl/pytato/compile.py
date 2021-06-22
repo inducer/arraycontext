@@ -75,7 +75,7 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
 
 
 @dataclass
-class PytatoCompiledOperator:
+class LazilyCompilingFunctionCaller:
     """
     Records a side-effect-free callable :attr:`PytatoCompiledOperator.f`, that
     would be specialized for different input types
@@ -125,7 +125,7 @@ class PytatoCompiledOperator:
         arg_descrs = tuple(to_arg_descr(arg) for arg in args)
 
         try:
-            exec_f = self.program_cache[arg_descrs]
+            compiled_f = self.program_cache[arg_descrs]
         except KeyError:
             pass
         else:
@@ -189,7 +189,7 @@ class PytatoCompiledOperator:
 
 
 @dataclass
-class PytatoExecutable:
+class CompiledFunction:
     """
     A callable which is an instance of :attr:`~PytatoCompiledOperator.f`
     specialized for a particular input type fed to it.
