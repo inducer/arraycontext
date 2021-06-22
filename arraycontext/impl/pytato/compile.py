@@ -60,7 +60,7 @@ class ArrayContainerInputDescriptor(AbstractInputDescriptor):
 def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     """
     Helper for :meth:`PytatoCompiledOperator.__call__`. Stringifies an
-    array-container's component's key. The aim is that no-two different keys
+    array-container's component's key. The aim is that no two different keys
     have the same stringification.
     """
     def _rec_str(key: Any) -> str:
@@ -162,7 +162,7 @@ class PytatoCompiledOperator:
         if not is_array_container(outputs):
             # TODO: We could possibly just short-circuit this interface if the
             # returned type is a scalar. Not sure if it's worth it though.
-            raise ValueError(f"Function '{self.f.__name__}' to be compiled did not"
+            raise NotImplementedError(f"Function '{self.f.__name__}' to be compiled did not"
                              f" return an array container, but '{outputs}' instead.")
 
         def _as_dict_of_named_arrays(keys, ary):
