@@ -1,7 +1,7 @@
 """
 .. currentmodule:: arraycontext.impl.pytato.compile
-.. autoclass:: PytatoCompiledOperator
-.. autoclass:: PytatoExecutable
+.. autoclass:: LazilyCompilingFunctionCaller
+.. autoclass:: CompiledFunction
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -59,7 +59,7 @@ class ArrayContainerInputDescriptor(AbstractInputDescriptor):
 
 def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     """
-    Helper for :meth:`PytatoCompiledOperator.__call__`. Stringifies an
+    Helper for :meth:`LazilyCompilingFunctionCaller.__call__`. Stringifies an
     array-container's component's key. The aim is that no two different keys
     have the same stringification.
     """
@@ -77,9 +77,9 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
 @dataclass
 class LazilyCompilingFunctionCaller:
     """
-    Records a side-effect-free callable :attr:`PytatoCompiledOperator.f`, that
+    Records a side-effect-free callable :attr:`LazilyCompilingFunctionCaller.f`, that
     would be specialized for different input types
-    :meth:`PytatoCompiledOperator.__call__` is invoked with.
+    :meth:`LazilyCompilingFunctionCaller.__call__` is invoked with.
 
     .. attribute:: f
 
@@ -91,13 +91,13 @@ class LazilyCompilingFunctionCaller:
     actx: PytatoPyOpenCLArrayContext
     f: Callable[..., Any]
     program_cache: Dict[Tuple[AbstractInputDescriptor, ...],
-                        "PytatoExecutable"] = field(default_factory=lambda: {})
+                        "CompiledFunction"] = field(default_factory=lambda: {})
 
     def __call__(self, *args: Any) -> Any:
         """
-        Mimics :attr:`~PytatoCompiledOperator.f` being called with *args*.
-        Before calling :attr:`~PytatoCompiledOperator.f`, it is compiled to a
-        :mod:`pytato` DAG that would apply :attr:`~PytatoCompiledOperator.f`
+        Mimics :attr:`~LazilyCompilingFunctionCaller.f` being called with *args*.
+        Before calling :attr:`~LazilyCompilingFunctionCaller.f`, it is compiled to a
+        :mod:`pytato` DAG that would apply :attr:`~LazilyCompilingFunctionCaller.f`
         with *args* in a lazy-sense.
         """
 
@@ -129,7 +129,7 @@ class LazilyCompilingFunctionCaller:
         except KeyError:
             pass
         else:
-            return exec_f(*args)
+            return compiled_f(*args)
 
         dict_of_named_arrays = {}
         # output_naming_map: result id to name of the named array in the
@@ -162,8 +162,9 @@ class LazilyCompilingFunctionCaller:
         if not is_array_container(outputs):
             # TODO: We could possibly just short-circuit this interface if the
             # returned type is a scalar. Not sure if it's worth it though.
-            raise NotImplementedError(f"Function '{self.f.__name__}' to be compiled did not"
-                             f" return an array container, but '{outputs}' instead.")
+            raise NotImplementedError(
+                f"Function '{self.f.__name__}' to be compiled "
+                f"did not return an array container, but '{outputs}' instead.")
 
         def _as_dict_of_named_arrays(keys, ary):
             name = "_pt_out_" + "_".join(str(key)
@@ -179,7 +180,7 @@ class LazilyCompilingFunctionCaller:
                                            options={"return_dict": True},
                                            cl_device=self.actx.queue.device)
 
-        self.program_cache[arg_descrs] = PytatoExecutable(self.actx,
+        self.program_cache[arg_descrs] = CompiledFunction(self.actx,
                                                           pytato_program,
                                                           input_naming_map,
                                                           output_naming_map,
@@ -191,7 +192,7 @@ class LazilyCompilingFunctionCaller:
 @dataclass
 class CompiledFunction:
     """
-    A callable which is an instance of :attr:`~PytatoCompiledOperator.f`
+    A callable which is an instance of :attr:`~LazilyCompilingFunctionCaller.f`
     specialized for a particular input type fed to it.
 
     .. attribute:: pytato_program
@@ -199,17 +200,17 @@ class CompiledFunction:
     .. attribute:: input_id_to_name_in_program
 
         A mapping from input id to the placholder name in
-        :attr:`PytatoExecutable.pytato_program`. Input id is represented as the
-        position of :attr:`~PytatoCompiledOperator.f`'s argument augmented with
-        the leaf array's key if the argument is an array container.
+        :attr:`CompiledFunction.pytato_program`. Input id is represented as the
+        position of :attr:`~LazilyCompilingFunctionCaller.f`'s argument augmented
+        with the leaf array's key if the argument is an array container.
 
     .. attribute:: output_id_to_name_in_program
 
         A mapping from output id to the name of
         :class:`pytato.array.NamedArray` in
-        :attr:`PytatoExecutable.pytato_program`. Output id is represented by
+        :attr:`CompiledFunction.pytato_program`. Output id is represented by
         the key of a leaf array in the array container
-        :attr:`PytatoExecutable.output_template`.
+        :attr:`CompiledFunction.output_template`.
 
     .. attribute:: output_template
 

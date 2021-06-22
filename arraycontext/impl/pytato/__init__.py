@@ -127,8 +127,8 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     # }}}
 
     def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
-        from arraycontext.impl.pytato.compile import PytatoCompiledOperator
-        return PytatoCompiledOperator(self, f)
+        from arraycontext.impl.pytato.compile import LazilyCompilingFunctionCaller
+        return LazilyCompilingFunctionCaller(self, f)
 
     def transform_loopy_program(self, prg):
         from loopy.translation_unit import for_each_kernel
