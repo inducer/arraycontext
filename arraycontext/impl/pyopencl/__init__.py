@@ -133,7 +133,7 @@ class PyOpenCLArrayContext(ArrayContext):
                         "a noticeable speed improvement.")
 
         self._loopy_transform_cache: \
-                Dict[lp.TranslationUnit, lp.TranslationUnit] = {}
+                Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
