@@ -92,6 +92,12 @@ class PyOpenCLArrayContext(ArrayContext):
 
             For now, *wait_event_queue_length* should be regarded as an
             experimental feature that may change or disappear at any minute.
+
+        :arg force_device_scalars: if *True*, scalar results returned from
+            reductions in :attr:`ArrayContext.np` will be kept on the device.
+            If *False*, the equivalent of :meth:`~ArrayContext.freeze` and
+            :meth:`~ArrayContext.to_numpy` is applied to transfer the results
+            to the host.
         """
         if not force_device_scalars:
             warn("Returning host scalars from the array context is deprecated. "
