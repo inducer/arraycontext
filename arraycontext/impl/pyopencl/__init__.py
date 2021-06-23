@@ -40,6 +40,7 @@ from arraycontext.context import ArrayContext
 
 if TYPE_CHECKING:
     import pyopencl
+    import loopy as lp
 
 
 # {{{ PyOpenCLArrayContext
@@ -131,7 +132,8 @@ class PyOpenCLArrayContext(ArrayContext):
                         "are running Python in debug mode. Use 'python -O' for "
                         "a noticeable speed improvement.")
 
-        self._loopy_transform_cache: dict = {}
+        self._loopy_transform_cache: \
+                Dict[lp.TranslationUnit, lp.TranslationUnit] = {}
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
