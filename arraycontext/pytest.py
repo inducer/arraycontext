@@ -100,6 +100,9 @@ def pytest_generate_tests_for_array_context(
     as a backend, which allows specifying the ``PYOPENCL_TEST`` environment
     variable for device selection.
 
+    The environment variable ``ARRAYCONTEXT_TEST`` can also be used to
+    overwrite any chosen implementations through *impls*.
+
     Current supported implementations include:
 
     * ``"pyopencl"``, which creates a :class:`~arraycontext.PyOpenCLArrayContext`
@@ -111,14 +114,35 @@ def pytest_generate_tests_for_array_context(
     :arg impls: a list of identifiers for desired implementations.
     """
 
-    if impls is None:
-        impls = list(_ARRAY_CONTEXT_FACTORY_DICT.values())
-    else:
+    # {{{ get all requested array context factories
+
+    import os
+    env_impls_string = os.environ.get("ARRAYCONTEXT_TEST", None)
+
+    if env_impls_string is not None:
+        impls = set(env_impls_string.split(","))
+
         unknown_impls = [
                 impl for impl in impls
                 if impl not in _ALL_ARRAY_CONTEXT_FACTORY_DICT]
         if unknown_impls:
-            raise ValueError(f"unknown array contexts: {unknown_impls}")
+            raise RuntimeError(
+                    "unknown array contexts passed through environment "
+                    f"variable 'ARRAYCONTEXT_TEST': {unknown_impls}")
+    else:
+        if impls is None:
+            impls = set(_ARRAY_CONTEXT_FACTORY_DICT.values())
+        else:
+            impls = set(impls)
+            unknown_impls = [
+                    impl for impl in impls
+                    if impl not in _ALL_ARRAY_CONTEXT_FACTORY_DICT]
+            if unknown_impls:
+                raise ValueError(f"unknown array contexts: {unknown_impls}")
+
+    # }}}
+
+    # {{{ get pyopencl devices
 
     import pyopencl.tools as cl_tools
     arg_names = cl_tools.get_pyopencl_fixture_arg_names(
@@ -128,6 +152,11 @@ def pytest_generate_tests_for_array_context(
         return
 
     arg_values, ids = cl_tools.get_pyopencl_fixture_arg_values()
+
+    # }}}
+
+    # {{{ add array context factory to arguments
+
     if "actx_factory" in arg_names:
         if "ctx_factory" in arg_names or "ctx_getter" in arg_names:
             raise RuntimeError("Cannot use both an 'actx_factory' and a "
@@ -148,6 +177,8 @@ def pytest_generate_tests_for_array_context(
             tuple(arg_dict[name] for name in arg_names)
             for arg_dict in arg_values_with_actx
             ]
+
+    # }}}
 
     metafunc.parametrize(arg_names, arg_value_tuples, ids=ids)
 
