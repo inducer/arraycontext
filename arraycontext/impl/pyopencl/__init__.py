@@ -28,7 +28,7 @@ THE SOFTWARE.
 """
 
 from warnings import warn
-from typing import Any, Dict, List, Sequence, Optional, Union, TYPE_CHECKING
+from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 
@@ -117,7 +117,7 @@ class PyOpenCLArrayContext(ArrayContext):
 
         self._force_device_scalars = force_device_scalars
         self._wait_event_queue_length = wait_event_queue_length
-        self._kernel_name_to_wait_event_queue: Dict[str, List[Any]] = {}
+        self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
 
         if queue.device.type & cl.device_type.GPU:
             if allocator is None:
