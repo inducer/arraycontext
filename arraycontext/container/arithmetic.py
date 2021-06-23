@@ -280,6 +280,10 @@ def with_container_arithmetic(
             else:
                 return "(%s,)" % ", ".join(t)
 
+        gen(f"cls._outer_bcast_names = {tup_str(outer_bcast_type_names)}")
+        gen(f"cls._bcast_numpy_array = {bcast_numpy_array}")
+        gen(f"cls._bcast_obj_array = {bcast_obj_array}")
+        gen("")
         # {{{ unary operators
 
         for dunder_name, op_str, op_cls in _UNARY_OP_AND_DUNDER:
@@ -390,6 +394,7 @@ def with_container_arithmetic(
 
         # }}}
 
+        print(gen.get())
         # This will evaluate the module, which is all we need.
         code = gen.get().rstrip()+"\n"
         result_dict = {"_MODULE_SOURCE_CODE": code, "cls": cls}
