@@ -107,14 +107,25 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
     def sum(self, a, dtype=None):
-        return cl_array.sum(
-                a, dtype=dtype, queue=self._array_context.queue).get()[()]
+        result = cl_array.sum(a, dtype=dtype, queue=self._array_context.queue)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+
+        return result
 
     def min(self, a):
-        return cl_array.min(a, queue=self._array_context.queue).get()[()]
+        result = cl_array.min(a, queue=self._array_context.queue)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+
+        return result
 
     def max(self, a):
-        return cl_array.max(a, queue=self._array_context.queue).get()[()]
+        result = cl_array.max(a, queue=self._array_context.queue)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+
+        return result
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(
@@ -175,6 +186,21 @@ def _flatten_array(ary):
                 f"with strides {ary.strides} of {ary.dtype}")
 
 
+def _cl_scalar_list_norm(ary, ord):
+    if ord is None:
+        ord = 2
+
+    from numbers import Number
+    if ord == np.inf:
+        return max(ary)
+    elif ord == -np.inf:
+        return min(ary)
+    elif isinstance(ord, Number) and ord > 0:
+        return sum(iary**ord for iary in ary)**(1/ord)
+    else:
+        raise NotImplementedError(f"unsupported value of 'ord': {ord}")
+
+
 class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     def norm(self, ary, ord=None):
         from numbers import Number
@@ -203,18 +229,16 @@ class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
                         "Use meshmode.dof_array.flat_norm instead.",
                         DeprecationWarning, stacklevel=2)
 
-                import numpy.linalg as la
-                return la.norm(
-                        [self.norm(_flatten_array(subary), ord=ord)
-                            for _, subary in serialize_container(ary)],
-                        ord=ord)
+                return _cl_scalar_list_norm([
+                    self.norm(_flatten_array(subary), ord=ord)
+                    for _, subary in serialize_container(ary)
+                    ], ord=ord)
 
         if is_array_container(ary):
-            import numpy.linalg as la
-            return la.norm(
-                    [self.norm(subary, ord=ord)
-                        for _, subary in serialize_container(ary)],
-                    ord=ord)
+            return _cl_scalar_list_norm([
+                self.norm(subary, ord=ord)
+                for _, subary in serialize_container(ary)
+                ], ord=ord)
 
         if len(ary.shape) != 1:
             raise NotImplementedError("only vector norms are implemented")
@@ -224,6 +248,8 @@ class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
 
         if ord == np.inf:
             return self._array_context.np.max(abs(ary))
+        elif ord == -np.inf:
+            return self._array_context.np.min(abs(ary))
         elif isinstance(ord, Number) and ord > 0:
             return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
         else:

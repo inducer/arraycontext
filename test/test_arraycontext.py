@@ -398,8 +398,12 @@ def test_dof_array_reductions_same_as_numpy(actx_factory):
         np_red = getattr(np, name)(ary)
         actx_red = getattr(actx.np, name)(actx.from_numpy(ary))
 
-        assert isinstance(actx_red, Number)
-        assert np.allclose(np_red, actx_red)
+        if actx._force_device_scalars:
+            assert actx_red.shape == ()
+        else:
+            assert isinstance(actx_red, Number)
+
+        assert np.allclose(np_red, actx.to_numpy(actx_red))
 
 # }}}
 
@@ -727,7 +731,7 @@ def test_norm_ord_none(actx_factory, ndim):
     norm_a_ref = np.linalg.norm(a, ord=None)
     norm_a = actx.np.linalg.norm(actx.from_numpy(a), ord=None)
 
-    np.testing.assert_allclose(norm_a, norm_a_ref)
+    np.testing.assert_allclose(actx.to_numpy(norm_a), norm_a_ref)
 
 
 if __name__ == "__main__":

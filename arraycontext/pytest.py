@@ -59,10 +59,12 @@ def pytest_generate_tests_for_pyopencl_array_context(metafunc):
     from pyopencl.tools import _ContextFactory
 
     class ArrayContextFactory(_ContextFactory):
-        def __call__(self):
+        def __call__(self, force_device_scalars=False):
             ctx = super().__call__()
             from arraycontext.impl.pyopencl import PyOpenCLArrayContext
-            return PyOpenCLArrayContext(cl.CommandQueue(ctx))
+            return PyOpenCLArrayContext(
+                    cl.CommandQueue(ctx),
+                    force_device_scalars=force_device_scalars)
 
         def __str__(self):
             return ("<array context factory for <pyopencl.Device '%s' on '%s'>" %
