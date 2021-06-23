@@ -120,10 +120,10 @@ def pytest_generate_tests_for_array_context(
     env_impls_string = os.environ.get("ARRAYCONTEXT_TEST", None)
 
     if env_impls_string is not None:
-        impls = set(env_impls_string.split(","))
+        unique_impls = set(env_impls_string.split(","))
 
         unknown_impls = [
-                impl for impl in impls
+                impl for impl in unique_impls
                 if impl not in _ALL_ARRAY_CONTEXT_FACTORY_DICT]
         if unknown_impls:
             raise RuntimeError(
@@ -131,14 +131,18 @@ def pytest_generate_tests_for_array_context(
                     f"variable 'ARRAYCONTEXT_TEST': {unknown_impls}")
     else:
         if impls is None:
-            impls = set(_ARRAY_CONTEXT_FACTORY_DICT.values())
+            unique_impls = set(
+                    _ARRAY_CONTEXT_FACTORY_DICT.values())  # type: ignore[arg-type]
         else:
-            impls = set(impls)
+            unique_impls = set(impls)
             unknown_impls = [
-                    impl for impl in impls
+                    impl for impl in unique_impls
                     if impl not in _ALL_ARRAY_CONTEXT_FACTORY_DICT]
             if unknown_impls:
                 raise ValueError(f"unknown array contexts: {unknown_impls}")
+
+    if not unique_impls:
+        raise ValueError("no array contexts were selected")
 
     # }}}
 
@@ -164,7 +168,7 @@ def pytest_generate_tests_for_array_context(
 
         arg_values_with_actx = []
         for arg_dict in arg_values:
-            for impl in impls:
+            for impl in unique_impls:
                 arg = arg_dict.copy()
                 arg["actx_factory"] = \
                         _ALL_ARRAY_CONTEXT_FACTORY_DICT[impl](arg_dict["device"])
