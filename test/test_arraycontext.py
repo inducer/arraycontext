@@ -33,12 +33,17 @@ from arraycontext import (
         freeze, thaw,
         FirstAxisIsElementsTag)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_pyopencl_array_context
-        as pytest_generate_tests,
+        pytest_generate_tests_for_array_context,
         _acf)
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def pytest_generate_tests(metafunc):
+    pytest_generate_tests_for_array_context(metafunc, impls=[
+        "pyopencl", "pyopencl-deprecated",
+        ])
 
 
 # {{{ stand-in DOFArray implementation
@@ -180,10 +185,8 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ("where", 3),
             ("conj", 1),
             ])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_array_context_np_workalike(actx_factory, sym_name, n_args,
-        force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_array_context_np_workalike(actx_factory, sym_name, n_args):
+    actx = actx_factory()
 
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(n_args)]
@@ -196,9 +199,8 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args,
             ("zeros_like", 1),
             ("ones_like", 1),
             ])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_array_context_np_like(actx_factory, sym_name, n_args, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_array_context_np_like(actx_factory, sym_name, n_args):
+    actx = actx_factory()
 
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(n_args)]
@@ -210,9 +212,8 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, force_device_scal
 
 # {{{ array manipulations
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_actx_stack(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_actx_stack(actx_factory):
+    actx = actx_factory()
 
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(10)]
@@ -221,9 +222,8 @@ def test_actx_stack(actx_factory, force_device_scalars):
             actx, lambda _np, *_args: _np.stack(_args), args)
 
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_actx_concatenate(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_actx_concatenate(actx_factory):
+    actx = actx_factory()
 
     ndofs = 5000
     args = [np.random.randn(ndofs) for i in range(10)]
@@ -232,9 +232,8 @@ def test_actx_concatenate(actx_factory, force_device_scalars):
             actx, lambda _np, *_args: _np.concatenate(_args), args)
 
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_actx_reshape(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_actx_reshape(actx_factory):
+    actx = actx_factory()
 
     for new_shape in [(3, 2), (3, -1), (6,), (-1,)]:
         assert_close_to_numpy(
@@ -242,10 +241,9 @@ def test_actx_reshape(actx_factory, force_device_scalars):
                 (np.random.randn(2, 3), new_shape))
 
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_actx_ravel(actx_factory, force_device_scalars):
+def test_actx_ravel(actx_factory):
     from numpy.random import default_rng
-    actx = actx_factory(force_device_scalars)
+    actx = actx_factory()
     rng = default_rng()
     ndim = rng.integers(low=1, high=6)
     shape = tuple(rng.integers(2, 7, ndim))
@@ -258,9 +256,8 @@ def test_actx_ravel(actx_factory, force_device_scalars):
 
 # {{{ arithmetic same as numpy
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_dof_array_arithmetic_same_as_numpy(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_dof_array_arithmetic_same_as_numpy(actx_factory):
+    actx = actx_factory()
 
     ndofs = 50_000
 
@@ -397,9 +394,8 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory, force_device_scalars):
 
 # {{{ reductions same as numpy
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_dof_array_reductions_same_as_numpy(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_dof_array_reductions_same_as_numpy(actx_factory):
+    actx = actx_factory()
 
     from numbers import Number
     for name in ["sum", "min", "max"]:
@@ -424,10 +420,8 @@ def test_dof_array_reductions_same_as_numpy(actx_factory, force_device_scalars):
     "ij->ji",
     "ii->i",
 ])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_array_context_einsum_array_manipulation(actx_factory, spec,
-        force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_array_context_einsum_array_manipulation(actx_factory, spec):
+    actx = actx_factory()
 
     mat = actx.from_numpy(np.random.randn(10, 10))
     res = actx.to_numpy(actx.einsum(spec, mat,
@@ -441,10 +435,8 @@ def test_array_context_einsum_array_manipulation(actx_factory, spec,
     "ij,ji->ij",
     "ij,kj->ik",
 ])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_array_context_einsum_array_matmatprods(actx_factory, spec,
-        force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_array_context_einsum_array_matmatprods(actx_factory, spec):
+    actx = actx_factory()
 
     mat_a = actx.from_numpy(np.random.randn(5, 5))
     mat_b = actx.from_numpy(np.random.randn(5, 5))
@@ -457,10 +449,8 @@ def test_array_context_einsum_array_matmatprods(actx_factory, spec,
 @pytest.mark.parametrize("spec", [
     "im,mj,k->ijk"
 ])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_array_context_einsum_array_tripleprod(actx_factory, spec,
-        force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_array_context_einsum_array_tripleprod(actx_factory, spec):
+    actx = actx_factory()
 
     mat_a = actx.from_numpy(np.random.randn(7, 5))
     mat_b = actx.from_numpy(np.random.randn(5, 7))
@@ -537,9 +527,8 @@ def _get_test_containers(actx, ambient_dim=2):
             bcast_dataclass_of_dofs)
 
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_container_multimap(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_container_multimap(actx_factory):
+    actx = actx_factory()
     ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
             _get_test_containers(actx)
 
@@ -579,9 +568,8 @@ def test_container_multimap(actx_factory, force_device_scalars):
     # }}}
 
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_container_arithmetic(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_container_arithmetic(actx_factory):
+    actx = actx_factory()
     ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
             _get_test_containers(actx)
 
@@ -631,9 +619,8 @@ def test_container_arithmetic(actx_factory, force_device_scalars):
     # }}}
 
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_container_freeze_thaw(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_container_freeze_thaw(actx_factory):
+    actx = actx_factory()
     ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
             _get_test_containers(actx)
 
@@ -675,9 +662,8 @@ def test_container_freeze_thaw(actx_factory, force_device_scalars):
 
 
 @pytest.mark.parametrize("ord", [2, np.inf])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_container_norm(actx_factory, ord, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_container_norm(actx_factory, ord):
+    actx = actx_factory()
 
     ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
             _get_test_containers(actx)
@@ -694,9 +680,8 @@ def test_container_norm(actx_factory, ord, force_device_scalars):
 
 # {{{ test from_numpy and to_numpy
 
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_numpy_conversion(actx_factory, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_numpy_conversion(actx_factory):
+    actx = actx_factory()
 
     ac = MyContainer(
             name="test_numpy_conversion",
@@ -727,9 +712,8 @@ def test_numpy_conversion(actx_factory, force_device_scalars):
 
 
 @pytest.mark.parametrize("norm_ord", [2, np.inf])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_norm_complex(actx_factory, norm_ord, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_norm_complex(actx_factory, norm_ord):
+    actx = actx_factory()
     a = np.random.randn(2000) + 1j * np.random.randn(2000)
 
     norm_a_ref = np.linalg.norm(a, norm_ord)
@@ -739,9 +723,8 @@ def test_norm_complex(actx_factory, norm_ord, force_device_scalars):
 
 
 @pytest.mark.parametrize("ndim", [1, 2, 3, 4, 5])
-@pytest.mark.parametrize("force_device_scalars", [True, False])
-def test_norm_ord_none(actx_factory, ndim, force_device_scalars):
-    actx = actx_factory(force_device_scalars)
+def test_norm_ord_none(actx_factory, ndim):
+    actx = actx_factory()
 
     from numpy.random import default_rng
 

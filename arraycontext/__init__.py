@@ -52,7 +52,9 @@ from .container.traversal import (
 
 from .impl.pyopencl import PyOpenCLArrayContext
 
-from .pytest import pytest_generate_tests_for_pyopencl_array_context
+from .pytest import (
+        pytest_generate_tests_for_array_context,
+        pytest_generate_tests_for_pyopencl_array_context)
 
 from .loopy import make_loopy_program
 
@@ -81,6 +83,7 @@ __all__ = (
 
         "make_loopy_program",
 
+        "pytest_generate_tests_for_array_context",
         "pytest_generate_tests_for_pyopencl_array_context"
         )
 
