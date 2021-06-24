@@ -95,6 +95,16 @@ _ALL_ARRAY_CONTEXT_FACTORY_DICT: Dict[str, Type[PytestArrayContextFactory]] = {
         }
 _ALL_ARRAY_CONTEXT_FACTORY_DICT.update(_ARRAY_CONTEXT_FACTORY_DICT)
 
+
+def register_array_context_factory(
+        name: str,
+        factory: Type[PytestArrayContextFactory]) -> None:
+    if name in _ALL_ARRAY_CONTEXT_FACTORY_DICT:
+        raise ValueError(f"factory '{name}' already exists")
+
+    _ARRAY_CONTEXT_FACTORY_DICT[name] = factory
+    _ALL_ARRAY_CONTEXT_FACTORY_DICT[name] = factory
+
 # }}}
 
 
