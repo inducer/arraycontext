@@ -125,8 +125,9 @@ def pytest_generate_tests_for_array_contexts(
 
     .. code-block:: python
 
-        pytest_generate_tests = \
-            pytest_generate_tests_for_array_context(["pyopencl"])
+        pytest_generate_tests = pytest_generate_tests_for_array_context([
+            "pyopencl",
+            ])
 
     to use the :mod:`pyopencl`-based array context. For :mod:`pyopencl`-based
     contexts :func:`pyopencl.tools.pytest_generate_tests_for_pyopencl` is used
