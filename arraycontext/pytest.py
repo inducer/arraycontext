@@ -45,7 +45,7 @@ class PytestArrayContextFactory:
     .. automethod:: __call__
     """
 
-    def __self__(self, device):
+    def __init__(self, device):
         """
         :arg device: a :class:`pyopencl.Device`.
         """
@@ -111,7 +111,7 @@ def register_array_context_factory(
 # {{{ pytest integration
 
 def pytest_generate_tests_for_array_contexts(
-        impls: Optional[Sequence[
+        factories: Optional[Sequence[
             Union[str, Type[PytestArrayContextFactory]]
             ]] = None,
         ) -> Callable[[Any], None]:
@@ -134,7 +134,7 @@ def pytest_generate_tests_for_array_contexts(
     variable for device selection.
 
     The environment variable ``ARRAYCONTEXT_TEST`` can also be used to
-    overwrite any chosen implementations through *impls*. This is a
+    overwrite any chosen implementations through *factories*. This is a
     comma-separated list of known array contexts.
 
     Current supported implementations include:
@@ -145,47 +145,47 @@ def pytest_generate_tests_for_array_contexts(
       :class:`~arraycontext.PyOpenCLArrayContext` with
       ``force_device_scalars=False``.
 
-    :arg impls: a list of identifiers or instances of
-        :class:`PytestArrayContextFactory`.
+    :arg factories: a list of identifiers or
+        :class:`PytestArrayContextFactory` classes (not instances).
     """
 
     # {{{ get all requested array context factories
 
     import os
-    env_impls_string = os.environ.get("ARRAYCONTEXT_TEST", None)
+    env_factory_string = os.environ.get("ARRAYCONTEXT_TEST", None)
 
-    if env_impls_string is not None:
-        unique_impls = set(env_impls_string.split(","))
+    if env_factory_string is not None:
+        unique_factories = set(env_factory_string.split(","))
 
-        unknown_impls = [
-                impl for impl in unique_impls
-                if (isinstance(impl, str)
-                    and impl not in _ALL_ARRAY_CONTEXT_FACTORY_DICT)
+        unknown_factories = [
+                factory for factory in unique_factories
+                if (isinstance(factory, str)
+                    and factory not in _ALL_ARRAY_CONTEXT_FACTORY_DICT)
                 ]
-        if unknown_impls:
+        if unknown_factories:
             raise RuntimeError(
-                    "unknown array contexts passed through environment "
-                    f"variable 'ARRAYCONTEXT_TEST': {unknown_impls}")
+                    "unknown array context factories passed through environment "
+                    f"variable 'ARRAYCONTEXT_TEST': {unknown_factories}")
     else:
-        if impls is None:
-            unique_impls = set(
+        if factories is None:
+            unique_factories = set(
                     _ARRAY_CONTEXT_FACTORY_DICT.values())   # type: ignore[arg-type]
         else:
-            unique_impls = set(impls)                       # type: ignore[arg-type]
-            unknown_impls = [
-                    impl for impl in unique_impls
-                    if (isinstance(impl, str)
-                        and impl not in _ALL_ARRAY_CONTEXT_FACTORY_DICT)
+            unique_factories = set(factories)               # type: ignore[arg-type]
+            unknown_factories = [
+                    factory for factory in unique_factories
+                    if (isinstance(factory, str)
+                        and factory not in _ALL_ARRAY_CONTEXT_FACTORY_DICT)
                     ]
-            if unknown_impls:
-                raise ValueError(f"unknown array contexts: {unknown_impls}")
+            if unknown_factories:
+                raise ValueError(f"unknown array contexts: {unknown_factories}")
 
-    if not unique_impls:
-        raise ValueError("no array contexts were selected")
+    if not unique_factories:
+        raise ValueError("no array context factories were selected")
 
-    unique_impls = set([
-        _ALL_ARRAY_CONTEXT_FACTORY_DICT.get(impl, impl)     # type: ignore[misc]
-        for impl in unique_impls])
+    unique_factories = set([
+        _ALL_ARRAY_CONTEXT_FACTORY_DICT.get(factory, factory)  # type: ignore[misc]
+        for factory in unique_factories])
 
     # }}}
 
@@ -212,12 +212,10 @@ def pytest_generate_tests_for_array_contexts(
 
             arg_values_with_actx = []
             for arg_dict in arg_values:
-                for impl in unique_impls:
-                    arg = arg_dict.copy()
-                    arg["actx_factory"] = \
-                            _ALL_ARRAY_CONTEXT_FACTORY_DICT[impl](arg_dict["device"])
-
-                    arg_values_with_actx.append(arg)
+                for factory in unique_factories:
+                    arg_values_with_actx.append(dict(
+                        actx_factory=factory(arg_dict["device"]),
+                        **arg_dict))
         else:
             arg_values_with_actx = arg_values
 
