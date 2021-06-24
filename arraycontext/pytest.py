@@ -87,23 +87,22 @@ class _DeprecatedPyOpenCLArrayContextFactory(_PyOpenCLArrayContextFactory):
     force_device_scalars = False
 
 
-_ARRAY_CONTEXT_FACTORY_DICT: Dict[str, Type[PytestArrayContextFactory]] = {
+_DEFAULT_ARRAY_CONTEXT_FACTORY_DICT: Dict[str, Type[PytestArrayContextFactory]] = {
         "pyopencl": _PyOpenCLArrayContextFactory,
         }
-_ALL_ARRAY_CONTEXT_FACTORY_DICT: Dict[str, Type[PytestArrayContextFactory]] = {
+_ARRAY_CONTEXT_FACTORY_DICT: Dict[str, Type[PytestArrayContextFactory]] = {
         "pyopencl-deprecated": _DeprecatedPyOpenCLArrayContextFactory,
         }
-_ALL_ARRAY_CONTEXT_FACTORY_DICT.update(_ARRAY_CONTEXT_FACTORY_DICT)
+_ARRAY_CONTEXT_FACTORY_DICT.update(_DEFAULT_ARRAY_CONTEXT_FACTORY_DICT)
 
 
 def register_array_context_factory(
         name: str,
         factory: Type[PytestArrayContextFactory]) -> None:
-    if name in _ALL_ARRAY_CONTEXT_FACTORY_DICT:
+    if name in _ARRAY_CONTEXT_FACTORY_DICT:
         raise ValueError(f"factory '{name}' already exists")
 
     _ARRAY_CONTEXT_FACTORY_DICT[name] = factory
-    _ALL_ARRAY_CONTEXT_FACTORY_DICT[name] = factory
 
 # }}}
 
@@ -161,7 +160,7 @@ def pytest_generate_tests_for_array_contexts(
         unknown_factories = [
                 factory for factory in unique_factories
                 if (isinstance(factory, str)
-                    and factory not in _ALL_ARRAY_CONTEXT_FACTORY_DICT)
+                    and factory not in _ARRAY_CONTEXT_FACTORY_DICT)
                 ]
         if unknown_factories:
             raise RuntimeError(
@@ -170,13 +169,14 @@ def pytest_generate_tests_for_array_contexts(
     else:
         if factories is None:
             unique_factories = set(
-                    _ARRAY_CONTEXT_FACTORY_DICT.values())   # type: ignore[arg-type]
+                    _DEFAULT_ARRAY_CONTEXT_FACTORY_DICT     # type: ignore[arg-type]
+                    .values())
         else:
             unique_factories = set(factories)               # type: ignore[arg-type]
             unknown_factories = [
                     factory for factory in unique_factories
                     if (isinstance(factory, str)
-                        and factory not in _ALL_ARRAY_CONTEXT_FACTORY_DICT)
+                        and factory not in _ARRAY_CONTEXT_FACTORY_DICT)
                     ]
             if unknown_factories:
                 raise ValueError(f"unknown array contexts: {unknown_factories}")
@@ -185,7 +185,7 @@ def pytest_generate_tests_for_array_contexts(
         raise ValueError("no array context factories were selected")
 
     unique_factories = set([
-        _ALL_ARRAY_CONTEXT_FACTORY_DICT.get(factory, factory)  # type: ignore[misc]
+        _ARRAY_CONTEXT_FACTORY_DICT.get(factory, factory)  # type: ignore[misc]
         for factory in unique_factories])
 
     # }}}
@@ -213,10 +213,10 @@ def pytest_generate_tests_for_array_contexts(
 
             arg_values_with_actx = []
             for arg_dict in arg_values:
-                for factory in unique_factories:
-                    arg_values_with_actx.append(dict(
-                        actx_factory=factory(arg_dict["device"]),
-                        **arg_dict))
+                arg_values_with_actx.extend([
+                    dict(actx_factory=factory(arg_dict["device"]), **arg_dict)
+                    for factory in unique_factories
+                    ])
         else:
             arg_values_with_actx = arg_values
 
