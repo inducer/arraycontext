@@ -1,7 +1,9 @@
 """
 .. currentmodule:: arraycontext
 
-.. autofunction:: pytest_generate_tests_for_array_context
+.. autoclass:: PytestArrayContextFactory
+
+.. autofunction:: pytest_generate_tests_for_array_contexts
 .. autofunction:: pytest_generate_tests_for_pyopencl_array_context
 """
 
@@ -29,26 +31,54 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Optional, Sequence
+from typing import Any, Callable, Dict, Optional, Sequence, Type, Union
 
 import pyopencl as cl
-from pyopencl.tools import _ContextFactory
+from arraycontext.context import ArrayContext
 
 
 # {{{ array context factories
 
-class _PyOpenCLArrayContextFactory(_ContextFactory):
+class PytestArrayContextFactory:
+    """
+    .. automethod:: __init__
+    .. automethod:: __call__
+    """
+
+    def __self__(self, device):
+        """
+        :arg device: a :class:`pyopencl.Device`.
+        """
+        self.device = device
+
+    def get_command_queue(self):
+        # Get rid of leftovers from past tests.
+        # CL implementations are surprisingly limited in how many
+        # simultaneous contexts they allow...
+        from pyopencl.tools import clear_first_arg_caches
+        clear_first_arg_caches()
+
+        from gc import collect
+        collect()
+
+        ctx = cl.Context([self.device])
+        return cl.CommandQueue(ctx)
+
+    def __call__(self) -> ArrayContext:
+        raise NotImplementedError
+
+
+class _PyOpenCLArrayContextFactory(PytestArrayContextFactory):
     force_device_scalars = True
 
     def __call__(self):
-        ctx = super().__call__()
-        from arraycontext.impl.pyopencl import PyOpenCLArrayContext
+        from arraycontext import PyOpenCLArrayContext
         return PyOpenCLArrayContext(
-                cl.CommandQueue(ctx),
+                self.get_command_queue(),
                 force_device_scalars=self.force_device_scalars)
 
     def __str__(self):
-        return ("<array context factory for <pyopencl.Device '%s' on '%s'>" %
+        return ("<PyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>" %
                 (self.device.name.strip(),
                  self.device.platform.name.strip()))
 
