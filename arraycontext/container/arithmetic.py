@@ -454,7 +454,6 @@ def with_container_arithmetic(
 
         # }}}
 
-        print(gen.get())
         # This will evaluate the module, which is all we need.
         code = gen.get().rstrip()+"\n"
 
