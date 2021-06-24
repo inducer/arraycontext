@@ -29,13 +29,10 @@ THE SOFTWARE.
 from functools import partial
 import operator
 
-import numpy as np
-
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
 from arraycontext.container.traversal import (rec_multimap_array_container,
                                               rec_map_array_container)
-from arraycontext.container import serialize_container, is_array_container
 
 try:
     import pyopencl as cl  # noqa: F401
@@ -170,90 +167,8 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
 # {{{ fake np.linalg
 
-def _flatten_array(ary):
-    assert isinstance(ary, cl_array.Array)
-
-    if ary.size == 0:
-        # Work around https://github.com/inducer/pyopencl/pull/402
-        return ary._new_with_changes(
-                data=None, offset=0, shape=(0,), strides=(ary.dtype.itemsize,))
-    if ary.flags.f_contiguous:
-        return ary.reshape(-1, order="F")
-    elif ary.flags.c_contiguous:
-        return ary.reshape(-1, order="C")
-    else:
-        raise ValueError("cannot flatten array "
-                f"with strides {ary.strides} of {ary.dtype}")
-
-
-def _cl_scalar_list_norm(ary, ord):
-    if ord is None:
-        ord = 2
-
-    from numbers import Number
-    if ord == np.inf:
-        return max(ary)
-    elif ord == -np.inf:
-        return min(ary)
-    elif isinstance(ord, Number) and ord > 0:
-        return sum(iary**ord for iary in ary)**(1/ord)
-    else:
-        raise NotImplementedError(f"unsupported value of 'ord': {ord}")
-
-
 class _PyOpenCLFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
-    def norm(self, ary, ord=None):
-        from numbers import Number
-
-        if isinstance(ary, Number):
-            return abs(ary)
-
-        if ord is None and isinstance(ary, cl_array.Array):
-            if ary.ndim == 1:
-                ord = 2
-            else:
-                # mimics numpy's norm computation
-                return self.norm(_flatten_array(ary), ord=2)
-
-        try:
-            from meshmode.dof_array import DOFArray
-        except ImportError:
-            pass
-        else:
-            if isinstance(ary, DOFArray):
-                from warnings import warn
-                warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
-                        "(DOFArrays use 2D arrays internally, and "
-                        "actx.np.linalg.norm should compute matrix norms of those.) "
-                        "This will stop working in 2022. "
-                        "Use meshmode.dof_array.flat_norm instead.",
-                        DeprecationWarning, stacklevel=2)
-
-                return _cl_scalar_list_norm([
-                    self.norm(_flatten_array(subary), ord=ord)
-                    for _, subary in serialize_container(ary)
-                    ], ord=ord)
-
-        if is_array_container(ary):
-            return _cl_scalar_list_norm([
-                self.norm(subary, ord=ord)
-                for _, subary in serialize_container(ary)
-                ], ord=ord)
-
-        if len(ary.shape) != 1:
-            raise NotImplementedError("only vector norms are implemented")
-
-        if ary.size == 0:
-            return 0
-
-        if ord == np.inf:
-            return self._array_context.np.max(abs(ary))
-        elif ord == -np.inf:
-            return self._array_context.np.min(abs(ary))
-        elif isinstance(ord, Number) and ord > 0:
-            return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
-        else:
-            raise NotImplementedError(f"unsupported value of 'ord': {ord}")
+    pass
 
 # }}}
 
