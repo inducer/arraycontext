@@ -303,7 +303,7 @@ def with_container_arithmetic(
             else:
                 return "(%s,)" % ", ".join(t)
 
-        gen(f"cls._outer_bcast_names = {tup_str(outer_bcast_type_names)}")
+        gen(f"cls._outer_bcast_types = {tup_str(outer_bcast_type_names)}")
         gen(f"cls._bcast_numpy_array = {bcast_numpy_array}")
         gen(f"cls._bcast_obj_array = {bcast_obj_array}")
         gen("")
