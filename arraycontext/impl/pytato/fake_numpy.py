@@ -94,7 +94,9 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return pt.amax(a)
 
     def stack(self, arrays, axis=0):
-        return rec_multimap_array_container(pt.stack, arrays, axis)
+        return rec_multimap_array_container(lambda *args: pt.stack(arrays=args,
+                                                                   axis=axis),
+                                            *arrays)
 
     # {{{ relational operators
 
