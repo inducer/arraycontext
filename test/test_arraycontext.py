@@ -33,17 +33,16 @@ from arraycontext import (
         freeze, thaw,
         FirstAxisIsElementsTag)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_array_context,
+        pytest_generate_tests_for_array_contexts,
         _acf)
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-def pytest_generate_tests(metafunc):
-    pytest_generate_tests_for_array_context(metafunc, impls=[
-        "pyopencl", "pyopencl-deprecated",
-        ])
+pytest_generate_tests = pytest_generate_tests_for_array_contexts([
+    "pyopencl", "pyopencl-deprecated",
+    ])
 
 
 # {{{ stand-in DOFArray implementation
