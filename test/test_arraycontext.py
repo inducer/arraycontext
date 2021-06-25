@@ -33,12 +33,16 @@ from arraycontext import (
         freeze, thaw,
         FirstAxisIsElementsTag)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_pyopencl_array_context
-        as pytest_generate_tests,
+        pytest_generate_tests_for_array_contexts,
         _acf)
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+pytest_generate_tests = pytest_generate_tests_for_array_contexts([
+    "pyopencl", "pyopencl-deprecated",
+    ])
 
 
 # {{{ stand-in DOFArray implementation
@@ -398,8 +402,12 @@ def test_dof_array_reductions_same_as_numpy(actx_factory):
         np_red = getattr(np, name)(ary)
         actx_red = getattr(actx.np, name)(actx.from_numpy(ary))
 
-        assert isinstance(actx_red, Number)
-        assert np.allclose(np_red, actx_red)
+        if actx._force_device_scalars:
+            assert actx_red.shape == ()
+        else:
+            assert isinstance(actx_red, Number)
+
+        assert np.allclose(np_red, actx.to_numpy(actx_red))
 
 # }}}
 
@@ -715,9 +723,9 @@ def test_norm_complex(actx_factory, norm_ord):
 
 @pytest.mark.parametrize("ndim", [1, 2, 3, 4, 5])
 def test_norm_ord_none(actx_factory, ndim):
-    from numpy.random import default_rng
-
     actx = actx_factory()
+
+    from numpy.random import default_rng
 
     rng = default_rng()
     shape = tuple(rng.integers(2, 7, ndim))
@@ -727,7 +735,7 @@ def test_norm_ord_none(actx_factory, ndim):
     norm_a_ref = np.linalg.norm(a, ord=None)
     norm_a = actx.np.linalg.norm(actx.from_numpy(a), ord=None)
 
-    np.testing.assert_allclose(norm_a, norm_a_ref)
+    np.testing.assert_allclose(actx.to_numpy(norm_a), norm_a_ref)
 
 
 if __name__ == "__main__":

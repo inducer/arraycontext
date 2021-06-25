@@ -2,6 +2,7 @@
 .. currentmodule:: arraycontext
 .. autoclass:: PyOpenCLArrayContext
 """
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -27,7 +28,7 @@ THE SOFTWARE.
 """
 
 from warnings import warn
-from typing import Sequence, Union
+from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 
@@ -35,6 +36,11 @@ from pytools.tag import Tag
 
 from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.context import ArrayContext
+
+
+if TYPE_CHECKING:
+    import pyopencl
+    import loopy as lp
 
 
 # {{{ PyOpenCLArrayContext
@@ -62,7 +68,11 @@ class PyOpenCLArrayContext(ArrayContext):
         as the allocator can help avoid this cost.
     """
 
-    def __init__(self, queue, allocator=None, wait_event_queue_length=None):
+    def __init__(self,
+            queue: "pyopencl.CommandQueue",
+            allocator: Optional["pyopencl.tools.AllocatorInterface"] = None,
+            wait_event_queue_length: Optional[int] = None,
+            force_device_scalars: bool = False) -> None:
         r"""
         :arg wait_event_queue_length: The length of a queue of
             :class:`~pyopencl.Event` objects that are maintained by the
@@ -83,19 +93,31 @@ class PyOpenCLArrayContext(ArrayContext):
 
             For now, *wait_event_queue_length* should be regarded as an
             experimental feature that may change or disappear at any minute.
+
+        :arg force_device_scalars: if *True*, scalar results returned from
+            reductions in :attr:`ArrayContext.np` will be kept on the device.
+            If *False*, the equivalent of :meth:`~ArrayContext.freeze` and
+            :meth:`~ArrayContext.to_numpy` is applied to transfer the results
+            to the host.
         """
+        if not force_device_scalars:
+            warn("Returning host scalars from the array context is deprecated. "
+                    "To return device scalars set 'force_device_scalars=True'. "
+                    "Support for returning host scalars will be removed in 2022.",
+                    DeprecationWarning, stacklevel=2)
+
         import pyopencl as cl
 
         super().__init__()
         self.context = queue.context
         self.queue = queue
         self.allocator = allocator if allocator else None
-
         if wait_event_queue_length is None:
             wait_event_queue_length = 10
 
+        self._force_device_scalars = force_device_scalars
         self._wait_event_queue_length = wait_event_queue_length
-        self._kernel_name_to_wait_event_queue = {}
+        self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
 
         if queue.device.type & cl.device_type.GPU:
             if allocator is None:
@@ -110,7 +132,8 @@ class PyOpenCLArrayContext(ArrayContext):
                         "are running Python in debug mode. Use 'python -O' for "
                         "a noticeable speed improvement.")
 
-        self._loopy_transform_cache = {}
+        self._loopy_transform_cache: \
+                Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
@@ -133,6 +156,9 @@ class PyOpenCLArrayContext(ArrayContext):
         return cl_array.to_device(self.queue, array, allocator=self.allocator)
 
     def to_numpy(self, array):
+        if not self._force_device_scalars and np.isscalar(array):
+            return array
+
         return array.get(queue=self.queue)
 
     def call_loopy(self, t_unit, **kwargs):
@@ -229,7 +255,9 @@ class PyOpenCLArrayContext(ArrayContext):
         return array
 
     def clone(self):
-        return type(self)(self.queue, self.allocator, self._wait_event_queue_length)
+        return type(self)(self.queue, self.allocator,
+                wait_event_queue_length=self._wait_event_queue_length,
+                force_device_scalars=self._force_device_scalars)
 
     @property
     def permits_inplace_modification(self):
