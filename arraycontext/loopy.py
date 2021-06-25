@@ -51,8 +51,7 @@ def make_loopy_program(domains, statements, kernel_data=None,
             statements,
             kernel_data=kernel_data,
             options=_DEFAULT_LOOPY_OPTIONS,
-            # FIXME: Restore when https://github.com/inducer/loopy/pull/431 is merged
-            # default_offset=lp.auto,
+            default_offset=lp.auto,
             name=name,
             lang_version=MOST_RECENT_LANGUAGE_VERSION)
 

@@ -54,6 +54,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
 
     def __init__(self, queue, allocator=None):
         super().__init__()
+        self._force_device_scalars = True
         self.queue = queue
         self.allocator = allocator
         self.np = self._get_fake_numpy_namespace()

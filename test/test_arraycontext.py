@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 pytest_generate_tests = pytest_generate_tests_for_array_contexts([
-    "pyopencl", "pyopencl-deprecated",
+    "pyopencl", "pyopencl-deprecated", "pytato-pyopencl"
     ])
 
 

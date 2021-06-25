@@ -24,12 +24,15 @@ THE SOFTWARE.
 """
 
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_array_contexts
-        as pytest_generate_tests,
+        pytest_generate_tests_for_array_contexts,
         _acf)
 
 import logging
 logger = logging.getLogger(__name__)
+
+pytest_generate_tests = pytest_generate_tests_for_array_contexts([
+    "pyopencl", "pyopencl-deprecated", "pytato-pyopencl"
+    ])
 
 
 def test_pt_actx_key_stringification_uniqueness():

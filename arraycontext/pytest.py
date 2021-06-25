@@ -87,10 +87,24 @@ class _DeprecatedPyOpenCLArrayContextFactory(_PyOpenCLArrayContextFactory):
     force_device_scalars = False
 
 
+class _PytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
+    force_device_scalars = False
+
+    def __call__(self):
+        from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
+        return PytatoPyOpenCLArrayContext(self.get_command_queue())
+
+    def __str__(self):
+        return ("<Pytato array context factory for <pyopencl.Device '%s' on '%s'>"
+                % (self.device.name.strip(),
+                 self.device.platform.name.strip()))
+
+
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
         Dict[str, Type[PytestPyOpenCLArrayContextFactory]] = {
                 "pyopencl": _PyOpenCLArrayContextFactory,
                 "pyopencl-deprecated": _DeprecatedPyOpenCLArrayContextFactory,
+                "pytato-pyopencl": _PytatoPyOpenCLArrayContextFactory,
                 }
 
 

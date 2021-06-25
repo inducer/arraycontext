@@ -236,7 +236,6 @@ class BaseFakeNumpyLinalgNamespace:
             return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
         else:
             raise NotImplementedError(f"unsupported value of 'ord': {ord}")
-
 # }}}
 
 
