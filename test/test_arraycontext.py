@@ -1093,6 +1093,74 @@ def test_leaf_array_type_broadcasting(actx_factory):
 # }}}
 
 
+# {{{ test outer product
+
+def test_outer(actx_factory):
+    actx = actx_factory()
+
+    a_dof, a_ary_of_dofs, _, _, a_bcast_dc_of_dofs = _get_test_containers(actx)
+
+    b_dof = a_dof + 1
+    b_ary_of_dofs = a_ary_of_dofs + 1
+    b_bcast_dc_of_dofs = a_bcast_dc_of_dofs + 1
+
+    from arraycontext import outer
+
+    def equal(a, b):
+        return actx.to_numpy(actx.np.array_equal(a, b))
+
+    # Two scalars
+    assert equal(outer(a_dof, b_dof), a_dof*b_dof)
+
+    # Scalar and vector
+    assert equal(outer(a_dof, b_ary_of_dofs), a_dof*b_ary_of_dofs)
+
+    # Vector and scalar
+    assert equal(outer(a_ary_of_dofs, b_dof), a_ary_of_dofs*b_dof)
+
+    # Two vectors
+    assert equal(
+        outer(a_ary_of_dofs, b_ary_of_dofs),
+        np.outer(a_ary_of_dofs, b_ary_of_dofs))
+
+    # Scalar and array container
+    assert equal(
+        outer(a_dof, b_bcast_dc_of_dofs),
+        a_dof*b_bcast_dc_of_dofs)
+
+    # Array container and scalar
+    assert equal(
+        outer(a_bcast_dc_of_dofs, b_dof),
+        a_bcast_dc_of_dofs*b_dof)
+
+    # Vector and array container
+    assert equal(
+        outer(a_ary_of_dofs, b_bcast_dc_of_dofs),
+        make_obj_array([a_i*b_bcast_dc_of_dofs for a_i in a_ary_of_dofs]))
+
+    # Array container and vector
+    assert equal(
+        outer(a_bcast_dc_of_dofs, b_ary_of_dofs),
+        MyContainerDOFBcast(
+            name="container",
+            mass=a_bcast_dc_of_dofs.mass*b_ary_of_dofs,
+            momentum=np.outer(a_bcast_dc_of_dofs.momentum, b_ary_of_dofs),
+            enthalpy=a_bcast_dc_of_dofs.enthalpy*b_ary_of_dofs))
+
+    # Two array containers
+    assert equal(
+        outer(a_bcast_dc_of_dofs, b_bcast_dc_of_dofs),
+        MyContainerDOFBcast(
+            name="container",
+            mass=a_bcast_dc_of_dofs.mass*b_bcast_dc_of_dofs.mass,
+            momentum=np.outer(
+                a_bcast_dc_of_dofs.momentum,
+                b_bcast_dc_of_dofs.momentum),
+            enthalpy=a_bcast_dc_of_dofs.enthalpy*b_bcast_dc_of_dofs.enthalpy))
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:

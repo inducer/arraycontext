@@ -58,7 +58,8 @@ from .container.traversal import (
         rec_map_reduce_array_container,
         rec_multimap_reduce_array_container,
         thaw, freeze,
-        from_numpy, to_numpy)
+        from_numpy, to_numpy,
+        outer)
 
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoPyOpenCLArrayContext
@@ -93,6 +94,7 @@ __all__ = (
         "rec_map_reduce_array_container", "rec_multimap_reduce_array_container",
         "thaw", "freeze",
         "from_numpy", "to_numpy",
+        "outer",
 
         "PyOpenCLArrayContext", "PytatoPyOpenCLArrayContext",
 
