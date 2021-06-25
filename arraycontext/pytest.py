@@ -1,7 +1,7 @@
 """
 .. currentmodule:: arraycontext
 
-.. autoclass:: PytestArrayContextFactory
+.. autoclass:: PytestPyOpenCLArrayContextFactory
 
 .. autofunction:: pytest_generate_tests_for_array_contexts
 .. autofunction:: pytest_generate_tests_for_pyopencl_array_context
@@ -31,7 +31,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable, Dict, Optional, Sequence, Type, Union
+from typing import Any, Callable, Dict, Sequence, Type, Union
 
 import pyopencl as cl
 from arraycontext.context import ArrayContext
@@ -39,7 +39,7 @@ from arraycontext.context import ArrayContext
 
 # {{{ array context factories
 
-class PytestArrayContextFactory:
+class PytestPyOpenCLArrayContextFactory:
     """
     .. automethod:: __init__
     .. automethod:: __call__
@@ -68,7 +68,7 @@ class PytestArrayContextFactory:
         raise NotImplementedError
 
 
-class _PyOpenCLArrayContextFactory(PytestArrayContextFactory):
+class _PyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
     force_device_scalars = True
 
     def __call__(self):
@@ -87,22 +87,20 @@ class _DeprecatedPyOpenCLArrayContextFactory(_PyOpenCLArrayContextFactory):
     force_device_scalars = False
 
 
-_DEFAULT_ARRAY_CONTEXT_FACTORY_DICT: Dict[str, Type[PytestArrayContextFactory]] = {
-        "pyopencl": _PyOpenCLArrayContextFactory,
-        }
-_ARRAY_CONTEXT_FACTORY_DICT: Dict[str, Type[PytestArrayContextFactory]] = {
-        "pyopencl-deprecated": _DeprecatedPyOpenCLArrayContextFactory,
-        }
-_ARRAY_CONTEXT_FACTORY_DICT.update(_DEFAULT_ARRAY_CONTEXT_FACTORY_DICT)
+_ARRAY_CONTEXT_FACTORY_REGISTRY: \
+        Dict[str, Type[PytestPyOpenCLArrayContextFactory]] = {
+                "pyopencl": _PyOpenCLArrayContextFactory,
+                "pyopencl-deprecated": _DeprecatedPyOpenCLArrayContextFactory,
+                }
 
 
 def register_array_context_factory(
         name: str,
-        factory: Type[PytestArrayContextFactory]) -> None:
-    if name in _ARRAY_CONTEXT_FACTORY_DICT:
+        factory: Type[PytestPyOpenCLArrayContextFactory]) -> None:
+    if name in _ARRAY_CONTEXT_FACTORY_REGISTRY:
         raise ValueError(f"factory '{name}' already exists")
 
-    _ARRAY_CONTEXT_FACTORY_DICT[name] = factory
+    _ARRAY_CONTEXT_FACTORY_REGISTRY[name] = factory
 
 # }}}
 
@@ -110,14 +108,13 @@ def register_array_context_factory(
 # {{{ pytest integration
 
 def pytest_generate_tests_for_array_contexts(
-        factories: Optional[Sequence[
-            Union[str, Type[PytestArrayContextFactory]]
-            ]] = None,
+        factories: Sequence[Union[str, Type[PytestPyOpenCLArrayContextFactory]]], *,
+        factory_arg_name: str = "actx_factory",
         ) -> Callable[[Any], None]:
     """Parametrize tests for pytest to use an :class:`~arraycontext.ArrayContext`.
 
     Using this function in :mod:`pytest` test scripts allows you to use the
-    argument ``actx_factory``, which is a callable that returns a
+    argument *factory_arg_name*, which is a callable that returns a
     :class:`~arraycontext.ArrayContext`. All test functions will automatically
     be run once for each implemented array context. To select specific array
     context implementations explicitly define, for example,
@@ -146,7 +143,8 @@ def pytest_generate_tests_for_array_contexts(
       ``force_device_scalars=False``.
 
     :arg factories: a list of identifiers or
-        :class:`PytestArrayContextFactory` classes (not instances).
+        :class:`PytestPyOpenCLArrayContextFactory` classes (not instances)
+        for which to generate test fixtures.
     """
 
     # {{{ get all requested array context factories
@@ -156,36 +154,28 @@ def pytest_generate_tests_for_array_contexts(
 
     if env_factory_string is not None:
         unique_factories = set(env_factory_string.split(","))
-
-        unknown_factories = [
-                factory for factory in unique_factories
-                if (isinstance(factory, str)
-                    and factory not in _ARRAY_CONTEXT_FACTORY_DICT)
-                ]
-        if unknown_factories:
-            raise RuntimeError(
-                    "unknown array context factories passed through environment "
-                    f"variable 'ARRAYCONTEXT_TEST': {unknown_factories}")
     else:
-        if factories is None:
-            unique_factories = set(
-                    _DEFAULT_ARRAY_CONTEXT_FACTORY_DICT     # type: ignore[arg-type]
-                    .values())
-        else:
-            unique_factories = set(factories)               # type: ignore[arg-type]
-            unknown_factories = [
-                    factory for factory in unique_factories
-                    if (isinstance(factory, str)
-                        and factory not in _ARRAY_CONTEXT_FACTORY_DICT)
-                    ]
-            if unknown_factories:
-                raise ValueError(f"unknown array contexts: {unknown_factories}")
+        unique_factories = set(factories)               # type: ignore[arg-type]
 
     if not unique_factories:
         raise ValueError("no array context factories were selected")
 
+    unknown_factories = [
+            factory for factory in unique_factories
+            if (isinstance(factory, str)
+                and factory not in _ARRAY_CONTEXT_FACTORY_REGISTRY)
+            ]
+
+    if unknown_factories:
+        if env_factory_string is not None:
+            raise RuntimeError(
+                    "unknown array context factories passed through environment "
+                    f"variable 'ARRAYCONTEXT_TEST': {unknown_factories}")
+        else:
+            raise ValueError(f"unknown array contexts: {unknown_factories}")
+
     unique_factories = set([
-        _ARRAY_CONTEXT_FACTORY_DICT.get(factory, factory)  # type: ignore[misc]
+        _ARRAY_CONTEXT_FACTORY_REGISTRY.get(factory, factory)  # type: ignore[misc]
         for factory in unique_factories])
 
     # }}}
@@ -195,7 +185,7 @@ def pytest_generate_tests_for_array_contexts(
 
         import pyopencl.tools as cl_tools
         arg_names = cl_tools.get_pyopencl_fixture_arg_names(
-                metafunc, extra_arg_names=["actx_factory"])
+                metafunc, extra_arg_names=[factory_arg_name])
 
         if not arg_names:
             return
@@ -206,15 +196,16 @@ def pytest_generate_tests_for_array_contexts(
 
         # {{{ add array context factory to arguments
 
-        if "actx_factory" in arg_names:
+        if factory_arg_name in arg_names:
             if "ctx_factory" in arg_names or "ctx_getter" in arg_names:
-                raise RuntimeError("Cannot use both an 'actx_factory' and a "
+                raise RuntimeError(
+                        f"Cannot use both an '{factory_arg_name}' and a "
                         "'ctx_factory' / 'ctx_getter' as arguments.")
 
             arg_values_with_actx = []
             for arg_dict in arg_values:
                 arg_values_with_actx.extend([
-                    dict(actx_factory=factory(arg_dict["device"]), **arg_dict)
+                    {factory_arg_name: factory(arg_dict["device"]), **arg_dict}
                     for factory in unique_factories
                     ])
         else:
@@ -256,7 +247,10 @@ def pytest_generate_tests_for_pyopencl_array_context(metafunc) -> None:
     It also allows you to specify the ``PYOPENCL_TEST`` environment variable
     for device selection.
     """
-    pytest_generate_tests_for_array_contexts(["pyopencl-deprecated"])(metafunc)
+
+    pytest_generate_tests_for_array_contexts([
+        "pyopencl-deprecated",
+        ], factory_arg_name="actx_factory")(metafunc)
 
 # }}}
 
