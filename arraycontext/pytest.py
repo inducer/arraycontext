@@ -100,8 +100,9 @@ class _PytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
     force_device_scalars = False
 
     def __call__(self):
-        from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
-        return PytatoPyOpenCLArrayContext(self.get_command_queue())
+        from arraycontext import PytatoPyOpenCLArrayContext
+        ctx, queue = self.get_command_queue()
+        return PytatoPyOpenCLArrayContext(queue)
 
     def __str__(self):
         return ("<Pytato array context factory for <pyopencl.Device '%s' on '%s'>"
