@@ -413,7 +413,9 @@ def test_dof_array_reductions_same_as_numpy(actx_factory, op):
     np_red = getattr(np, op)(ary)
     actx_red = getattr(actx.np, op)(actx.from_numpy(ary))
     actx_red = actx.to_numpy(actx_red)
-    
+
+    from numbers import Number
+
     if actx._force_device_scalars:
         assert actx_red.shape == ()
     else:

@@ -36,7 +36,6 @@ from pytools.tag import Tag
 
 from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.context import ArrayContext
-from numbers import Number
 
 
 if TYPE_CHECKING:
