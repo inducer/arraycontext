@@ -104,14 +104,25 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
     def sum(self, a, dtype=None):
-        return cl_array.sum(
-                a, dtype=dtype, queue=self._array_context.queue).get()[()]
+        result = cl_array.sum(a, dtype=dtype, queue=self._array_context.queue)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+
+        return result
 
     def min(self, a):
-        return cl_array.min(a, queue=self._array_context.queue).get()[()]
+        result = cl_array.min(a, queue=self._array_context.queue)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+
+        return result
 
     def max(self, a):
-        return cl_array.max(a, queue=self._array_context.queue).get()[()]
+        result = cl_array.max(a, queue=self._array_context.queue)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+
+        return result
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(

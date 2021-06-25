@@ -170,6 +170,21 @@ class BaseFakeNumpyNamespace:
 
 # {{{ BaseFakeNumpyLinalgNamespace
 
+def _scalar_list_norm(ary, ord):
+    if ord is None:
+        ord = 2
+
+    from numbers import Number
+    if ord == np.inf:
+        return max(ary)
+    elif ord == -np.inf:
+        return min(ary)
+    elif isinstance(ord, Number) and ord > 0:
+        return sum(iary**ord for iary in ary)**(1/ord)
+    else:
+        raise NotImplementedError(f"unsupported value of 'ord': {ord}")
+
+
 class BaseFakeNumpyLinalgNamespace:
     def __init__(self, array_context):
         self._array_context = array_context
@@ -179,6 +194,8 @@ class BaseFakeNumpyLinalgNamespace:
 
         if isinstance(ary, Number):
             return abs(ary)
+
+        actx = self._array_context
 
         try:
             from meshmode.dof_array import DOFArray, flat_norm
@@ -193,19 +210,17 @@ class BaseFakeNumpyLinalgNamespace:
                         "This will stop working in 2022. "
                         "Use meshmode.dof_array.flat_norm instead.",
                         DeprecationWarning, stacklevel=2)
+
                 return flat_norm(ary, ord=ord)
 
         if is_array_container(ary):
-            import numpy.linalg as la
-            return la.norm(
-                    [self.norm(subary, ord=ord)
-                        for _, subary in serialize_container(ary)],
-                    ord=ord)
+            return _scalar_list_norm([
+                self.norm(subary, ord=ord)
+                for _, subary in serialize_container(ary)
+                ], ord=ord)
 
         if ord is None:
-            return self.norm(self._array_context.np.ravel(ary, order="A"), 2)
-
-        assert ord is not None
+            return self.norm(actx.np.ravel(ary, order="A"), 2)
 
         if len(ary.shape) != 1:
             raise NotImplementedError("only vector norms are implemented")
@@ -215,6 +230,8 @@ class BaseFakeNumpyLinalgNamespace:
 
         if ord == np.inf:
             return self._array_context.np.max(abs(ary))
+        elif ord == -np.inf:
+            return self._array_context.np.min(abs(ary))
         elif isinstance(ord, Number) and ord > 0:
             return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
         else:

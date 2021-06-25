@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python -m mypy arraycontext/ examples/ test/
+python -m mypy --show-error-codes arraycontext examples test
