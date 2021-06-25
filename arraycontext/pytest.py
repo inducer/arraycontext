@@ -61,8 +61,10 @@ class PytestPyOpenCLArrayContextFactory:
         from gc import collect
         collect()
 
+        # On Intel CPU CL, existence of a command queue does not ensure that
+        # the context survives.
         ctx = cl.Context([self.device])
-        return cl.CommandQueue(ctx)
+        return ctx, cl.CommandQueue(ctx)
 
     def __call__(self) -> ArrayContext:
         raise NotImplementedError
@@ -73,8 +75,15 @@ class _PyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
 
     def __call__(self):
         from arraycontext import PyOpenCLArrayContext
+
+        # The ostensibly pointless assignment to *ctx* keeps the CL context alive
+        # long enough to create the array context, which will then start
+        # holding a reference to the context to keep it alive in turn.
+        # On some implementations (notably Intel CPU), holding a reference
+        # to a queue does not keep the context alive.
+        ctx, queue = self.get_command_queue()
         return PyOpenCLArrayContext(
-                self.get_command_queue(),
+                queue,
                 force_device_scalars=self.force_device_scalars)
 
     def __str__(self):
