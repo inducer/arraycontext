@@ -421,7 +421,7 @@ def test_dof_array_reductions_same_as_numpy(actx_factory, op):
     else:
         assert isinstance(actx_red, Number)
 
-    assert np.allclose(np_red, actx.to_numpy(actx_red))
+    assert np.allclose(np_red, actx_red)
 
 # }}}
 
