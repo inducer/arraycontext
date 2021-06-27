@@ -257,6 +257,15 @@ def pytest_generate_tests_for_pyopencl_array_context(metafunc) -> None:
     for device selection.
     """
 
+    from warnings import warn
+    warn("pytest_generate_tests_for_pyopencl_array_context is deprecated. "
+            "Use 'pytest_generate_tests = "
+            "arraycontext.pytest_generate_tests_for_array_contexts"
+            "([\"pyopencl-deprecated\"])' instead. "
+            "pytest_generate_tests_for_pyopencl_array_context will stop working "
+            "in 2022.",
+            DeprecationWarning, stacklevel=2)
+
     pytest_generate_tests_for_array_contexts([
         "pyopencl-deprecated",
         ], factory_arg_name="actx_factory")(metafunc)
