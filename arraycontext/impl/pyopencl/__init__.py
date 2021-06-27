@@ -199,6 +199,16 @@ class PyOpenCLArrayContext(ArrayContext):
             pass
         orig_t_unit = t_unit
 
+        from warnings import warn
+        warn("Using arraycontext.PyOpenCLArrayContext.transform_loopy_program "
+                "to transform a program. This is deprecated and will stop working "
+                "in 2022. Instead, subclass PyOpenCLArrayContext and implement "
+                "the specific logic required to transform the program for your "
+                "package or application. Check higher-level packages "
+                "(e.g. meshmode), which may already have subclasses you may want "
+                "to build on.",
+                DeprecationWarning, stacklevel=2)
+
         # accommodate loopy with and without kernel callables
 
         import loopy as lp
