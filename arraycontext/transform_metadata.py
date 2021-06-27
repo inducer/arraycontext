@@ -1,3 +1,10 @@
+"""
+.. currentmodule:: arraycontext
+
+.. autoclass:: CommonSubexpressionTag
+.. autoclass:: ElementwiseMapKernelTag
+"""
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -22,34 +29,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import sys
 from pytools.tag import Tag
-from warnings import warn
 
 
-# {{{ deprecation handling
+# {{{ program metadata
 
-try:
-    from meshmode.transform_metadata import FirstAxisIsElementsTag \
-            as _FirstAxisIsElementsTag
-except ImportError:
-    # placeholder in case meshmode is too old to have it.
-    class _FirstAxisIsElementsTag(Tag):  # type: ignore[no-redef]
-        pass
+class CommonSubexpressionTag(Tag):
+    """A tag that is applicable to arrays indicating that this same array
+    may be evaluated multiple times, and that the implementation should
+    eliminate those redundant evaluations if possible.
+    """
 
 
-if sys.version_info >= (3, 7):
-    def __getattr__(name):
-        if name == "FirstAxisIsElementsTag":
-            warn(f"'arraycontext.{name}' is deprecated. "
-                    f"Use 'meshmode.transform_metadata.{name}' instead. "
-                    f"'arraycontext.{name}' will continue to work until 2022.",
-                    DeprecationWarning, stacklevel=2)
-            return _FirstAxisIsElementsTag
-        else:
-            raise AttributeError(name)
-else:
-    FirstAxisIsElementsTag = _FirstAxisIsElementsTag
+class ElementwiseMapKernelTag(Tag):
+    """A tag that applies to :class:`loopy.LoopKernel` indicating that the kernel
+    is a "map", i.e. that the output array(s) has/have the same shape as the
+    input array(s), and that each output element only depends on its corresponding
+    element(s) in the input array(s).
+
+    .. note::
+
+        "Element" here refers to a scalar element of an array, not an element
+        in a finite-element discretization.
+    """
 
 # }}}
 

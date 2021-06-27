@@ -34,7 +34,6 @@ import numpy as np
 
 from pytools.tag import Tag
 
-from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.context import ArrayContext
 
 
@@ -223,9 +222,13 @@ class PyOpenCLArrayContext(ArrayContext):
         all_inames = default_entrypoint.all_inames()
         # FIXME: This could be much smarter.
         inner_iname = None
+
+        # import with underscore to avoid DeprecationWarning
+        from arraycontext.metadata import _FirstAxisIsElementsTag
+
         if (len(default_entrypoint.instructions) == 1
                 and isinstance(default_entrypoint.instructions[0], lp.Assignment)
-                and any(isinstance(tag, FirstAxisIsElementsTag)
+                and any(isinstance(tag, _FirstAxisIsElementsTag)
                     # FIXME: Firedrake branch lacks kernel tags
                     for tag in getattr(default_entrypoint, "tags", ()))):
             stmt, = default_entrypoint.instructions
