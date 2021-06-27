@@ -101,8 +101,11 @@ class PyOpenCLArrayContext(ArrayContext):
             to the host.
         """
         if not force_device_scalars:
-            warn("Returning host scalars from the array context is deprecated. "
-                    "To return device scalars set 'force_device_scalars=True'. "
+            warn("Configuring the PyOpenCLArrayContext to return host scalars "
+                    "from reductions is deprecated. "
+                    "To configure the PyOpenCLArrayContext to return "
+                    "device scalars, pass 'force_device_scalars=True' to the "
+                    "constructor. "
                     "Support for returning host scalars will be removed in 2022.",
                     DeprecationWarning, stacklevel=2)
 
