@@ -221,6 +221,9 @@ class LazilyCompilingFunctionCaller:
                                            options={"return_dict": True},
                                            cl_device=self.actx.queue.device)
 
+        pytato_program.program = self.actx.transform_loopy_program(pytato_program
+                                                                   .program)
+
         self.program_cache[arg_id_to_descr] = CompiledFunction(
                                                 self.actx, pytato_program,
                                                 input_naming_map, output_naming_map,
