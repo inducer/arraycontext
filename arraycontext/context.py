@@ -158,6 +158,13 @@ class ArrayContext(ABC):
         from .fake_numpy import BaseFakeNumpyNamespace
         return BaseFakeNumpyNamespace(self)
 
+    def get_array_types(self):
+        """
+        Returns a :class:`tuple` of types that are valid base array classes
+        the context can operate on.
+        """
+        return ()
+
     @abstractmethod
     def empty(self, shape, dtype):
         pass

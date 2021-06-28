@@ -28,7 +28,7 @@ THE SOFTWARE.
 """
 
 from warnings import warn
-from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING
+from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING, Tuple
 
 import numpy as np
 
@@ -136,6 +136,10 @@ class PyOpenCLArrayContext(ArrayContext):
 
         self._loopy_transform_cache: \
                 Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
+
+    def get_array_types(self) -> Tuple[type]:
+        import pyopencl.array as cla
+        return (cla.Array,)
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
