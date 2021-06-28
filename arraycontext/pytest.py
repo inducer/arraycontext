@@ -70,33 +70,39 @@ class PytestPyOpenCLArrayContextFactory:
         raise NotImplementedError
 
 
-class _PyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
+class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFactory):
     force_device_scalars = True
 
-    def __call__(self):
+    @property
+    def actx_class(self):
         from arraycontext import PyOpenCLArrayContext
+        return PyOpenCLArrayContext
 
+    def __call__(self):
         # The ostensibly pointless assignment to *ctx* keeps the CL context alive
         # long enough to create the array context, which will then start
         # holding a reference to the context to keep it alive in turn.
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
         ctx, queue = self.get_command_queue()
-        return PyOpenCLArrayContext(
+        return self.actx_class(
                 queue,
                 force_device_scalars=self.force_device_scalars)
 
     def __str__(self):
-        return ("<PyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>" %
-                (self.device.name.strip(),
-                 self.device.platform.name.strip()))
+        return ("<%s for <pyopencl.Device '%s' on '%s'>" %
+                (
+                    self.actx_class.__name__,
+                    self.device.name.strip(),
+                    self.device.platform.name.strip()))
 
 
-class _DeprecatedPyOpenCLArrayContextFactory(_PyOpenCLArrayContextFactory):
+class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
+        _PytestPyOpenCLArrayContextFactoryWithClass):
     force_device_scalars = False
 
 
-class _PytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
+class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
     force_device_scalars = False
 
     def __call__(self):
@@ -112,13 +118,14 @@ class _PytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
 
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
         Dict[str, Type[PytestPyOpenCLArrayContextFactory]] = {
-                "pyopencl": _PyOpenCLArrayContextFactory,
-                "pyopencl-deprecated": _DeprecatedPyOpenCLArrayContextFactory,
-                "pytato-pyopencl": _PytatoPyOpenCLArrayContextFactory,
+                "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
+                "pyopencl-deprecated":
+                _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars,
+                "pytato-pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
                 }
 
 
-def register_array_context_factory(
+def register_pytest_array_context_factory(
         name: str,
         factory: Type[PytestPyOpenCLArrayContextFactory]) -> None:
     if name in _ARRAY_CONTEXT_FACTORY_REGISTRY:
@@ -273,6 +280,15 @@ def pytest_generate_tests_for_pyopencl_array_context(metafunc) -> None:
     It also allows you to specify the ``PYOPENCL_TEST`` environment variable
     for device selection.
     """
+
+    from warnings import warn
+    warn("pytest_generate_tests_for_pyopencl_array_context is deprecated. "
+            "Use 'pytest_generate_tests = "
+            "arraycontext.pytest_generate_tests_for_array_contexts"
+            "([\"pyopencl-deprecated\"])' instead. "
+            "pytest_generate_tests_for_pyopencl_array_context will stop working "
+            "in 2022.",
+            DeprecationWarning, stacklevel=2)
 
     pytest_generate_tests_for_array_contexts([
         "pyopencl-deprecated",

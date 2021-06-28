@@ -219,6 +219,7 @@ class ArrayContext(ABC):
 
         import loopy as lp
         from .loopy import make_loopy_program
+        from arraycontext.transform_metadata import ElementwiseMapKernelTag
         return make_loopy_program(
                 [domain_bset],
                 [
@@ -227,7 +228,8 @@ class ArrayContext(ABC):
                         var(c_name)(*[
                             var("inp%d" % i)[subscript] for i in range(nargs)]))
                     ],
-                name="actx_special_%s" % c_name)
+                name="actx_special_%s" % c_name,
+                tags=(ElementwiseMapKernelTag(),))
 
     @abstractmethod
     def freeze(self, array):

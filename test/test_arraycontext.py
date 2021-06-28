@@ -31,18 +31,48 @@ from arraycontext import (
         dataclass_array_container, with_container_arithmetic,
         serialize_container, deserialize_container,
         freeze, thaw,
-        FirstAxisIsElementsTag, ArrayContainer)
+        FirstAxisIsElementsTag,
+        PyOpenCLArrayContext,
+        ArrayContainer,)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
         _acf)
+from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
+                                 _PytestPytatoPyOpenCLArrayContextFactory)
+
 
 import logging
 logger = logging.getLogger(__name__)
 
 
+# {{{ array context fixture
+
+class _PyOpenCLArrayContextForTests(PyOpenCLArrayContext):
+    """Like :class:`PyOpenCLArrayContext`, but applies no program transformations
+    whatsoever. Only to be used for testing internal to :mod:`arraycontext`.
+    """
+
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
+class _PyOpenCLArrayContextWithHostScalarsForTestsFactory(
+        _PytestPyOpenCLArrayContextFactoryWithClass):
+    actx_class = _PyOpenCLArrayContextForTests
+
+
+class _PyOpenCLArrayContextForTestsFactory(
+        _PyOpenCLArrayContextWithHostScalarsForTestsFactory):
+    force_device_scalars = True
+
+
 pytest_generate_tests = pytest_generate_tests_for_array_contexts([
-    "pyopencl", "pyopencl-deprecated", "pytato-pyopencl"
+    _PyOpenCLArrayContextForTestsFactory,
+    _PyOpenCLArrayContextWithHostScalarsForTestsFactory,
+    _PytestPytatoPyOpenCLArrayContextFactory,
     ])
+
+# }}}
 
 
 # {{{ stand-in DOFArray implementation

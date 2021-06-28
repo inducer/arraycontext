@@ -34,7 +34,6 @@ import numpy as np
 
 from pytools.tag import Tag
 
-from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.context import ArrayContext
 
 
@@ -101,8 +100,11 @@ class PyOpenCLArrayContext(ArrayContext):
             to the host.
         """
         if not force_device_scalars:
-            warn("Returning host scalars from the array context is deprecated. "
-                    "To return device scalars set 'force_device_scalars=True'. "
+            warn("Configuring the PyOpenCLArrayContext to return host scalars "
+                    "from reductions is deprecated. "
+                    "To configure the PyOpenCLArrayContext to return "
+                    "device scalars, pass 'force_device_scalars=True' to the "
+                    "constructor. "
                     "Support for returning host scalars will be removed in 2022.",
                     DeprecationWarning, stacklevel=2)
 
@@ -165,7 +167,10 @@ class PyOpenCLArrayContext(ArrayContext):
         try:
             t_unit = self._loopy_transform_cache[t_unit]
         except KeyError:
+            orig_t_unit = t_unit
             t_unit = self.transform_loopy_program(t_unit)
+            self._loopy_transform_cache[orig_t_unit] = t_unit
+            del orig_t_unit
 
         evt, result = t_unit(self.queue, **kwargs, allocator=self.allocator)
 
@@ -190,11 +195,15 @@ class PyOpenCLArrayContext(ArrayContext):
     # }}}
 
     def transform_loopy_program(self, t_unit):
-        try:
-            return self._loopy_transform_cache[t_unit]
-        except KeyError:
-            pass
-        orig_t_unit = t_unit
+        from warnings import warn
+        warn("Using arraycontext.PyOpenCLArrayContext.transform_loopy_program "
+                "to transform a program. This is deprecated and will stop working "
+                "in 2022. Instead, subclass PyOpenCLArrayContext and implement "
+                "the specific logic required to transform the program for your "
+                "package or application. Check higher-level packages "
+                "(e.g. meshmode), which may already have subclasses you may want "
+                "to build on.",
+                DeprecationWarning, stacklevel=2)
 
         # accommodate loopy with and without kernel callables
 
@@ -210,9 +219,13 @@ class PyOpenCLArrayContext(ArrayContext):
         all_inames = default_entrypoint.all_inames()
         # FIXME: This could be much smarter.
         inner_iname = None
+
+        # import with underscore to avoid DeprecationWarning
+        from arraycontext.metadata import _FirstAxisIsElementsTag
+
         if (len(default_entrypoint.instructions) == 1
                 and isinstance(default_entrypoint.instructions[0], lp.Assignment)
-                and any(isinstance(tag, FirstAxisIsElementsTag)
+                and any(isinstance(tag, _FirstAxisIsElementsTag)
                     # FIXME: Firedrake branch lacks kernel tags
                     for tag in getattr(default_entrypoint, "tags", ()))):
             stmt, = default_entrypoint.instructions
@@ -243,7 +256,6 @@ class PyOpenCLArrayContext(ArrayContext):
             t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")
         t_unit = lp.tag_inames(t_unit, {outer_iname: "g.0"})
 
-        self._loopy_transform_cache[orig_t_unit] = t_unit
         return t_unit
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
