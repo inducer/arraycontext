@@ -32,7 +32,6 @@ from arraycontext.context import ArrayContext
 import numpy as np
 from typing import Any, Callable, Union, Sequence
 from pytools.tag import Tag
-import loopy as lp
 
 
 class PytatoPyOpenCLArrayContext(ArrayContext):
