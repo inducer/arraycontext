@@ -41,6 +41,7 @@ import numpy as np
 T = TypeVar("T")
 
 
+@enum.unique
 class _OpClass(enum.Enum):
     ARITHMETIC = enum.auto()
     MATMUL = enum.auto()
