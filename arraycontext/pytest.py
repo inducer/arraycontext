@@ -102,18 +102,12 @@ class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
     force_device_scalars = False
 
 
-class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
-    force_device_scalars = False
+class _PytestPytatoPyOpenCLArrayContextFactory(_PytestPyOpenCLArrayContextFactoryWithClass):
 
-    def __call__(self):
+    @property
+    def actx_class(self):
         from arraycontext import PytatoPyOpenCLArrayContext
-        ctx, queue = self.get_command_queue()
-        return PytatoPyOpenCLArrayContext(queue)
-
-    def __str__(self):
-        return ("<Pytato array context factory for <pyopencl.Device '%s' on '%s'>"
-                % (self.device.name.strip(),
-                 self.device.platform.name.strip()))
+        return PytatoPyOpenCLArrayContext
 
 
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \

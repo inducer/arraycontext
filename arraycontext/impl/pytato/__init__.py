@@ -52,8 +52,9 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     .. automethod:: __init__
     """
 
-    def __init__(self, queue, allocator=None):
+    def __init__(self, queue, allocator=None, force_device_scalars=True):
         super().__init__()
+        assert force_device_scalars == True
         self._force_device_scalars = True
         self.queue = queue
         self.allocator = allocator
