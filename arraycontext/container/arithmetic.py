@@ -42,12 +42,12 @@ T = TypeVar("T")
 
 
 class _OpClass(enum.Enum):
-    ARITHMETIC = enum.auto
-    MATMUL = enum.auto
-    BITWISE = enum.auto
-    SHIFT = enum.auto
-    EQ_COMPARISON = enum.auto
-    REL_COMPARISON = enum.auto
+    ARITHMETIC = enum.auto()
+    MATMUL = enum.auto()
+    BITWISE = enum.auto()
+    SHIFT = enum.auto()
+    EQ_COMPARISON = enum.auto()
+    REL_COMPARISON = enum.auto()
 
 
 _UNARY_OP_AND_DUNDER = [
