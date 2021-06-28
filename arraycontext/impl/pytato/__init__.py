@@ -134,18 +134,9 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return LazilyCompilingFunctionCaller(self, f)
 
     def transform_loopy_program(self, t_unit):
-        from warnings import warn
-        warn(
-            "Using arraycontext.PytatoPyOpenCLArrayContext.transform_loopy_program "
-            "to transform a program. This is deprecated and will stop working "
-            "in 2022. Instead, subclass PytatoPyOpenCLArrayContext and implement "
-            "the specific logic required to transform the program for your "
-            "package or application. Check higher-level packages "
-            "(e.g. meshmode), which may already have subclasses you may want "
-            "to build on.",
-            DeprecationWarning, stacklevel=2)
-
-        return t_unit
+        raise ValueError("PytatoPyOpenCLArrayContext does not implement "
+                         "transform_loopy_program. Sub-classes are supposed "
+                         "to implement it.")
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
         return array.tagged(tags)

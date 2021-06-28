@@ -33,6 +33,7 @@ from arraycontext import (
         freeze, thaw,
         FirstAxisIsElementsTag,
         PyOpenCLArrayContext,
+        PytatoPyOpenCLArrayContext,
         ArrayContainer,)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
@@ -56,6 +57,16 @@ class _PyOpenCLArrayContextForTests(PyOpenCLArrayContext):
         return t_unit
 
 
+class _PytatoPyOpenCLArrayContextForTests(PytatoPyOpenCLArrayContext):
+    """Like :class:`PytatoPyOpenCLArrayContext`, but applies no program
+    transformations whatsoever. Only to be used for testing internal to
+    :mod:`arraycontext`.
+    """
+
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
 class _PyOpenCLArrayContextWithHostScalarsForTestsFactory(
         _PytestPyOpenCLArrayContextFactoryWithClass):
     actx_class = _PyOpenCLArrayContextForTests
@@ -68,12 +79,7 @@ class _PyOpenCLArrayContextForTestsFactory(
 
 class _PytatoPyOpenCLArrayContextForTestsFactory(
         _PytestPytatoPyOpenCLArrayContextFactory):
-    """Like :class:`PytatoPyOpenCLArrayContext`, but applies no program transformations
-    whatsoever. Only to be used for testing internal to :mod:`arraycontext`.
-    """
-
-    def transform_loopy_program(self, t_unit):
-        return t_unit
+    actx_class = _PytatoPyOpenCLArrayContextForTests
 
 
 pytest_generate_tests = pytest_generate_tests_for_array_contexts([
