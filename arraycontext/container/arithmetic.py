@@ -127,6 +127,7 @@ def _format_binary_op_str(op_str: str,
 def with_container_arithmetic(
         *,
         bcast_number: bool = True,
+        bcast_actx_array_type: Optional[bool] = None,
         bcast_obj_array: Optional[bool] = None,
         bcast_numpy_array: bool = False,
         bcast_container_types: Optional[Tuple[type, ...]] = None,
@@ -142,6 +143,11 @@ def with_container_arithmetic(
 
     :arg bcast_number: If *True*, numbers broadcast over the container
         (with the container as the 'outer' structure).
+    :arg bcast_actx_array_type: If *True*, instances of base array types of the
+        container's array context are broadcasted over the container. Can be
+        *True* iff the container has *_cls_has_array_context_attr* set.
+        Defaulted to *bcast_number* if *_cls_has_array_context_attr* is set,
+        else *False*.
     :arg bcast_obj_array: If *True*, :mod:`numpy` object arrays broadcast over
         the container.  (with the container as the 'inner' structure)
     :arg bcast_numpy_array: If *True*, any :class:`numpy.ndarray` will broadcast
@@ -208,6 +214,16 @@ def with_container_arithmetic(
 
     if not bcast_obj_array and bcast_numpy_array:
         raise TypeError("bcast_obj_array must be set if bcast_numpy_array is")
+
+    if bcast_actx_array_type is None:
+        if _cls_has_array_context_attr:
+            bcast_actx_array_type = bcast_number
+        else:
+            bcast_actx_array_type = False
+    else:
+        if bcast_actx_array_type and not _cls_has_array_context_attr:
+            raise TypeError("bcast_actx_array_type can be True iff "
+                            "_cls_has_array_context_attr is set.")
 
     if bcast_numpy_array:
         def numpy_pred(name: str) -> str:
@@ -331,7 +347,7 @@ def with_container_arithmetic(
                         cls._serialize_init_arrays_code("arg1").items(),
                         cls._serialize_init_arrays_code("arg2").items())
                     })
-            bcast_init_args = cls._deserialize_init_arrays_code("arg1", {
+            bcast_same_cls_init_args = cls._deserialize_init_arrays_code("arg1", {
                     key_arg1: _format_binary_op_str(op_str, expr_arg1, "arg2")
                     for key_arg1, expr_arg1 in
                     cls._serialize_init_arrays_code("arg1").items()
@@ -357,10 +373,18 @@ def with_container_arithmetic(
                                 else:
                                     raise ValueError(msg)""")
                     gen(f"return cls({zip_init_args})")
+
+                if bcast_actx_array_type:
+                    all_outer_bcast_type_names = (
+                        outer_bcast_type_names
+                        + ("*arg1.array_context.get_array_types()",))
+                else:
+                    all_outer_bcast_type_names = outer_bcast_type_names
+
                 gen(f"""
                 if {bool(outer_bcast_type_names)}:  # optimized away
-                    if isinstance(arg2, {tup_str(outer_bcast_type_names)}):
-                        return cls({bcast_init_args})
+                    if isinstance(arg2, {tup_str(all_outer_bcast_type_names)}):
+                        return cls({bcast_same_cls_init_args})
                 if {numpy_pred("arg2")}:
                     result = np.empty_like(arg2, dtype=object)
                     for i in np.ndindex(arg2.shape):
@@ -376,6 +400,12 @@ def with_container_arithmetic(
             # {{{ "reverse" binary operators
 
             if reversible:
+                if bcast_actx_array_type:
+                    all_outer_bcast_type_names = (
+                        outer_bcast_type_names
+                        + ("*arg2.array_context.get_array_types()",))
+                else:
+                    all_outer_bcast_type_names = outer_bcast_type_names
                 fname = f"_{cls.__name__.lower()}_r{dunder_name}"
                 bcast_init_args = cls._deserialize_init_arrays_code("arg2", {
                         key_arg2: _format_binary_op_str(
@@ -388,7 +418,8 @@ def with_container_arithmetic(
                         # assert other.__cls__ is not cls
 
                         if {bool(outer_bcast_type_names)}:  # optimized away
-                            if isinstance(arg1, {tup_str(outer_bcast_type_names)}):
+                            if isinstance(arg1,
+                                          {tup_str(all_outer_bcast_type_names)}):
                                 return cls({bcast_init_args})
                         if {numpy_pred("arg1")}:
                             result = np.empty_like(arg1, dtype=object)
@@ -406,6 +437,7 @@ def with_container_arithmetic(
 
         # This will evaluate the module, which is all we need.
         code = gen.get().rstrip()+"\n"
+
         result_dict = {"_MODULE_SOURCE_CODE": code, "cls": cls}
         exec(compile(code, f"<container arithmetic for {cls.__name__}>", "exec"),
                 result_dict)
