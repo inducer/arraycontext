@@ -251,6 +251,9 @@ def pytest_generate_tests_for_array_contexts(
 
         # }}}
 
+        # Sort the actx's so that parallel pytest works
+        arg_value_tuples = sorted(arg_value_tuples, key=lambda x: x.__str__())
+
         metafunc.parametrize(arg_names, arg_value_tuples, ids=ids)
 
     return inner

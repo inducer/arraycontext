@@ -36,7 +36,7 @@ from arraycontext import (
         ArrayContainer,)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
-        _acf)
+        )
 from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
                                  _PytestPytatoPyOpenCLArrayContextFactory)
 

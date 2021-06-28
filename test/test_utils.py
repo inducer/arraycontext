@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
-        _acf)
+        )
 
 import logging
 logger = logging.getLogger(__name__)
