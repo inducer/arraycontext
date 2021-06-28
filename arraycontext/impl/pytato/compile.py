@@ -61,7 +61,7 @@ class ScalarInputDescriptor(AbstractInputDescriptor):
 
 
 @dataclass(frozen=True, eq=True)
-class LeafArrayDescriptor:
+class LeafArrayDescriptor(AbstractInputDescriptor):
     dtype: np.dtype
     shape: Tuple[int, ...]
 
