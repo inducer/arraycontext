@@ -7,6 +7,8 @@
 .. autofunction:: multimap_array_container
 .. autofunction:: rec_map_array_container
 .. autofunction:: rec_multimap_array_container
+.. autofunction:: keyed_map_array_container
+.. autofunction:: rec_keyed_map_array_container
 
 Traversing decorators
 ~~~~~~~~~~~~~~~~~~~~~
