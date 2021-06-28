@@ -165,6 +165,8 @@ def pytest_generate_tests_for_array_contexts(
     * ``"pyopencl-deprecated"``, which creates a
       :class:`~arraycontext.PyOpenCLArrayContext` with
       ``force_device_scalars=False``.
+    * ``"pytato-pyopencl"``, which creates a
+      :class:`~arraycontext.PytatoPyOpenCLArrayContext`.
 
     :arg factories: a list of identifiers or
         :class:`PytestPyOpenCLArrayContextFactory` classes (not instances)
