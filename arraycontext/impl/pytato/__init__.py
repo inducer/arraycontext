@@ -76,6 +76,14 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
         return PytatoFakeNumpyNamespace(self)
 
+    def get_array_types(self):
+        """
+        Returns a :class:`tuple` of types that are valid base array classes
+        the context can operate on.
+        """
+        import pytato as pt
+        return (pt.Array,)
+
     # {{{ ArrayContext interface
 
     def clone(self):
