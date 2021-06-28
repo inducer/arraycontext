@@ -133,6 +133,17 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return LazilyCompilingFunctionCaller(self, f)
 
     def transform_loopy_program(self, prg):
+        from warnings import warn
+        warn(
+            "Using arraycontext.PytatoPyOpenCLArrayContext.transform_loopy_program "
+            "to transform a program. This is deprecated and will stop working "
+            "in 2022. Instead, subclass PytatoPyOpenCLArrayContext and implement "
+            "the specific logic required to transform the program for your "
+            "package or application. Check higher-level packages "
+            "(e.g. meshmode), which may already have subclasses you may want "
+            "to build on.",
+            DeprecationWarning, stacklevel=2)
+
         from loopy.translation_unit import for_each_kernel
 
         nwg = 48

@@ -66,10 +66,20 @@ class _PyOpenCLArrayContextForTestsFactory(
     force_device_scalars = True
 
 
+class _PytatoPyOpenCLArrayContextForTestsFactory(
+        _PytestPytatoPyOpenCLArrayContextFactory):
+    """Like :class:`PytatoPyOpenCLArrayContext`, but applies no program transformations
+    whatsoever. Only to be used for testing internal to :mod:`arraycontext`.
+    """
+
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
 pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PyOpenCLArrayContextForTestsFactory,
     _PyOpenCLArrayContextWithHostScalarsForTestsFactory,
-    _PytestPytatoPyOpenCLArrayContextFactory,
+    _PytatoPyOpenCLArrayContextForTestsFactory,
     ])
 
 # }}}
