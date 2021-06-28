@@ -102,7 +102,8 @@ class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
     force_device_scalars = False
 
 
-class _PytestPytatoPyOpenCLArrayContextFactory(_PytestPyOpenCLArrayContextFactoryWithClass):
+class _PytestPytatoPyOpenCLArrayContextFactory(
+        _PytestPyOpenCLArrayContextFactoryWithClass):
 
     @property
     def actx_class(self):

@@ -54,11 +54,14 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
 
     def __init__(self, queue, allocator=None, force_device_scalars=True):
         super().__init__()
-        assert force_device_scalars == True
+        assert force_device_scalars is True
         self._force_device_scalars = True
         self.queue = queue
         self.allocator = allocator
         self.np = self._get_fake_numpy_namespace()
+
+        # unused, but necessary to keep the context alive
+        self.context = self.queue.context
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
