@@ -256,35 +256,6 @@ def keyed_map_array_container(f: Callable[[Any, Any], Any],
         raise ValueError("Not an array-container, i.e. unknown key to pass.")
 
 
-def _keyed_map_array_container_impl(f: Callable[[Tuple[Any, ...], Any], Any],
-                                    ary: ArrayContainerT,
-                                    *,
-                                    leaf_cls: Optional[type] = None,
-                                    recursive: bool = False) -> ArrayContainerT:
-    """Helper for :func:`rec_keyed_map_array_container`.
-
-    :param leaf_cls: class on which we call *f* directly. This is mostly
-        useful in the recursive setting, where it can stop the recursion on
-        specific container classes. By default, the recursion is stopped when
-        a non-:class:`ArrayContainer` class is encountered.
-    """
-    def rec(keys: Tuple[Union[str, int], ...],
-            _ary: ArrayContainerT) -> ArrayContainerT:
-        if type(_ary) is leaf_cls:  # type(ary) is never None
-            return f(keys, _ary)
-        elif is_array_container(_ary):
-
-            return deserialize_container(_ary, [
-                    (key, frec(keys+(key,), subary))
-                    for key, subary in serialize_container(_ary)
-                    ])
-        else:
-            return f(keys, _ary)
-
-    frec = rec if recursive else f
-    return rec((), ary)
-
-
 def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
                                   ary: ArrayContainerT) -> ArrayContainerT:
     """
@@ -293,7 +264,19 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
     passed in as a tuple of identifiers of the arrays traversed before reaching
     the current array.
     """
-    return _keyed_map_array_container_impl(f, ary, recursive=True)
+
+    def rec(keys: Tuple[Union[str, int], ...],
+            _ary: ArrayContainerT) -> ArrayContainerT:
+        if is_array_container(_ary):
+
+            return deserialize_container(_ary, [
+                    (key, rec(keys+(key,), subary))
+                    for key, subary in serialize_container(_ary)
+                    ])
+        else:
+            return f(keys, _ary)
+
+    return rec((), ary)
 
 # }}}
 
