@@ -90,6 +90,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
 @with_container_arithmetic(
         bcast_obj_array=True,
         bcast_numpy_array=True,
+        bitwise=True,
         rel_comparison=True,
         _cls_has_array_context_attr=True)
 class DOFArray:
@@ -519,9 +520,10 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
 # }}}
 
 
-# {{{ test array container
+# {{{ array container classes for test
 
-@with_container_arithmetic(bcast_obj_array=False, rel_comparison=True)
+@with_container_arithmetic(bcast_obj_array=False,
+        eq_comparison=False, rel_comparison=False)
 @dataclass_array_container
 @dataclass(frozen=True)
 class MyContainer:
@@ -831,6 +833,23 @@ def test_actx_compile(actx_factory):
     result = to_numpy(scaled_speed, actx)
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
+
+
+def test_container_equality(actx_factory):
+    actx = actx_factory()
+
+    ary_dof, _, _, dc_of_dofs, bcast_dc_of_dofs = \
+            _get_test_containers(actx)
+    _, _, _, dc_of_dofs_2, bcast_dc_of_dofs_2 = \
+            _get_test_containers(actx)
+
+    # MyContainer sets eq_comparison to False, so equality comparison should
+    # not succeed.
+    dc = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
+    dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
+    assert dc != dc2
+
+    assert isinstance(bcast_dc_of_dofs == bcast_dc_of_dofs_2, MyContainerDOFBcast)
 
 
 if __name__ == "__main__":
