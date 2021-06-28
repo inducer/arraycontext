@@ -77,6 +77,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
 @with_container_arithmetic(
         bcast_obj_array=True,
         bcast_numpy_array=True,
+        bitwise=True,
         rel_comparison=True,
         _cls_has_array_context_attr=True)
 class DOFArray:
