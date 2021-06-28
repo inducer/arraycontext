@@ -73,7 +73,7 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     Helper for :meth:`LazilyCompilingFunctionCaller.__call__`. Stringifies an
     array-container's component's key. Goals of this routine:
 
-    * No two different keys have the same stringification
+    * No two different keys should have the same stringification
     * Stringified key must a valid identifier according to :meth:`str.isidentifier`
     * (informal) Shorter identifiers are preferred
     """
