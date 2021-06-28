@@ -293,17 +293,6 @@ class CompiledFunction:
 
             input_kwargs_to_loopy[self.input_id_to_name_in_program[arg_id]] = arg
 
-        # {{{ the generated program might not have depended on some of the
-        # inputs => do not pass those to the loopy kernel
-
-        input_kwargs_to_loopy = {arg_name: arg
-                                 for arg_name, arg in input_kwargs_to_loopy.items()
-                                 if arg_name in (self.pytato_program
-                                                 .program.default_entrypoint
-                                                 .arg_dict)}
-
-        # }}}
-
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
                                             **input_kwargs_to_loopy)
