@@ -69,6 +69,13 @@ class PytestPyOpenCLArrayContextFactory:
     def __call__(self) -> ArrayContext:
         raise NotImplementedError
 
+    def __str__(self):
+        return ("<%s for <pyopencl.Device '%s' on '%s'>" %
+                (
+                    self.actx_class.__name__,
+                    self.device.name.strip(),
+                    self.device.platform.name.strip()))
+
 
 class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFactory):
     force_device_scalars = True
@@ -88,13 +95,6 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
         return self.actx_class(
                 queue,
                 force_device_scalars=self.force_device_scalars)
-
-    def __str__(self):
-        return ("<%s for <pyopencl.Device '%s' on '%s'>" %
-                (
-                    self.actx_class.__name__,
-                    self.device.name.strip(),
-                    self.device.platform.name.strip()))
 
 
 class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
