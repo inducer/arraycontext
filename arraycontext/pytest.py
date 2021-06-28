@@ -103,12 +103,22 @@ class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
 
 
 class _PytestPytatoPyOpenCLArrayContextFactory(
-        _PytestPyOpenCLArrayContextFactoryWithClass):
+        PytestPyOpenCLArrayContextFactory):
 
     @property
     def actx_class(self):
         from arraycontext import PytatoPyOpenCLArrayContext
         return PytatoPyOpenCLArrayContext
+
+    def __call__(self):
+        # The ostensibly pointless assignment to *ctx* keeps the CL context alive
+        # long enough to create the array context, which will then start
+        # holding a reference to the context to keep it alive in turn.
+        # On some implementations (notably Intel CPU), holding a reference
+        # to a queue does not keep the context alive.
+        ctx, queue = self.get_command_queue()
+        return self.actx_class(
+                queue)
 
 
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \

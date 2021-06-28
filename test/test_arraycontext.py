@@ -456,10 +456,10 @@ def test_dof_array_reductions_same_as_numpy(actx_factory, op):
 
     from numbers import Number
 
-    if actx._force_device_scalars:
-        assert actx_red.shape == ()
-    else:
+    if isinstance(actx, PyOpenCLArrayContext) and (not actx._force_device_scalars):
         assert isinstance(actx_red, Number)
+    else:
+        assert actx_red.shape == ()
 
     assert np.allclose(np_red, actx_red)
 

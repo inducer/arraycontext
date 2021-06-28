@@ -51,10 +51,8 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     .. automethod:: __init__
     """
 
-    def __init__(self, queue, allocator=None, force_device_scalars=True):
+    def __init__(self, queue, allocator=None):
         super().__init__()
-        assert force_device_scalars is True
-        self._force_device_scalars = True
         self.queue = queue
         self.allocator = allocator
         self.np = self._get_fake_numpy_namespace()
