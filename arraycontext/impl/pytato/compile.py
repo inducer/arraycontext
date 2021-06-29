@@ -97,10 +97,11 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...]
                                                             AbstractInputDescriptor]\
                                                        ]":
     """
-    Helper for :meth:`LazilyCompilingFunctionCaller.__call__`. Extracts the
-    argument id to argument values and descriptor mappings from the input
-    arguments. See :attr:`CompiledFunction.input_id_to_name_in_program` for
-    argument-id's representation.
+    Helper for :meth:`LazilyCompilingFunctionCaller.__call__`. Extracts
+    mappings from argument id to argument values and from argument id to
+    :class:`AbstractInputDescriptor`. See
+    :attr:`CompiledFunction.input_id_to_name_in_program` for argument-id's
+    representation.
     """
     arg_id_to_arg: Dict[Tuple[Any, ...], Any] = {}
     arg_id_to_descr: Dict[Tuple[Any, ...], AbstractInputDescriptor] = {}
