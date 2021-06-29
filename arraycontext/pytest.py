@@ -69,13 +69,6 @@ class PytestPyOpenCLArrayContextFactory:
     def __call__(self) -> ArrayContext:
         raise NotImplementedError
 
-    def __str__(self):
-        return ("<%s for <pyopencl.Device '%s' on '%s'>" %
-                (
-                    self.actx_class.__name__,
-                    self.device.name.strip(),
-                    self.device.platform.name.strip()))
-
 
 class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFactory):
     force_device_scalars = True
@@ -95,6 +88,13 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
         return self.actx_class(
                 queue,
                 force_device_scalars=self.force_device_scalars)
+
+    def __str__(self):
+        return ("<%s for <pyopencl.Device '%s' on '%s'>>" %
+                (
+                    self.actx_class.__name__,
+                    self.device.name.strip(),
+                    self.device.platform.name.strip()))
 
 
 class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
@@ -117,8 +117,13 @@ class _PytestPytatoPyOpenCLArrayContextFactory(
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
         ctx, queue = self.get_command_queue()
-        return self.actx_class(
-                queue)
+        return self.actx_class(queue)
+
+    def __str__(self):
+        return ("<PytatoPyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>>" %
+                (
+                    self.device.name.strip(),
+                    self.device.platform.name.strip()))
 
 
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
