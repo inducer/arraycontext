@@ -55,14 +55,11 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         super().__init__()
         self.queue = queue
         self.allocator = allocator
-        self.np = self._get_fake_numpy_namespace()
+        from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
+        self.np = PytatoFakeNumpyNamespace(self)
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context
-
-    def _get_fake_numpy_namespace(self):
-        from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
-        return PytatoFakeNumpyNamespace(self)
 
     # {{{ ArrayContext interface
 
