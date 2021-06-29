@@ -278,16 +278,20 @@ class CompiledFunction:
 
         input_kwargs_to_loopy = {}
 
-        # {{{ extract loopy arguments execute the program
+        # {{{ preprocess args to get arguments (CL buffers) to be fed to the
+        # loopy program
 
         for arg_id, arg in arg_id_to_arg.items():
             if np.isscalar(arg):
                 arg = cla.to_device(self.actx.queue, np.array(arg))
             elif isinstance(arg, pt.array.DataWrapper):
+                # got a Datwwrapper => simply gets its data
                 arg = arg.data
             elif isinstance(arg, cla.Array):
+                # got a frozen array  => do nothing
                 pass
             elif isinstance(arg, pt.Array):
+                # got an array expression => evaluate it
                 arg = self.actx.freeze(arg).with_queue(self.actx.queue)
             else:
                 raise NotImplementedError(type(arg))
