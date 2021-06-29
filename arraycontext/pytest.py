@@ -51,10 +51,6 @@ class PytestPyOpenCLArrayContextFactory:
         """
         self.device = device
 
-    @property
-    def actx_class(self):
-        raise NotImplementedError
-
     def get_command_queue(self):
         # Get rid of leftovers from past tests.
         # CL implementations are surprisingly limited in how many
