@@ -145,7 +145,7 @@ def with_container_arithmetic(
         (with the container as the 'outer' structure).
     :arg bcast_actx_array_type: If *True*, instances of base array types of the
         container's array context are broadcasted over the container. Can be
-        *True* iff the container has *_cls_has_array_context_attr* set.
+        *True* only if the container has *_cls_has_array_context_attr* set.
         Defaulted to *bcast_number* if *_cls_has_array_context_attr* is set,
         else *False*.
     :arg bcast_obj_array: If *True*, :mod:`numpy` object arrays broadcast over
