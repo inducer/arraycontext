@@ -200,7 +200,8 @@ class LazilyCompilingFunctionCaller:
             # returned type is a scalar. Not sure if it's worth it though.
             raise NotImplementedError(
                 f"Function '{self.f.__name__}' to be compiled "
-                f"did not return an array container, but '{outputs}' instead.")
+                "did not return an array container, but an instance of "
+                f"'{outputs.__class__}' instead.")
 
         def _as_dict_of_named_arrays(keys, ary):
             name = "_pt_out_" + "_".join(str(key)
