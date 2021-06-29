@@ -41,8 +41,7 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     .. note::
 
         :mod:`pytato` does not define any memory layout for its arrays. See
-        `Pytato docs <https://documen.tician.de/pytato/design.html#memory-layout>`_
-        for more on this.
+        :ref:`Pytato docs <pytato:memory-layout>` for more on this.
     """
     def _get_fake_numpy_linalg_namespace(self):
         return PytatoFakeNumpyLinalgNamespace(self._array_context)
