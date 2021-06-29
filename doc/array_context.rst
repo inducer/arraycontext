@@ -14,7 +14,7 @@ Array context based on :mod:`pyopencl.array`
 .. automodule:: arraycontext.impl.pyopencl
 
 
-Array context based on :mod:`pytato`
-------------------------------------
+Lazy/Deferred evaluation array context based on :mod:`pytato`
+-------------------------------------------------------------
 
 .. automodule:: arraycontext.impl.pytato
