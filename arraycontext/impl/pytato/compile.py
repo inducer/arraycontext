@@ -138,13 +138,14 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...]
 @dataclass
 class LazilyCompilingFunctionCaller:
     """
-    Records a side-effect-free callable :attr:`LazilyCompilingFunctionCaller.f`, that
-    would be specialized for different input types
-    :meth:`LazilyCompilingFunctionCaller.__call__` is invoked with.
+    Records a side-effect-free callable
+    :attr:`LazilyCompilingFunctionCaller.f` that can be specialized for the
+    input types with which :meth:`LazilyCompilingFunctionCaller.__call__` is
+    invoked.
 
     .. attribute:: f
 
-        The callable that would be specialized into :mod:`pytato` DAGs.
+        The callable that will be called to obtain :mod:`pytato` DAGs.
 
     .. automethod:: __call__
     """
