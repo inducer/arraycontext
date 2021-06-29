@@ -298,7 +298,9 @@ class CompiledFunction:
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
                                             **input_kwargs_to_loopy)
-
+        # FIXME Kernels (for now) allocate tons of memory in temporaries. If we
+        # race too far ahead with enqueuing, there is a distinct risk of
+        # running out of memory. This mitigates that risk a bit, for now.
         evt.wait()
 
         # }}}
