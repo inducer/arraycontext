@@ -236,8 +236,9 @@ class LazilyCompilingFunctionCaller:
 @dataclass
 class CompiledFunction:
     """
-    A callable which is an instance of :attr:`~LazilyCompilingFunctionCaller.f`
-    specialized for a particular input type fed to it.
+    A callable which captures the :class:`pytato.target.BoundProgram`  resulting
+    from calling :attr:`~LazilyCompilingFunctionCaller.f` with a given set of
+    input types, and generating :mod:`loopy` IR from it.
 
     .. attribute:: pytato_program
 
