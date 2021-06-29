@@ -178,6 +178,7 @@ class LazilyCompilingFunctionCaller:
         :attr:`~LazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
         The intermediary pytato DAG for *args* is memoized in *self*.
         """
+        from pytato.target.loopy import BoundPyOpenCLProgram
         arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(args)
 
         try:
@@ -221,9 +222,12 @@ class LazilyCompilingFunctionCaller:
         pytato_program = pt.generate_loopy(dict_of_named_arrays,
                                            options={"return_dict": True},
                                            cl_device=self.actx.queue.device)
+        assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
-        pytato_program.program = self.actx.transform_loopy_program(pytato_program
-                                                                   .program)
+        pytato_program = (pytato_program
+                          .with_transformed_program(self
+                                                    .actx
+                                                    .transform_loopy_program))
 
         self.program_cache[arg_id_to_descr] = CompiledFunction(
                                                 self.actx, pytato_program,

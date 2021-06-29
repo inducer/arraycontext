@@ -122,9 +122,10 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
             raise TypeError("PytatoPyOpenCLArrayContext.freeze invoked with "
                             f"non-pytato array of type '{type(array)}'")
 
-        t_unit = pt.generate_loopy(array, cl_device=self.queue.device)
-        t_unit = self.transform_loopy_program(t_unit)
-        evt, (cl_array,) = t_unit(self.queue)
+        pt_prg = pt.generate_loopy(array, cl_device=self.queue.device)
+        pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
+
+        evt, (cl_array,) = pt_prg(self.queue)
         evt.wait()
 
         return cl_array.with_queue(None)
