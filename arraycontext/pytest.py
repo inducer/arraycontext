@@ -266,7 +266,7 @@ def pytest_generate_tests_for_array_contexts(
 
 def pytest_generate_tests_for_pyopencl_array_context(metafunc) -> None:
     """Parametrize tests for pytest to use a
-    :class:`~arraycontext.ArrayContext`.
+    :class:`~arraycontext.PyOpenCLArrayContext`.
 
     Performs device enumeration analogously to
     :func:`pyopencl.tools.pytest_generate_tests_for_pyopencl`.
