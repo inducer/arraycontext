@@ -106,11 +106,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...]
     arg_id_to_arg: Dict[Tuple[Any, ...], Any] = {}
     arg_id_to_descr: Dict[Tuple[Any, ...], AbstractInputDescriptor] = {}
 
-    def to_arg_descr(iarg: int, arg: Any) -> None:
-        """
-        Returns a :class:`AbstractInputDescriptor` for a
-        attr:`LazilyCompilingFunctionCaller.f`'s input argument.
-        """
+    for iarg, arg in enumerate(args):
         if np.isscalar(arg):
             arg_id = (iarg,)
             arg_id_to_arg[arg_id] = arg
@@ -128,9 +124,6 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...]
             raise ValueError("Argument to a compiled operator should be"
                              " either a scalar or an array container. Got"
                              f" '{arg}'.")
-
-    for iarg, arg in enumerate(args):
-        to_arg_descr(iarg, arg)
 
     return pmap(arg_id_to_arg), pmap(arg_id_to_descr)
 
