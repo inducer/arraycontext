@@ -34,8 +34,7 @@ from arraycontext import (
         FirstAxisIsElementsTag,
         PyOpenCLArrayContext)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_array_contexts,
-        _acf)
+        pytest_generate_tests_for_array_contexts)
 from arraycontext.pytest import _PytestPyOpenCLArrayContextFactoryWithClass
 
 
@@ -68,6 +67,14 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PyOpenCLArrayContextForTestsFactory,
     _PyOpenCLArrayContextWithHostScalarsForTestsFactory,
     ])
+
+
+def _acf():
+    import pyopencl as cl
+
+    context = cl._csc()
+    queue = cl.CommandQueue(context)
+    return _PyOpenCLArrayContextForTests(queue, force_device_scalars=True)
 
 # }}}
 
