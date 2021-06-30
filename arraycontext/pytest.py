@@ -90,7 +90,7 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
                 force_device_scalars=self.force_device_scalars)
 
     def __str__(self):
-        return ("<%s for <pyopencl.Device '%s' on '%s'>" %
+        return ("<%s for <pyopencl.Device '%s' on '%s'>>" %
                 (
                     self.actx_class.__name__,
                     self.device.name.strip(),
@@ -102,11 +102,36 @@ class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
     force_device_scalars = False
 
 
+class _PytestPytatoPyOpenCLArrayContextFactory(
+        PytestPyOpenCLArrayContextFactory):
+
+    @property
+    def actx_class(self):
+        from arraycontext import PytatoPyOpenCLArrayContext
+        return PytatoPyOpenCLArrayContext
+
+    def __call__(self):
+        # The ostensibly pointless assignment to *ctx* keeps the CL context alive
+        # long enough to create the array context, which will then start
+        # holding a reference to the context to keep it alive in turn.
+        # On some implementations (notably Intel CPU), holding a reference
+        # to a queue does not keep the context alive.
+        ctx, queue = self.get_command_queue()
+        return self.actx_class(queue)
+
+    def __str__(self):
+        return ("<PytatoPyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>>" %
+                (
+                    self.device.name.strip(),
+                    self.device.platform.name.strip()))
+
+
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
         Dict[str, Type[PytestPyOpenCLArrayContextFactory]] = {
                 "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
                 "pyopencl-deprecated":
                 _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars,
+                "pytato-pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
                 }
 
 
@@ -157,6 +182,8 @@ def pytest_generate_tests_for_array_contexts(
     * ``"pyopencl-deprecated"``, which creates a
       :class:`~arraycontext.PyOpenCLArrayContext` with
       ``force_device_scalars=False``.
+    * ``"pytato-pyopencl"``, which creates a
+      :class:`~arraycontext.PytatoPyOpenCLArrayContext`.
 
     :arg factories: a list of identifiers or
         :class:`PytestPyOpenCLArrayContextFactory` classes (not instances)
@@ -233,6 +260,9 @@ def pytest_generate_tests_for_array_contexts(
                 ]
 
         # }}}
+
+        # Sort the actx's so that parallel pytest works
+        arg_value_tuples = sorted(arg_value_tuples, key=lambda x: x.__str__())
 
         metafunc.parametrize(arg_names, arg_value_tuples, ids=ids)
 
