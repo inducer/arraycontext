@@ -201,35 +201,6 @@ class ArrayContext(ABC):
             array understood by the context.
         """
 
-    @memoize_method
-    def _get_scalar_func_loopy_program(self, c_name, nargs, naxes):
-        from pymbolic import var
-
-        var_names = ["i%d" % i for i in range(naxes)]
-        size_names = ["n%d" % i for i in range(naxes)]
-        subscript = tuple(var(vname) for vname in var_names)
-        from islpy import make_zero_and_vars
-        v = make_zero_and_vars(var_names, params=size_names)
-        domain = v[0].domain()
-        for vname, sname in zip(var_names, size_names):
-            domain = domain & v[0].le_set(v[vname]) & v[vname].lt_set(v[sname])
-
-        domain_bset, = domain.get_basic_sets()
-
-        import loopy as lp
-        from .loopy import make_loopy_program
-        from arraycontext.transform_metadata import ElementwiseMapKernelTag
-        return make_loopy_program(
-                [domain_bset],
-                [
-                    lp.Assignment(
-                        var("out")[subscript],
-                        var(c_name)(*[
-                            var("inp%d" % i)[subscript] for i in range(nargs)]))
-                    ],
-                name="actx_special_%s" % c_name,
-                tags=(ElementwiseMapKernelTag(),))
-
     @abstractmethod
     def freeze(self, array):
         """Return a version of the context-defined array *array* that is
