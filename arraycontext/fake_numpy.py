@@ -148,13 +148,11 @@ class BaseFakeNumpyNamespace:
     def __getattr__(self, name):
         def loopy_implemented_elwise_func(*args):
             actx = self._array_context
-            # FIXME: Maybe involve loopy type inference?
-            result = actx.empty(args[0].shape, args[0].dtype)
             prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
-            actx.call_loopy(prg, out=result,
+            outputs = actx.call_loopy(prg,
                     **{"inp%d" % i: arg for i, arg in enumerate(args)})
-            return result
+            return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
