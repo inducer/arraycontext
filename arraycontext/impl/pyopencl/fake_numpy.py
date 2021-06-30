@@ -27,7 +27,6 @@ THE SOFTWARE.
 """
 
 from functools import partial, reduce
-import operator
 
 import numpy as np
 
@@ -64,22 +63,22 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
     # case.
 
     def equal(self, x, y):
-        return rec_multimap_array_container(operator.eq, x, y)
+        return x == y
 
     def not_equal(self, x, y):
-        return rec_multimap_array_container(operator.ne, x, y)
+        return x != y
 
     def greater(self, x, y):
-        return rec_multimap_array_container(operator.gt, x, y)
+        return x > y
 
     def greater_equal(self, x, y):
-        return rec_multimap_array_container(operator.ge, x, y)
+        return x >= y
 
     def less(self, x, y):
-        return rec_multimap_array_container(operator.lt, x, y)
+        return x < y
 
     def less_equal(self, x, y):
-        return rec_multimap_array_container(operator.le, x, y)
+        return x <= y
 
     # }}}
 
