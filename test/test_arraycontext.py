@@ -88,6 +88,14 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     ])
 
+
+def _acf():
+    import pyopencl as cl
+
+    context = cl._csc()
+    queue = cl.CommandQueue(context)
+    return _PyOpenCLArrayContextForTests(queue, force_device_scalars=True)
+
 # }}}
 
 
@@ -856,6 +864,17 @@ def test_container_equality(actx_factory):
     assert dc != dc2
 
     assert isinstance(bcast_dc_of_dofs == bcast_dc_of_dofs_2, MyContainerDOFBcast)
+
+
+def test_abs_complex(actx_factory):
+    actx = actx_factory()
+    a = np.random.randn(2000) + 1j * np.random.randn(2000)
+
+    abs_a_ref = np.abs(a)
+    abs_a = actx.np.abs(actx.from_numpy(a))
+
+    assert abs_a.dtype == abs_a_ref.dtype
+    np.testing.assert_allclose(actx.to_numpy(abs_a), abs_a_ref)
 
 
 if __name__ == "__main__":

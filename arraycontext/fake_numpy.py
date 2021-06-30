@@ -27,6 +27,44 @@ import numpy as np
 from arraycontext.container import is_array_container, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
+from pytools import memoize_in
+
+
+# {{{ _get_scalar_func_loopy_program
+
+def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
+    @memoize_in(actx, _get_scalar_func_loopy_program)
+    def get(c_name, nargs, naxes):
+        from pymbolic import var
+
+        var_names = ["i%d" % i for i in range(naxes)]
+        size_names = ["n%d" % i for i in range(naxes)]
+        subscript = tuple(var(vname) for vname in var_names)
+        from islpy import make_zero_and_vars
+        v = make_zero_and_vars(var_names, params=size_names)
+        domain = v[0].domain()
+        for vname, sname in zip(var_names, size_names):
+            domain = domain & v[0].le_set(v[vname]) & v[vname].lt_set(v[sname])
+
+        domain_bset, = domain.get_basic_sets()
+
+        import loopy as lp
+        from .loopy import make_loopy_program
+        from arraycontext.transform_metadata import ElementwiseMapKernelTag
+        return make_loopy_program(
+                [domain_bset],
+                [
+                    lp.Assignment(
+                        var("out")[subscript],
+                        var(c_name)(*[
+                            var("inp%d" % i)[subscript] for i in range(nargs)]))
+                    ],
+                name="actx_special_%s" % c_name,
+                tags=(ElementwiseMapKernelTag(),))
+
+    return get(c_name, nargs, naxes)
+
+# }}}
 
 
 # {{{ BaseFakeNumpyNamespace
@@ -110,13 +148,11 @@ class BaseFakeNumpyNamespace:
     def __getattr__(self, name):
         def loopy_implemented_elwise_func(*args):
             actx = self._array_context
-            # FIXME: Maybe involve loopy type inference?
-            result = actx.empty(args[0].shape, args[0].dtype)
-            prg = actx._get_scalar_func_loopy_program(
+            prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
-            actx.call_loopy(prg, out=result,
+            outputs = actx.call_loopy(prg,
                     **{"inp%d" % i: arg for i, arg in enumerate(args)})
-            return result
+            return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
