@@ -739,6 +739,17 @@ def test_numpy_conversion(actx_factory):
 # }}}
 
 
+def test_abs_complex(actx_factory):
+    actx = actx_factory()
+    a = np.random.randn(2000) + 1j * np.random.randn(2000)
+
+    abs_a_ref = np.abs(a)
+    abs_a = actx.np.abs(actx.from_numpy(a))
+
+    assert abs_a.dtype == abs_a_ref.dtype
+    np.testing.assert_allclose(actx.to_numpy(abs_a), abs_a_ref)
+
+
 @pytest.mark.parametrize("norm_ord", [2, np.inf])
 def test_norm_complex(actx_factory, norm_ord):
     actx = actx_factory()

@@ -85,8 +85,10 @@ class BaseFakeNumpyNamespace:
         # "conj", "conjugate",
 
         # Miscellaneous
-        "convolve", "clip", "sqrt", "cbrt", "square", "absolute", "abs", "fabs",
+        "convolve", "clip", "sqrt", "cbrt", "square", "fabs",
         "sign", "heaviside", "maximum", "fmax", "nan_to_num",
+        # Implemented below:
+        # "abs", "absolute"
 
         # FIXME:
         # "interp",
@@ -164,6 +166,14 @@ class BaseFakeNumpyNamespace:
         return rec_map_array_container(lambda obj: obj.conj(), x)
 
     conj = conjugate
+
+    def absolute(self, ary):
+        # NOTE: `loopy_implemented_elwise_func` uses the dtype of the input
+        # to determine the dtype of the output, which fails for abs with
+        # complex inputs
+        return rec_map_array_container(abs, ary)
+
+    abs = absolute
 
 # }}}
 
