@@ -70,6 +70,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         self.queue = queue
         self.allocator = allocator
         self.array_types = (pt.Array, )
+        self._freeze_prg_cache = {}
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context
@@ -113,9 +114,6 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return call_loopy(program, kwargs, entrypoint)
 
     def freeze(self, array):
-        # TODO: This should store a cache of pytato DAG -> build pyopencl
-        # program instead of re-compiling the DAG for every freeze.
-
         import pytato as pt
         import pyopencl.array as cla
 
@@ -125,10 +123,18 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
             raise TypeError("PytatoPyOpenCLArrayContext.freeze invoked with "
                             f"non-pytato array of type '{type(array)}'")
 
-        pt_prg = pt.generate_loopy(array, cl_device=self.queue.device)
-        pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
+        from arraycontext.impl.pytato.utils import _normalize_pt_expr
+        normalized_expr, bound_arguments = _normalize_pt_expr(array)
 
-        evt, (cl_array,) = pt_prg(self.queue)
+        try:
+            pt_prg = self._freeze_prg_cache[normalized_expr]
+        except KeyError:
+            pt_prg = pt.generate_loopy(normalized_expr, cl_device=self.queue.device)
+            pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
+            self._freeze_prg_cache[normalized_expr] = pt_prg
+
+        assert len(pt_prg.bound_arguments) == 0
+        evt, (cl_array,) = pt_prg(self.queue, **bound_arguments)
         evt.wait()
 
         return cl_array.with_queue(None)
