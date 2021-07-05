@@ -893,6 +893,7 @@ class Foo:
 
 
 def test_leaf_array_type_broadcasting(actx_factory):
+    # test support for https://github.com/inducer/arraycontext/issues/49
     actx = actx_factory()
 
     foo = Foo(DOFArray(actx, (actx.zeros(3, dtype=np.float64) + 41, )))
@@ -905,6 +906,24 @@ def test_leaf_array_type_broadcasting(actx_factory):
 
     np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
                                actx.to_numpy(qux.u[0]))
+
+    def _actx_allows_scalar_broadcast(actx):
+        if not isinstance(actx, PyOpenCLArrayContext):
+            return True
+        else:
+            import pyopencl as cl
+            # See https://github.com/inducer/pyopencl/issues/498
+            return cl.version.VERSION > (2021, 2, 5)
+
+    if _actx_allows_scalar_broadcast(actx):
+        quux = foo + actx.from_numpy(np.array(4))
+        quuz = actx.from_numpy(np.array(4)) + foo
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quux.u[0]))
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quuz.u[0]))
 
 
 if __name__ == "__main__":
