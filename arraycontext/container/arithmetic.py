@@ -127,7 +127,7 @@ def _format_binary_op_str(op_str: str,
 def with_container_arithmetic(
         *,
         bcast_number: bool = True,
-        bcast_actx_array_type: Optional[bool] = None,
+        _bcast_actx_array_type: Optional[bool] = None,
         bcast_obj_array: Optional[bool] = None,
         bcast_numpy_array: bool = False,
         bcast_container_types: Optional[Tuple[type, ...]] = None,
@@ -143,7 +143,7 @@ def with_container_arithmetic(
 
     :arg bcast_number: If *True*, numbers broadcast over the container
         (with the container as the 'outer' structure).
-    :arg bcast_actx_array_type: If *True*, instances of base array types of the
+    :arg _bcast_actx_array_type: If *True*, instances of base array types of the
         container's array context are broadcasted over the container. Can be
         *True* only if the container has *_cls_has_array_context_attr* set.
         Defaulted to *bcast_number* if *_cls_has_array_context_attr* is set,
@@ -215,14 +215,14 @@ def with_container_arithmetic(
     if not bcast_obj_array and bcast_numpy_array:
         raise TypeError("bcast_obj_array must be set if bcast_numpy_array is")
 
-    if bcast_actx_array_type is None:
+    if _bcast_actx_array_type is None:
         if _cls_has_array_context_attr:
-            bcast_actx_array_type = bcast_number
+            _bcast_actx_array_type = bcast_number
         else:
-            bcast_actx_array_type = False
+            _bcast_actx_array_type = False
     else:
-        if bcast_actx_array_type and not _cls_has_array_context_attr:
-            raise TypeError("bcast_actx_array_type can be True iff "
+        if _bcast_actx_array_type and not _cls_has_array_context_attr:
+            raise TypeError("_bcast_actx_array_type can be True only if "
                             "_cls_has_array_context_attr is set.")
 
     if bcast_numpy_array:
@@ -374,7 +374,7 @@ def with_container_arithmetic(
                                     raise ValueError(msg)""")
                     gen(f"return cls({zip_init_args})")
 
-                if bcast_actx_array_type:
+                if _bcast_actx_array_type:
                     all_outer_bcast_type_names = (
                         outer_bcast_type_names
                         + ("*arg1.array_context.array_types",))
@@ -400,7 +400,7 @@ def with_container_arithmetic(
             # {{{ "reverse" binary operators
 
             if reversible:
-                if bcast_actx_array_type:
+                if _bcast_actx_array_type:
                     all_outer_bcast_type_names = (
                         outer_bcast_type_names
                         + ("*arg2.array_context.array_types",))
