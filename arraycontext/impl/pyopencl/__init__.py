@@ -28,7 +28,7 @@ THE SOFTWARE.
 """
 
 from warnings import warn
-from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING, Tuple
+from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 
