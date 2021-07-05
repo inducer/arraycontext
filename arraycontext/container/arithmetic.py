@@ -377,7 +377,7 @@ def with_container_arithmetic(
                 if bcast_actx_array_type:
                     all_outer_bcast_type_names = (
                         outer_bcast_type_names
-                        + ("*arg1.array_context.get_array_types()",))
+                        + ("*arg1.array_context.array_types",))
                 else:
                     all_outer_bcast_type_names = outer_bcast_type_names
 
@@ -403,7 +403,7 @@ def with_container_arithmetic(
                 if bcast_actx_array_type:
                     all_outer_bcast_type_names = (
                         outer_bcast_type_names
-                        + ("*arg2.array_context.get_array_types()",))
+                        + ("*arg2.array_context.array_types",))
                 else:
                     all_outer_bcast_type_names = outer_bcast_type_names
                 fname = f"_{cls.__name__.lower()}_r{dunder_name}"

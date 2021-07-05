@@ -144,6 +144,11 @@ class ArrayContext(ABC):
          Callables accessible through this namespace vectorize over object
          arrays, including :class:`arraycontext.ArrayContainer`\ s.
 
+    .. attribute:: array_types
+
+        A :class:`tuple` of types that are valid base array classes
+        the context can operate on.
+
     .. automethod:: freeze
     .. automethod:: thaw
     .. automethod:: tag
@@ -153,17 +158,11 @@ class ArrayContext(ABC):
 
     def __init__(self):
         self.np = self._get_fake_numpy_namespace()
+        self.array_types = ()
 
     def _get_fake_numpy_namespace(self):
         from .fake_numpy import BaseFakeNumpyNamespace
         return BaseFakeNumpyNamespace(self)
-
-    def get_array_types(self):
-        """
-        Returns a :class:`tuple` of types that are valid base array classes
-        the context can operate on.
-        """
-        return ()
 
     @abstractmethod
     def empty(self, shape, dtype):

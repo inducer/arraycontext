@@ -65,9 +65,11 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     """
 
     def __init__(self, queue, allocator=None):
+        import pytato as pt
         super().__init__()
         self.queue = queue
         self.allocator = allocator
+        self.array_types = (pt.Array, )
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context
@@ -75,14 +77,6 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
         return PytatoFakeNumpyNamespace(self)
-
-    def get_array_types(self):
-        """
-        Returns a :class:`tuple` of types that are valid base array classes
-        the context can operate on.
-        """
-        import pytato as pt
-        return (pt.Array,)
 
     # {{{ ArrayContext interface
 
