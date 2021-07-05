@@ -375,15 +375,15 @@ def with_container_arithmetic(
                     gen(f"return cls({zip_init_args})")
 
                 if _bcast_actx_array_type:
-                    all_outer_bcast_type_names = (
-                        outer_bcast_type_names
-                        + ("*arg1.array_context.array_types",))
+                    ary_types: Tuple[str, ...] = ("*arg1.array_context.array_types",)
                 else:
-                    all_outer_bcast_type_names = outer_bcast_type_names
+                    ary_types = ()
 
                 gen(f"""
                 if {bool(outer_bcast_type_names)}:  # optimized away
-                    if isinstance(arg2, {tup_str(all_outer_bcast_type_names)}):
+                    if isinstance(arg2,
+                                  {tup_str(outer_bcast_type_names
+                                           + ary_types)}):
                         return cls({bcast_same_cls_init_args})
                 if {numpy_pred("arg2")}:
                     result = np.empty_like(arg2, dtype=object)
@@ -400,12 +400,6 @@ def with_container_arithmetic(
             # {{{ "reverse" binary operators
 
             if reversible:
-                if _bcast_actx_array_type:
-                    all_outer_bcast_type_names = (
-                        outer_bcast_type_names
-                        + ("*arg2.array_context.array_types",))
-                else:
-                    all_outer_bcast_type_names = outer_bcast_type_names
                 fname = f"_{cls.__name__.lower()}_r{dunder_name}"
                 bcast_init_args = cls._deserialize_init_arrays_code("arg2", {
                         key_arg2: _format_binary_op_str(
@@ -413,13 +407,20 @@ def with_container_arithmetic(
                         for key_arg2, expr_arg2 in
                         cls._serialize_init_arrays_code("arg2").items()
                         })
+
+                if _bcast_actx_array_type:
+                    ary_types = ("*arg2.array_context.array_types",)
+                else:
+                    ary_types = ()
+
                 gen(f"""
                     def {fname}(arg2, arg1):
                         # assert other.__cls__ is not cls
 
                         if {bool(outer_bcast_type_names)}:  # optimized away
                             if isinstance(arg1,
-                                          {tup_str(all_outer_bcast_type_names)}):
+                                          {tup_str(outer_bcast_type_names
+                                                   + ary_types)}):
                                 return cls({bcast_init_args})
                         if {numpy_pred("arg1")}:
                             result = np.empty_like(arg1, dtype=object)
