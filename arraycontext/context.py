@@ -158,15 +158,11 @@ class ArrayContext(ABC):
 
     def __init__(self):
         self.np = self._get_fake_numpy_namespace()
+        self.array_types = ()
 
     def _get_fake_numpy_namespace(self):
         from .fake_numpy import BaseFakeNumpyNamespace
         return BaseFakeNumpyNamespace(self)
-
-    @property
-    @abstractmethod
-    def array_types(self):
-        pass
 
     @abstractmethod
     def empty(self, shape, dtype):
