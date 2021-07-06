@@ -146,7 +146,7 @@ class ArrayContext(ABC):
 
     .. attribute:: array_types
 
-        A :class:`tuple` of types that are valid base array classes
+        A :class:`tuple` of types that are the valid base array classes
         the context can operate on.
 
     .. automethod:: freeze
