@@ -44,6 +44,7 @@ THE SOFTWARE.
 from arraycontext.context import ArrayContext
 import numpy as np
 from typing import Any, Callable, Union, Sequence
+from pytools import memoize_method
 from pytools.tag import Tag
 
 
@@ -65,14 +66,19 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     """
 
     def __init__(self, queue, allocator=None):
-        import pytato as pt
         super().__init__()
         self.queue = queue
         self.allocator = allocator
-        self.array_types = (pt.Array, )
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context
+
+    # https://github.com/python/mypy/issues/1362
+    @property  # type: ignore
+    @memoize_method
+    def array_types(self):
+        import pytato as pt
+        return (pt.Array,)
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace

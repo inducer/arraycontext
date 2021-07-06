@@ -32,6 +32,7 @@ from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 
+from pytools import memoize_method
 from pytools.tag import Tag
 
 from arraycontext.context import ArrayContext
@@ -109,7 +110,6 @@ class PyOpenCLArrayContext(ArrayContext):
                     DeprecationWarning, stacklevel=2)
 
         import pyopencl as cl
-        import pyopencl.array as cla
 
         super().__init__()
         self.context = queue.context
@@ -138,7 +138,12 @@ class PyOpenCLArrayContext(ArrayContext):
         self._loopy_transform_cache: \
                 Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
 
-        self.array_types = (cla.Array,)
+    # https://github.com/python/mypy/issues/1362
+    @property  # type: ignore
+    @memoize_method
+    def array_types(self):
+        import pyopencl.array as cla
+        return (cla.Array,)
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
