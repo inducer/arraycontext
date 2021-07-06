@@ -877,6 +877,55 @@ def test_abs_complex(actx_factory):
     np.testing.assert_allclose(actx.to_numpy(abs_a), abs_a_ref)
 
 
+@with_container_arithmetic(
+    bcast_obj_array=True,
+    bcast_numpy_array=True,
+    rel_comparison=True,
+    _cls_has_array_context_attr=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class Foo:
+    u: DOFArray
+
+    @property
+    def array_context(self):
+        return self.u.array_context
+
+
+def test_leaf_array_type_broadcasting(actx_factory):
+    # test support for https://github.com/inducer/arraycontext/issues/49
+    actx = actx_factory()
+
+    foo = Foo(DOFArray(actx, (actx.zeros(3, dtype=np.float64) + 41, )))
+    bar = foo + 4
+    baz = foo + actx.from_numpy(4*np.ones((3, )))
+    qux = actx.from_numpy(4*np.ones((3, ))) + foo
+
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(baz.u[0]))
+
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(qux.u[0]))
+
+    def _actx_allows_scalar_broadcast(actx):
+        if not isinstance(actx, PyOpenCLArrayContext):
+            return True
+        else:
+            import pyopencl as cl
+            # See https://github.com/inducer/pyopencl/issues/498
+            return cl.version.VERSION > (2021, 2, 5)
+
+    if _actx_allows_scalar_broadcast(actx):
+        quux = foo + actx.from_numpy(np.array(4))
+        quuz = actx.from_numpy(np.array(4)) + foo
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quux.u[0]))
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quuz.u[0]))
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:

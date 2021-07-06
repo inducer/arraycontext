@@ -65,9 +65,11 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     """
 
     def __init__(self, queue, allocator=None):
+        import pytato as pt
         super().__init__()
         self.queue = queue
         self.allocator = allocator
+        self.array_types = (pt.Array, )
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context

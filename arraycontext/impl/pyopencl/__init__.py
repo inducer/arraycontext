@@ -109,6 +109,7 @@ class PyOpenCLArrayContext(ArrayContext):
                     DeprecationWarning, stacklevel=2)
 
         import pyopencl as cl
+        import pyopencl.array as cla
 
         super().__init__()
         self.context = queue.context
@@ -136,6 +137,8 @@ class PyOpenCLArrayContext(ArrayContext):
 
         self._loopy_transform_cache: \
                 Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
+
+        self.array_types = (cla.Array,)
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
