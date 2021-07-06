@@ -375,15 +375,16 @@ def with_container_arithmetic(
                     gen(f"return cls({zip_init_args})")
 
                 if _bcast_actx_array_type:
-                    ary_types: Tuple[str, ...] = ("*arg1.array_context.array_types",)
+                    bcast_actx_ary_types: Tuple[str, ...] = (
+                        "*arg1.array_context.array_types",)
                 else:
-                    ary_types = ()
+                    bcast_actx_ary_types = ()
 
                 gen(f"""
                 if {bool(outer_bcast_type_names)}:  # optimized away
                     if isinstance(arg2,
                                   {tup_str(outer_bcast_type_names
-                                           + ary_types)}):
+                                           + bcast_actx_ary_types)}):
                         return cls({bcast_same_cls_init_args})
                 if {numpy_pred("arg2")}:
                     result = np.empty_like(arg2, dtype=object)
@@ -409,9 +410,9 @@ def with_container_arithmetic(
                         })
 
                 if _bcast_actx_array_type:
-                    ary_types = ("*arg2.array_context.array_types",)
+                    bcast_actx_ary_types = ("*arg2.array_context.array_types",)
                 else:
-                    ary_types = ()
+                    bcast_actx_ary_types = ()
 
                 gen(f"""
                     def {fname}(arg2, arg1):
@@ -420,7 +421,7 @@ def with_container_arithmetic(
                         if {bool(outer_bcast_type_names)}:  # optimized away
                             if isinstance(arg1,
                                           {tup_str(outer_bcast_type_names
-                                                   + ary_types)}):
+                                                   + bcast_actx_ary_types)}):
                                 return cls({bcast_init_args})
                         if {numpy_pred("arg1")}:
                             result = np.empty_like(arg1, dtype=object)
