@@ -102,7 +102,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Sequence, Union, Callable, Any
+from typing import Sequence, Union, Callable, Any, Tuple
 from abc import ABC, abstractmethod, abstractproperty
 
 import numpy as np
@@ -156,9 +156,10 @@ class ArrayContext(ABC):
     .. automethod:: compile
     """
 
+    array_types: Tuple[type, ...] = ()
+
     def __init__(self):
         self.np = self._get_fake_numpy_namespace()
-        self.array_types = ()
 
     def _get_fake_numpy_namespace(self):
         from .fake_numpy import BaseFakeNumpyNamespace
