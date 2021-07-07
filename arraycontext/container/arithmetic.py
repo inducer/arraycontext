@@ -274,6 +274,12 @@ def with_container_arithmetic(
             from numbers import Number
             import numpy as np
             from arraycontext import ArrayContainer
+
+            def _raise_if_actx_none(actx):
+                if actx is None:
+                    raise ValueError("array containers with frozen arrays "
+                        "cannot be operated upon")
+                return actx
             """)
         gen("")
 
@@ -375,8 +381,11 @@ def with_container_arithmetic(
                     gen(f"return cls({zip_init_args})")
 
                 if _bcast_actx_array_type:
-                    bcast_actx_ary_types: Tuple[str, ...] = (
-                        "*arg1.array_context.array_types",)
+                    if __debug__:
+                        bcast_actx_ary_types: Tuple[str, ...] = (
+                            "*_raise_if_actx_none(arg1.array_context).array_types",)
+                    else:
+                        bcast_actx_ary_types = ("*arg1.array_context.array_types",)
                 else:
                     bcast_actx_ary_types = ()
 
@@ -410,7 +419,11 @@ def with_container_arithmetic(
                         })
 
                 if _bcast_actx_array_type:
-                    bcast_actx_ary_types = ("*arg2.array_context.array_types",)
+                    if __debug__:
+                        bcast_actx_ary_types = (
+                            "*_raise_if_actx_none(arg2.array_context).array_types",)
+                    else:
+                        bcast_actx_ary_types = ("*arg2.array_context.array_types",)
                 else:
                     bcast_actx_ary_types = ()
 
