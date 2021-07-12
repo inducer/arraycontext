@@ -162,6 +162,27 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return rec_map_array_container(_rec_ravel, a)
 
+    def vdot(self, x, y, dtype=None):
+        import pyopencl.array as cl_array
+        from arraycontext import is_array_container, serialize_container
+
+        def _rec_vdot(xi, yi):
+            if is_array_container(xi):
+                assert type(xi) == type(yi)
+                return sum(_rec_vdot(subxi, subyi)
+                    for (_, subxi), (_, subyi) in zip(
+                        serialize_container(xi), serialize_container(yi)
+                    ))
+            else:
+                result = cl_array.vdot(xi, yi,
+                    dtype=dtype, queue=self._array_context.queue)
+                if not self._array_context._force_device_scalars:
+                    result = result.get()[()]
+
+                return result
+
+        return _rec_vdot(x, y)
+
 # }}}
 
 
