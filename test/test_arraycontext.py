@@ -253,19 +253,27 @@ def assert_close_to_numpy_in_containers(actx, op, args):
 # {{{ np.function same as numpy
 
 @pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
-            ("sin", 1, np.float64),
-            ("sin", 1, np.complex128),
-            ("exp", 1, np.float64),
+            # float only
             ("arctan2", 2, np.float64),
             ("minimum", 2, np.float64),
             ("maximum", 2, np.float64),
             ("where", 3, np.float64),
+            ("min", 1, np.float64),
+            ("max", 1, np.float64),
+
+            # float + complex
+            ("sin", 1, np.float64),
+            ("sin", 1, np.complex128),
+            ("exp", 1, np.float64),
+            ("exp", 1, np.complex128),
             ("conj", 1, np.float64),
             ("conj", 1, np.complex128),
             ("vdot", 2, np.float64),
             ("vdot", 2, np.complex128),
             ("abs", 1, np.float64),
             ("abs", 1, np.complex128),
+            ("sum", 1, np.float64),
+            ("sum", 1, np.complex64),
             ])
 def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
     actx = actx_factory()
@@ -494,7 +502,7 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
 # {{{ reductions same as numpy
 
 @pytest.mark.parametrize("op", ["sum", "min", "max"])
-def test_dof_array_reductions_same_as_numpy(actx_factory, op):
+def test_reductions_same_as_numpy(actx_factory, op):
     actx = actx_factory()
 
     ary = np.random.randn(3000)

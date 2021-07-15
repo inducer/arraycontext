@@ -8,6 +8,9 @@
 .. autofunction:: rec_map_array_container
 .. autofunction:: rec_multimap_array_container
 
+.. autofunction:: rec_reduce_array_container
+.. autofunction:: rec_multireduce_array_container
+
 Traversing decorators
 ~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: mapped_over_array_containers
@@ -78,7 +81,7 @@ def _map_array_container_impl(
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(_ary)
         elif is_array_container(_ary):
-            return make_container(_ary, [
+            return make_container(_ary, [           # type: ignore[operator]
                 (key, frec(subary)) for key, subary in serialize_container(_ary)
                 ])
         else:
@@ -93,7 +96,7 @@ def _map_array_container_impl(
 def _multimap_array_container_impl(
         f: Callable[..., Any],
         *args: Any,
-        reduce_func: Callable[[Any, Iterable[Any]], Any] = None,
+        reduce_func: Callable[[Any, Iterable[Tuple[Any, Any]]], Any] = None,
         leaf_cls: Optional[type] = None,
         recursive: bool = False) -> ArrayContainerT:
     """Helper for :func:`rec_multimap_array_container`.
@@ -128,9 +131,9 @@ def _multimap_array_container_impl(
 
                 new_args[i] = subary
 
-            result.append((key, frec(*new_args)))       # type: ignore
+            result.append((key, frec(*new_args)))       # type: ignore[operator]
 
-        return make_container(template_ary, result)
+        return make_container(template_ary, result)     # type: ignore[operator]
 
     container_indices: List[int] = [
             i for i, arg in enumerate(args)
@@ -155,6 +158,7 @@ def _multimap_array_container_impl(
 
     make_container = deserialize_container if reduce_func is None else reduce_func
     frec = rec if recursive else f
+
     return rec(*args)
 
 # }}}
@@ -280,7 +284,7 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
             _ary: ArrayContainerT) -> ArrayContainerT:
         if is_array_container(_ary):
             return deserialize_container(_ary, [
-                    (key, rec(keys+(key,), subary))
+                    (key, rec(keys + (key,), subary))
                     for key, subary in serialize_container(_ary)
                     ])
         else:
@@ -316,7 +320,7 @@ def rec_reduce_array_container(
 
 def rec_multireduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
-        array_func: Callable[[Any], Any],
+        array_func: Callable[..., Any],
         *args: Any) -> Any:
     """Perform reductions over multiple array containers recursively.
 

@@ -21,11 +21,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+from functools import partial, reduce
 
-from arraycontext.fake_numpy import \
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
-from arraycontext.container.traversal import \
-        rec_multimap_array_container, rec_map_array_container
+from arraycontext.fake_numpy import (
+        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
+        )
+from arraycontext.container.traversal import (
+        rec_multimap_array_container, rec_map_array_container,
+        rec_reduce_array_container,
+        )
 import pytato as pt
 
 
@@ -82,20 +86,24 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(pt.where, criterion, then, else_)
 
     def sum(self, a, dtype=None):
-        if dtype not in [a.dtype, None]:
-            raise NotImplementedError
-        return pt.sum(a)
+        def _pt_sum(ary):
+            if dtype not in [ary.dtype, None]:
+                raise NotImplementedError
+
+            return pt.sum(ary)
+
+        return rec_reduce_array_container(sum, _pt_sum, a)
 
     def min(self, a):
-        return pt.amin(a)
+        return rec_reduce_array_container(partial(reduce, pt.minimum), pt.amin, a)
 
     def max(self, a):
-        return pt.amax(a)
+        return rec_reduce_array_container(partial(reduce, pt.maximum), pt.amax, a)
 
     def stack(self, arrays, axis=0):
-        return rec_multimap_array_container(lambda *args: pt.stack(arrays=args,
-                                                                   axis=axis),
-                                            *arrays)
+        return rec_multimap_array_container(
+                lambda *args: pt.stack(arrays=args, axis=axis),
+                *arrays)
 
     # {{{ relational operators
 
