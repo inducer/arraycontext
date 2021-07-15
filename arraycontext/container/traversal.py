@@ -48,7 +48,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable, List, Optional, Union, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Union, Tuple
 from functools import update_wrapper, partial, singledispatch
 
 import numpy as np
@@ -59,11 +59,12 @@ from arraycontext.container import (
         serialize_container, deserialize_container)
 
 
-# {{{ array container traversal
+# {{{ array container traversal helpers
 
 def _map_array_container_impl(
         f: Callable[[Any], Any],
         ary: ArrayContainerT, *,
+        reduce_func: Callable[[Any, Iterable[Tuple[Any, Any]]], Any] = None,
         leaf_cls: Optional[type] = None,
         recursive: bool = False) -> ArrayContainerT:
     """Helper for :func:`rec_map_array_container`.
@@ -77,19 +78,22 @@ def _map_array_container_impl(
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(_ary)
         elif is_array_container(_ary):
-            return deserialize_container(_ary, [
-                    (key, frec(subary)) for key, subary in serialize_container(_ary)
-                    ])
+            return make_container(_ary, [
+                (key, frec(subary)) for key, subary in serialize_container(_ary)
+                ])
         else:
             return f(_ary)
 
+    make_container = deserialize_container if reduce_func is None else reduce_func
     frec = rec if recursive else f
+
     return rec(ary)
 
 
 def _multimap_array_container_impl(
         f: Callable[..., Any],
         *args: Any,
+        reduce_func: Callable[[Any, Iterable[Any]], Any] = None,
         leaf_cls: Optional[type] = None,
         recursive: bool = False) -> ArrayContainerT:
     """Helper for :func:`rec_multimap_array_container`.
@@ -126,7 +130,7 @@ def _multimap_array_container_impl(
 
             result.append((key, frec(*new_args)))       # type: ignore
 
-        return deserialize_container(template_ary, result)
+        return make_container(template_ary, result)
 
     container_indices: List[int] = [
             i for i, arg in enumerate(args)
@@ -146,12 +150,17 @@ def _multimap_array_container_impl(
         update_wrapper(wrapper, f)
         template_ary: ArrayContainerT = args[container_indices[0]]
         return _map_array_container_impl(
-                wrapper, template_ary,
+                wrapper, template_ary, reduce_func=reduce_func,
                 leaf_cls=leaf_cls, recursive=recursive)
 
+    make_container = deserialize_container if reduce_func is None else reduce_func
     frec = rec if recursive else f
     return rec(*args)
 
+# }}}
+
+
+# {{{ array container traversal
 
 def map_array_container(
         f: Callable[[Any], Any],
@@ -233,6 +242,10 @@ def multimapped_over_array_containers(
     update_wrapper(wrapper, f)
     return wrapper
 
+# }}}
+
+
+# {{{ keyed array container traversal
 
 def keyed_map_array_container(f: Callable[[Any, Any], Any],
                               ary: ArrayContainerT) -> ArrayContainerT:
@@ -266,7 +279,6 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
     def rec(keys: Tuple[Union[str, int], ...],
             _ary: ArrayContainerT) -> ArrayContainerT:
         if is_array_container(_ary):
-
             return deserialize_container(_ary, [
                     (key, rec(keys+(key,), subary))
                     for key, subary in serialize_container(_ary)
@@ -275,6 +287,52 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
             return f(keys, _ary)
 
     return rec((), ary)
+
+# }}}
+
+
+# {{{ array container reductions
+
+def rec_reduce_array_container(
+        reduce_func: Callable[[Iterable[Any]], Any],
+        array_func: Callable[[Any], Any],
+        ary: ArrayContainerT) -> Any:
+    """Perform reductions over array containers recursively.
+
+    :param reduce_func: callable used to reduce over the components of the
+        :class:`~arraycontext.ArrayContainer`.
+    :param array_func: callable used to reduce a single component of the
+        :class:`~arraycontext.ArrayContainer`. The callable takes arrays of
+        type :class:`arraycontext.ArrayContext.array_types` and returns an
+        array of the same type or a scalar.
+    """
+    def _reduce_wrapper(ary: Any, iterable: Iterable[Tuple[Any, Any]]) -> Any:
+        return reduce_func([subary for _, subary in iterable])
+
+    return _map_array_container_impl(
+        array_func, ary,
+        reduce_func=_reduce_wrapper, leaf_cls=None, recursive=True)
+
+
+def rec_multireduce_array_container(
+        reduce_func: Callable[[Iterable[Any]], Any],
+        array_func: Callable[[Any], Any],
+        *args: Any) -> Any:
+    """Perform reductions over multiple array containers recursively.
+
+    :param reduce_func: callable used to reduce over the components of the
+        :class:`~arraycontext.ArrayContainer`.
+    :param array_func: callable used to reduce a single component of the
+        :class:`~arraycontext.ArrayContainer`. The callable takes arrays of
+        type :class:`arraycontext.ArrayContext.array_types` and returns an
+        array of the same type or a scalar.
+    """
+    def _reduce_wrapper(ary: Any, iterable: Iterable[Tuple[Any, Any]]) -> Any:
+        return reduce_func([subary for _, subary in iterable])
+
+    return _multimap_array_container_impl(
+        array_func, *args,
+        reduce_func=_reduce_wrapper, leaf_cls=None, recursive=True)
 
 # }}}
 
