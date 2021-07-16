@@ -136,12 +136,11 @@ def _get_f_placeholder_args(arg, iarg, arg_id_to_name):
     """
     if np.isscalar(arg):
         name = arg_id_to_name[(iarg,)]
-        return pt.make_placeholder((), np.dtype(arg), name)
+        return pt.make_placeholder(name, (), np.dtype(arg))
     elif is_array_container(arg):
         def _rec_to_placeholder(keys, ary):
             name = arg_id_to_name[(iarg,) + keys]
-            return pt.make_placeholder(ary.shape, ary.dtype,
-                                       name)
+            return pt.make_placeholder(name, ary.shape, ary.dtype)
         return rec_keyed_map_array_container(_rec_to_placeholder,
                                                 arg)
     else:
