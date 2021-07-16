@@ -139,7 +139,7 @@ def is_array_container_type(cls: type) -> bool:
     return (
             cls is ArrayContainer
             or (serialize_container.dispatch(cls)
-                is not serialize_container.__wrapped__))    # type: ignore
+                is not serialize_container.__wrapped__))  # type:ignore[attr-defined]
 
 
 def is_array_container(ary: Any) -> bool:
@@ -148,7 +148,7 @@ def is_array_container(ary: Any) -> bool:
         :func:`serialize_container`.
     """
     return (serialize_container.dispatch(ary.__class__)
-            is not serialize_container.__wrapped__)         # type: ignore
+            is not serialize_container.__wrapped__)       # type:ignore[attr-defined]
 
 
 @singledispatch

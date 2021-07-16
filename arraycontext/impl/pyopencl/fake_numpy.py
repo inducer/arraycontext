@@ -26,13 +26,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from functools import partial
+from functools import partial, reduce
 import operator
 
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
-from arraycontext.container.traversal import (rec_multimap_array_container,
-                                              rec_map_array_container)
+from arraycontext.container.traversal import (
+        rec_multimap_array_container, rec_map_array_container,
+        rec_map_reduce_array_container,
+        )
 
 try:
     import pyopencl as cl  # noqa: F401
@@ -104,24 +106,35 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
     def sum(self, a, dtype=None):
-        result = cl_array.sum(a, dtype=dtype, queue=self._array_context.queue)
+        result = rec_map_reduce_array_container(
+                sum,
+                partial(cl_array.sum, dtype=dtype, queue=self._array_context.queue),
+                a)
+
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
-
         return result
 
     def min(self, a):
-        result = cl_array.min(a, queue=self._array_context.queue)
+        queue = self._array_context.queue
+        result = rec_map_reduce_array_container(
+                partial(reduce, partial(cl_array.minimum, queue=queue)),
+                partial(cl_array.min, queue=queue),
+                a)
+
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
-
         return result
 
     def max(self, a):
-        result = cl_array.max(a, queue=self._array_context.queue)
+        queue = self._array_context.queue
+        result = rec_map_reduce_array_container(
+                partial(reduce, partial(cl_array.maximum, queue=queue)),
+                partial(cl_array.max, queue=queue),
+                a)
+
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
-
         return result
 
     def stack(self, arrays, axis=0):
@@ -163,25 +176,15 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_array_container(_rec_ravel, a)
 
     def vdot(self, x, y, dtype=None):
-        import pyopencl.array as cl_array
-        from arraycontext import is_array_container, serialize_container
+        from arraycontext import rec_multimap_reduce_array_container
+        result = rec_multimap_reduce_array_container(
+                sum,
+                partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
+                x, y)
 
-        def _rec_vdot(xi, yi):
-            if is_array_container(xi):
-                assert type(xi) == type(yi)
-                return sum(_rec_vdot(subxi, subyi)
-                    for (_, subxi), (_, subyi) in zip(
-                        serialize_container(xi), serialize_container(yi)
-                    ))
-            else:
-                result = cl_array.vdot(xi, yi,
-                    dtype=dtype, queue=self._array_context.queue)
-                if not self._array_context._force_device_scalars:
-                    result = result.get()[()]
-
-                return result
-
-        return _rec_vdot(x, y)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+        return result
 
 # }}}
 
