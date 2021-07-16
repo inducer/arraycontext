@@ -28,7 +28,7 @@ from arraycontext.fake_numpy import (
         )
 from arraycontext.container.traversal import (
         rec_multimap_array_container, rec_map_array_container,
-        rec_reduce_array_container,
+        rec_map_reduce_array_container,
         )
 import pytato as pt
 
@@ -92,13 +92,15 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
             return pt.sum(ary)
 
-        return rec_reduce_array_container(sum, _pt_sum, a)
+        return rec_map_reduce_array_container(sum, _pt_sum, a)
 
     def min(self, a):
-        return rec_reduce_array_container(partial(reduce, pt.minimum), pt.amin, a)
+        return rec_map_reduce_array_container(
+                partial(reduce, pt.minimum), pt.amin, a)
 
     def max(self, a):
-        return rec_reduce_array_container(partial(reduce, pt.maximum), pt.amax, a)
+        return rec_map_reduce_array_container(
+                partial(reduce, pt.maximum), pt.amax, a)
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(

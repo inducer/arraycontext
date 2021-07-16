@@ -8,8 +8,8 @@
 .. autofunction:: rec_map_array_container
 .. autofunction:: rec_multimap_array_container
 
-.. autofunction:: rec_reduce_array_container
-.. autofunction:: rec_multireduce_array_container
+.. autofunction:: rec_map_reduce_array_container
+.. autofunction:: rec_multimap_reduce_array_container
 
 Traversing decorators
 ~~~~~~~~~~~~~~~~~~~~~
@@ -294,15 +294,15 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
 
 # {{{ array container reductions
 
-def rec_reduce_array_container(
+def rec_map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
-        array_func: Callable[[Any], Any],
+        map_func: Callable[[Any], Any],
         ary: ArrayContainerT) -> Any:
-    """Perform reductions over array containers recursively.
+    """Perform a map-reduce over array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of the
         :class:`~arraycontext.ArrayContainer`.
-    :param array_func: callable used to reduce a single component of the
+    :param map_func: callable used to map a single component of the
         :class:`~arraycontext.ArrayContainer`. The callable takes arrays of
         type :class:`arraycontext.ArrayContext.array_types` and returns an
         array of the same type or a scalar.
@@ -313,20 +313,20 @@ def rec_reduce_array_container(
                 rec(subary) for _, subary in serialize_container(_ary)
                 ])
         else:
-            return array_func(_ary)
+            return map_func(_ary)
 
     return rec(ary)
 
 
-def rec_multireduce_array_container(
+def rec_multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
-        array_func: Callable[..., Any],
+        map_func: Callable[..., Any],
         *args: Any) -> Any:
-    """Perform reductions over multiple array containers recursively.
+    """Perform a map-reduce over multiple array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of the
         :class:`~arraycontext.ArrayContainer`.
-    :param array_func: callable used to reduce a single component of the
+    :param map_func: callable used to map a single component of the
         :class:`~arraycontext.ArrayContainer`. The callable takes arrays of
         type :class:`arraycontext.ArrayContext.array_types` and returns an
         array of the same type or a scalar.
@@ -337,7 +337,7 @@ def rec_multireduce_array_container(
         return reduce_func([subary for _, subary in iterable])
 
     return _multimap_array_container_impl(
-        array_func, *args,
+        map_func, *args,
         reduce_func=_reduce_wrapper, leaf_cls=None, recursive=True)
 
 # }}}

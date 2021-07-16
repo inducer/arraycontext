@@ -33,7 +33,7 @@ from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
 from arraycontext.container.traversal import (
         rec_multimap_array_container, rec_map_array_container,
-        rec_reduce_array_container,
+        rec_map_reduce_array_container,
         )
 
 try:
@@ -106,7 +106,7 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
     def sum(self, a, dtype=None):
-        result = rec_reduce_array_container(
+        result = rec_map_reduce_array_container(
                 sum,
                 partial(cl_array.sum, dtype=dtype, queue=self._array_context.queue),
                 a)
@@ -117,7 +117,7 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def min(self, a):
         queue = self._array_context.queue
-        result = rec_reduce_array_container(
+        result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 partial(cl_array.min, queue=queue),
                 a)
@@ -128,7 +128,7 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def max(self, a):
         queue = self._array_context.queue
-        result = rec_reduce_array_container(
+        result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 partial(cl_array.max, queue=queue),
                 a)
@@ -176,8 +176,8 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_array_container(_rec_ravel, a)
 
     def vdot(self, x, y, dtype=None):
-        from arraycontext import rec_multireduce_array_container
-        result = rec_multireduce_array_container(
+        from arraycontext import rec_multimap_reduce_array_container
+        result = rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
                 x, y)
