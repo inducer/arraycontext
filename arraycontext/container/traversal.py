@@ -332,7 +332,7 @@ def rec_multimap_reduce_array_container(
         array of the same type or a scalar.
     """
     # NOTE: this wrapper matches the signature of `deserialize_container`
-    # to make pluggin into `_multimap_array_container_impl` easier
+    # to make plugging into `_multimap_array_container_impl` easier
     def _reduce_wrapper(ary: Any, iterable: Iterable[Tuple[Any, Any]]) -> Any:
         return reduce_func([subary for _, subary in iterable])
 
