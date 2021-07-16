@@ -130,7 +130,7 @@ def _multimap_array_container_impl(
 
             result.append((key, frec(*new_args)))       # type: ignore[operator]
 
-        return make_container(template_ary, result)     # type: ignore[operator]
+        return process_container(template_ary, result)     # type: ignore[operator]
 
     container_indices: List[int] = [
             i for i, arg in enumerate(args)
@@ -153,7 +153,7 @@ def _multimap_array_container_impl(
                 wrapper, template_ary,
                 leaf_cls=leaf_cls, recursive=recursive)
 
-    make_container = deserialize_container if reduce_func is None else reduce_func
+    process_container = deserialize_container if reduce_func is None else reduce_func
     frec = rec if recursive else f
 
     return rec(*args)
