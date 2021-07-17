@@ -74,7 +74,7 @@ def _normalize_pt_expr(expr: Array) -> Tuple[Array,
     :class:`pytato.DataWrapper` replaced with instances of :class:`Placeholder`
     named in a deterministic manner. The data corresponding to the placeholders
     in *normalized_expr* is recorded in the mapping *bound_arguments*.
-    Deterministic naming of placeholders permits more effective hashing of
+    Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
