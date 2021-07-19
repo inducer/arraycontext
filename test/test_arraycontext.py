@@ -891,6 +891,24 @@ def test_actx_compile(actx_factory):
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
+
+def test_actx_compile_python_scalar(actx_factory):
+    from arraycontext import (to_numpy, from_numpy)
+    actx = actx_factory()
+
+    compiled_rhs = actx.compile(scale_and_orthogonalize)
+
+    v_x = np.random.rand(10)
+    v_y = np.random.rand(10)
+
+    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+
+    scaled_speed = compiled_rhs(3.14, vel)
+
+    result = to_numpy(scaled_speed, actx)
+    np.testing.assert_allclose(result.u, -3.14*v_y)
+    np.testing.assert_allclose(result.v, 3.14*v_x)
+
 # }}}
 
 
