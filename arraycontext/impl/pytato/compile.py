@@ -110,7 +110,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...]
         if np.isscalar(arg):
             arg_id = (iarg,)
             arg_id_to_arg[arg_id] = arg
-            arg_id_to_descr[arg_id] = ScalarInputDescriptor(np.dtype(arg))
+            arg_id_to_descr[arg_id] = ScalarInputDescriptor(np.dtype(type(arg)))
         elif is_array_container(arg):
             def id_collector(keys, ary):
                 arg_id = (iarg,) + keys
@@ -136,7 +136,7 @@ def _get_f_placeholder_args(arg, iarg, arg_id_to_name):
     """
     if np.isscalar(arg):
         name = arg_id_to_name[(iarg,)]
-        return pt.make_placeholder(name, (), np.dtype(arg))
+        return pt.make_placeholder(name, (), np.dtype(type(arg)))
     elif is_array_container(arg):
         def _rec_to_placeholder(keys, ary):
             name = arg_id_to_name[(iarg,) + keys]
