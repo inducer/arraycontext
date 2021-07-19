@@ -24,6 +24,7 @@ intersphinx_mapping = {
     "https://documen.tician.de/loopy": None,
     "https://documen.tician.de/meshmode": None,
     "https://docs.pytest.org/en/latest/": None,
+    "https://jax.readthedocs.io/en/latest/": None,
 }
 
 import sys

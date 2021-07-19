@@ -19,6 +19,12 @@ Lazy/Deferred evaluation array context based on :mod:`pytato`
 
 .. automodule:: arraycontext.impl.pytato
 
+
+Array context :mod:`jax.numpy`
+-------------------------------------------------------------
+
+.. automodule:: arraycontext.impl.jax
+
 .. _numpy-coverage:
 
 :mod:`numpy` coverage
