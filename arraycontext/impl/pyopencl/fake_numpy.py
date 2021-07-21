@@ -186,6 +186,28 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
             result = result.get()[()]
         return result
 
+    def any(self, a):
+        queue = self._array_context.queue
+        result = rec_map_reduce_array_container(
+                partial(reduce, partial(cl_array.maximum, queue=queue)),
+                lambda subary: subary.any(queue=queue),
+                a)
+
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+        return result
+
+    def all(self, a):
+        queue = self._array_context.queue
+        result = rec_map_reduce_array_container(
+                partial(reduce, partial(cl_array.minimum, queue=queue)),
+                lambda subary: subary.all(queue=queue),
+                a)
+
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+        return result
+
 # }}}
 
 
