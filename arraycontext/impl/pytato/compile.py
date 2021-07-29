@@ -226,7 +226,11 @@ class LazilyCompilingFunctionCaller:
                                       outputs)
 
         import loopy as lp
-        pytato_program = pt.generate_loopy(dict_of_named_arrays,
+
+        pt_dict_of_named_arrays = self.actx.transform_dag(
+            pt.make_dict_of_named_arrays(dict_of_named_arrays))
+
+        pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
                                            options=lp.Options(
                                                return_dict=True,
                                                no_numpy=True),
