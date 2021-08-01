@@ -123,6 +123,16 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
             raise TypeError("PytatoPyOpenCLArrayContext.freeze invoked with "
                             f"non-pytato array of type '{type(array)}'")
 
+        # {{{ early exit for 0-sized arrays
+
+        if array.size == 0:
+            return cla.zeros(self.queue,
+                             shape=array.shape,
+                             dtype=array.dtype,
+                             allocator=self.allocator).with_queue(None)
+
+        # }}}
+
         from arraycontext.impl.pytato.utils import _normalize_pt_expr
         normalized_expr, bound_arguments = _normalize_pt_expr(array)
 
