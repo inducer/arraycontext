@@ -126,10 +126,10 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         # {{{ early exit for 0-sized arrays
 
         if array.size == 0:
-            return cla.zeros(self.queue,
+            return cla.empty(self.queue.context,
                              shape=array.shape,
                              dtype=array.dtype,
-                             allocator=self.allocator).with_queue(None)
+                             allocator=self.allocator)
 
         # }}}
 
