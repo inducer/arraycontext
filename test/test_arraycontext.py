@@ -578,7 +578,7 @@ def test_array_equal_same_as_numpy(actx_factory):
         lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary, ary_diff_shape])
 
     # Different types
-    assert not actx.np.array_equal(ary, ary_diff_type)
+    assert not actx.to_numpy(actx.np.array_equal(ary, ary_diff_type))
 
 
 # }}}
