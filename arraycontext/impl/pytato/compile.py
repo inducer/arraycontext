@@ -225,8 +225,11 @@ class LazilyCompilingFunctionCaller:
         rec_keyed_map_array_container(_as_dict_of_named_arrays,
                                       outputs)
 
+        import loopy as lp
         pytato_program = pt.generate_loopy(dict_of_named_arrays,
-                                           options={"return_dict": True},
+                                           options=lp.Options(
+                                               return_dict=True,
+                                               no_numpy=True),
                                            cl_device=self.actx.queue.device)
         assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
