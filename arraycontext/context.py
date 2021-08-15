@@ -361,6 +361,14 @@ class ArrayContext(ABC):
     def supports_nonscalar_broadcasting(self):
         pass
 
+    @abstractproperty
+    def permits_advanced_indexing(self):
+        """
+        *True* only if the arrays support :mod:`numpy`'s advanced indexing
+        semantics.
+        """
+        pass
+
 # }}}
 
 # vim: foldmethod=marker

@@ -231,3 +231,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     @property
     def supports_nonscalar_broadcasting(self):
         return True
+
+    @property
+    def permits_advanced_indexing(self):
+        return True
