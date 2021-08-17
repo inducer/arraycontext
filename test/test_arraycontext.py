@@ -284,6 +284,8 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ("abs", 1, np.complex128),
             ("sum", 1, np.float64),
             ("sum", 1, np.complex64),
+            ("real", 1, np.float64),
+            ("real", 1, np.complex128),
             ])
 def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
     actx = actx_factory()

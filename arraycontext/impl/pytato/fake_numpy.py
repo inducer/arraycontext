@@ -127,8 +127,13 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def less_equal(self, x, y):
         return rec_multimap_array_container(pt.less_equal, x, y)
 
+    # }}}
+
     def conj(self, x):
         return rec_multimap_array_container(pt.conj, x)
+
+    def real(self, x):
+        return rec_multimap_array_container(pt.real, x)
 
     def arctan2(self, y, x):
         return rec_multimap_array_container(pt.arctan2, y, x)
@@ -154,5 +159,3 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                                  f"(got {order})")
 
         return rec_map_array_container(_rec_ravel, a)
-
-    # }}}

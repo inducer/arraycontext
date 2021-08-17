@@ -208,6 +208,9 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
             result = result.get()[()]
         return result
 
+    def real(self, ary):
+        return rec_map_array_container(lambda subary: subary.real, ary)
+
 # }}}
 
 
