@@ -13,4 +13,3 @@ dependencies:
 - pyopencl
 - islpy
 - pip
-- sphinx-autodoc-typehints
