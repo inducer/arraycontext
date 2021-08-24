@@ -241,7 +241,7 @@ class LazilyCompilingFunctionCaller:
                           .with_transformed_program(self
                                                     .actx
                                                     .transform_loopy_program))
-
+        print(pytato_program.program)
         self.program_cache[arg_id_to_descr] = CompiledFunction(
                                                 self.actx, pytato_program,
                                                 input_naming_map, output_naming_map,
