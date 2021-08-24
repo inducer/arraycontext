@@ -44,7 +44,7 @@ class FirstAxisIsElementsTag(Tag):
     loop extent.
     """
 
-# {{{ deprecation handling
+ # {{{ deprecation handling
 
 try:
     from meshmode.transform_metadata import FirstAxisIsElementsTag \
@@ -75,6 +75,9 @@ class ParameterValue(UniqueTag):
         self.value = value
 
 class IsDOFArray(Tag):
+    pass
+
+class IsOpArray(Tag):
     pass
 
 # }}}

@@ -31,7 +31,7 @@ THE SOFTWARE.
 import sys
 from .context import ArrayContext
 
-from .metadata import ParameterValue, IsDOFArray, _FirstAxisIsElementsTag
+from .metadata import ParameterValue, IsDOFArray, IsOpArray, _FirstAxisIsElementsTag
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
 
