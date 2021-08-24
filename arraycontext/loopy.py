@@ -39,7 +39,7 @@ _DEFAULT_LOOPY_OPTIONS = lp.Options(
 
 
 def make_loopy_program(domains, statements, kernel_data=None,
-        name="mm_actx_kernel"):
+        name="mm_actx_kernel", tags=None):
     """Return a :class:`loopy.LoopKernel` suitable for use with
     :meth:`ArrayContext.call_loopy`.
     """
@@ -53,7 +53,8 @@ def make_loopy_program(domains, statements, kernel_data=None,
             options=_DEFAULT_LOOPY_OPTIONS,
             default_offset=lp.auto,
             name=name,
-            lang_version=MOST_RECENT_LANGUAGE_VERSION)
+            lang_version=MOST_RECENT_LANGUAGE_VERSION,
+            tags=tags)
 
 
 def get_default_entrypoint(t_unit):

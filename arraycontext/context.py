@@ -102,7 +102,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Callable, Any, Tuple
 from abc import ABC, abstractmethod, abstractproperty
 
 import numpy as np
@@ -144,11 +144,19 @@ class ArrayContext(ABC):
          Callables accessible through this namespace vectorize over object
          arrays, including :class:`arraycontext.ArrayContainer`\ s.
 
+    .. attribute:: array_types
+
+        A :class:`tuple` of types that are the valid base array classes
+        the context can operate on.
+
     .. automethod:: freeze
     .. automethod:: thaw
     .. automethod:: tag
     .. automethod:: tag_axis
+    .. automethod:: compile
     """
+
+    array_types: Tuple[type, ...] = ()
 
     def __init__(self):
         self.np = self._get_fake_numpy_namespace()
@@ -193,7 +201,7 @@ class ArrayContext(ABC):
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.
 
-        *program* is a :class:`loopy.LoopKernel` or :class:`loopy.LoopKernel`.
+        *program* is a :class:`loopy.LoopKernel` or :class:`loopy.TranslationUnit`.
         It is expected to not yet be transformed for execution speed.
         It must have :attr:`loopy.Options.return_dict` set.
 
@@ -235,6 +243,7 @@ class ArrayContext(ABC):
                 arg.is_output_only = True
 
         return prog
+
 
     @abstractmethod
     def freeze(self, array):
@@ -356,6 +365,26 @@ class ArrayContext(ABC):
             it becomes easier to detect and flag if unfrozen data attached to a
             "setup-only" array context "leaks" into the application.
         """
+
+    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+        """Compiles *f* for repeated use on this array context. *f* is expected
+        to be a `pure function <https://en.wikipedia.org/wiki/Pure_function>`__
+        performing an array computation.
+
+        Control flow statements (``if``, ``while``) that might take different
+        paths depending on the data lead to undefined behavior and are illegal.
+        Any data-dependent control flow must be expressed via array functions,
+        such as ``actx.np.where``.
+
+        *f* may be called on placeholder data, to obtain a representation
+        of the computation performed, or it may be called as part of the actual
+        computation, on actual data. If *f* is called on placeholder data,
+        it may be called only once (or a few times).
+
+        :arg f: the function executing the computation.
+        :return: a function with the same signature as *f*.
+        """
+        return f
 
     # undocumented for now
     @abstractproperty

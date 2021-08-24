@@ -2,6 +2,7 @@
 .. currentmodule:: arraycontext
 .. autoclass:: PyOpenCLArrayContext
 """
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -27,15 +28,19 @@ THE SOFTWARE.
 """
 
 from warnings import warn
-from typing import Sequence, Union
+from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 
 from pytools.tag import Tag
 
-from arraycontext.metadata import FirstAxisIsElementsTag
 from arraycontext.context import ArrayContext
 from arraycontext.metadata import ParameterValue
+
+if TYPE_CHECKING:
+    import pyopencl
+    import loopy as lp
+
 
 # {{{ PyOpenCLArrayContext
 
@@ -62,7 +67,11 @@ class PyOpenCLArrayContext(ArrayContext):
         as the allocator can help avoid this cost.
     """
 
-    def __init__(self, queue, allocator=None, wait_event_queue_length=None):
+    def __init__(self,
+            queue: "pyopencl.CommandQueue",
+            allocator: Optional["pyopencl.tools.AllocatorInterface"] = None,
+            wait_event_queue_length: Optional[int] = None,
+            force_device_scalars: bool = False) -> None:
         r"""
         :arg wait_event_queue_length: The length of a queue of
             :class:`~pyopencl.Event` objects that are maintained by the
@@ -83,19 +92,35 @@ class PyOpenCLArrayContext(ArrayContext):
 
             For now, *wait_event_queue_length* should be regarded as an
             experimental feature that may change or disappear at any minute.
+
+        :arg force_device_scalars: if *True*, scalar results returned from
+            reductions in :attr:`ArrayContext.np` will be kept on the device.
+            If *False*, the equivalent of :meth:`~ArrayContext.freeze` and
+            :meth:`~ArrayContext.to_numpy` is applied to transfer the results
+            to the host.
         """
+        if not force_device_scalars:
+            warn("Configuring the PyOpenCLArrayContext to return host scalars "
+                    "from reductions is deprecated. "
+                    "To configure the PyOpenCLArrayContext to return "
+                    "device scalars, pass 'force_device_scalars=True' to the "
+                    "constructor. "
+                    "Support for returning host scalars will be removed in 2022.",
+                    DeprecationWarning, stacklevel=2)
+
         import pyopencl as cl
+        import pyopencl.array as cla
 
         super().__init__()
         self.context = queue.context
         self.queue = queue
         self.allocator = allocator if allocator else None
-
         if wait_event_queue_length is None:
             wait_event_queue_length = 10
 
+        self._force_device_scalars = force_device_scalars
         self._wait_event_queue_length = wait_event_queue_length
-        self._kernel_name_to_wait_event_queue = {}
+        self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
 
         if queue.device.type & cl.device_type.GPU:
             if allocator is None:
@@ -110,7 +135,10 @@ class PyOpenCLArrayContext(ArrayContext):
                         "are running Python in debug mode. Use 'python -O' for "
                         "a noticeable speed improvement.")
 
-        self._loopy_transform_cache = {}
+        self._loopy_transform_cache: \
+                Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
+
+        self.array_types = (cla.Array,)
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
@@ -133,13 +161,19 @@ class PyOpenCLArrayContext(ArrayContext):
         return cl_array.to_device(self.queue, array, allocator=self.allocator)
 
     def to_numpy(self, array):
+        if not self._force_device_scalars and np.isscalar(array):
+            return array
+
         return array.get(queue=self.queue)
 
     def call_loopy(self, t_unit, **kwargs):
         try:
             t_unit = self._loopy_transform_cache[t_unit]
         except KeyError:
+            orig_t_unit = t_unit
             t_unit = self.transform_loopy_program(t_unit)
+            self._loopy_transform_cache[orig_t_unit] = t_unit
+            del orig_t_unit
 
         evt, result = t_unit(self.queue, **kwargs, allocator=self.allocator)
 
@@ -164,11 +198,15 @@ class PyOpenCLArrayContext(ArrayContext):
     # }}}
 
     def transform_loopy_program(self, t_unit):
-        try:
-            return self._loopy_transform_cache[t_unit]
-        except KeyError:
-            pass
-        orig_t_unit = t_unit
+        from warnings import warn
+        warn("Using arraycontext.PyOpenCLArrayContext.transform_loopy_program "
+                "to transform a program. This is deprecated and will stop working "
+                "in 2022. Instead, subclass PyOpenCLArrayContext and implement "
+                "the specific logic required to transform the program for your "
+                "package or application. Check higher-level packages "
+                "(e.g. meshmode), which may already have subclasses you may want "
+                "to build on.",
+                DeprecationWarning, stacklevel=2)
 
         # accommodate loopy with and without kernel callables
 
@@ -189,9 +227,13 @@ class PyOpenCLArrayContext(ArrayContext):
         all_inames = default_entrypoint.all_inames()
         # FIXME: This could be much smarter.
         inner_iname = None
+
+        # import with underscore to avoid DeprecationWarning
+        from arraycontext.metadata import _FirstAxisIsElementsTag
+
         if (len(default_entrypoint.instructions) == 1
                 and isinstance(default_entrypoint.instructions[0], lp.Assignment)
-                and any(isinstance(tag, FirstAxisIsElementsTag)
+                and any(isinstance(tag, _FirstAxisIsElementsTag)
                     # FIXME: Firedrake branch lacks kernel tags
                     for tag in getattr(default_entrypoint, "tags", ()))):
             stmt, = default_entrypoint.instructions
@@ -222,7 +264,6 @@ class PyOpenCLArrayContext(ArrayContext):
             t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")
         t_unit = lp.tag_inames(t_unit, {outer_iname: "g.0"})
 
-        self._loopy_transform_cache[orig_t_unit] = t_unit
         return t_unit
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
@@ -234,7 +275,9 @@ class PyOpenCLArrayContext(ArrayContext):
         return array
 
     def clone(self):
-        return type(self)(self.queue, self.allocator, self._wait_event_queue_length)
+        return type(self)(self.queue, self.allocator,
+                wait_event_queue_length=self._wait_event_queue_length,
+                force_device_scalars=self._force_device_scalars)
 
     @property
     def permits_inplace_modification(self):

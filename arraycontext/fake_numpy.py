@@ -24,9 +24,47 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import is_array_container
+from arraycontext.container import is_array_container, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
+from pytools import memoize_in
+
+
+# {{{ _get_scalar_func_loopy_program
+
+def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
+    @memoize_in(actx, _get_scalar_func_loopy_program)
+    def get(c_name, nargs, naxes):
+        from pymbolic import var
+
+        var_names = ["i%d" % i for i in range(naxes)]
+        size_names = ["n%d" % i for i in range(naxes)]
+        subscript = tuple(var(vname) for vname in var_names)
+        from islpy import make_zero_and_vars
+        v = make_zero_and_vars(var_names, params=size_names)
+        domain = v[0].domain()
+        for vname, sname in zip(var_names, size_names):
+            domain = domain & v[0].le_set(v[vname]) & v[vname].lt_set(v[sname])
+
+        domain_bset, = domain.get_basic_sets()
+
+        import loopy as lp
+        from .loopy import make_loopy_program
+        from arraycontext.transform_metadata import ElementwiseMapKernelTag
+        return make_loopy_program(
+                [domain_bset],
+                [
+                    lp.Assignment(
+                        var("out")[subscript],
+                        var(c_name)(*[
+                            var("inp%d" % i)[subscript] for i in range(nargs)]))
+                    ],
+                name="actx_special_%s" % c_name,
+                tags=(ElementwiseMapKernelTag(),))
+
+    return get(c_name, nargs, naxes)
+
+# }}}
 
 
 # {{{ BaseFakeNumpyNamespace
@@ -110,13 +148,11 @@ class BaseFakeNumpyNamespace:
     def __getattr__(self, name):
         def loopy_implemented_elwise_func(*args):
             actx = self._array_context
-            # FIXME: Maybe involve loopy type inference?
-            result = actx.empty(args[0].shape, args[0].dtype)
-            prg = actx._get_scalar_func_loopy_program(
+            prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
-            actx.call_loopy(prg, out=result,
+            outputs = actx.call_loopy(prg,
                     **{"inp%d" % i: arg for i, arg in enumerate(args)})
-            return result
+            return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
@@ -170,10 +206,72 @@ class BaseFakeNumpyNamespace:
 
 # {{{ BaseFakeNumpyLinalgNamespace
 
+def _scalar_list_norm(ary, ord):
+    if ord is None:
+        ord = 2
+
+    from numbers import Number
+    if ord == np.inf:
+        return max(ary)
+    elif ord == -np.inf:
+        return min(ary)
+    elif isinstance(ord, Number) and ord > 0:
+        return sum(iary**ord for iary in ary)**(1/ord)
+    else:
+        raise NotImplementedError(f"unsupported value of 'ord': {ord}")
+
+
 class BaseFakeNumpyLinalgNamespace:
     def __init__(self, array_context):
         self._array_context = array_context
 
+    def norm(self, ary, ord=None):
+        from numbers import Number
+
+        if isinstance(ary, Number):
+            return abs(ary)
+
+        actx = self._array_context
+
+        try:
+            from meshmode.dof_array import DOFArray, flat_norm
+        except ImportError:
+            pass
+        else:
+            if isinstance(ary, DOFArray):
+                from warnings import warn
+                warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
+                        "(DOFArrays use 2D arrays internally, and "
+                        "actx.np.linalg.norm should compute matrix norms of those.) "
+                        "This will stop working in 2022. "
+                        "Use meshmode.dof_array.flat_norm instead.",
+                        DeprecationWarning, stacklevel=2)
+
+                return flat_norm(ary, ord=ord)
+
+        if is_array_container(ary):
+            return _scalar_list_norm([
+                self.norm(subary, ord=ord)
+                for _, subary in serialize_container(ary)
+                ], ord=ord)
+
+        if ord is None:
+            return self.norm(actx.np.ravel(ary, order="A"), 2)
+
+        if len(ary.shape) != 1:
+            raise NotImplementedError("only vector norms are implemented")
+
+        if ary.size == 0:
+            return 0
+
+        if ord == np.inf:
+            return self._array_context.np.max(abs(ary))
+        elif ord == -np.inf:
+            return self._array_context.np.min(abs(ary))
+        elif isinstance(ord, Number) and ord > 0:
+            return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
+        else:
+            raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 # }}}
 
 

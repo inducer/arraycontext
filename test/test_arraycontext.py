@@ -31,14 +31,72 @@ from arraycontext import (
         dataclass_array_container, with_container_arithmetic,
         serialize_container, deserialize_container,
         freeze, thaw,
-        FirstAxisIsElementsTag)
+        FirstAxisIsElementsTag,
+        PyOpenCLArrayContext,
+        PytatoPyOpenCLArrayContext,
+        ArrayContainer,)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_pyopencl_array_context
-        as pytest_generate_tests,
-        _acf)
+        pytest_generate_tests_for_array_contexts,
+        )
+from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
+                                 _PytestPytatoPyOpenCLArrayContextFactory)
+
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+# {{{ array context fixture
+
+class _PyOpenCLArrayContextForTests(PyOpenCLArrayContext):
+    """Like :class:`PyOpenCLArrayContext`, but applies no program transformations
+    whatsoever. Only to be used for testing internal to :mod:`arraycontext`.
+    """
+
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
+class _PytatoPyOpenCLArrayContextForTests(PytatoPyOpenCLArrayContext):
+    """Like :class:`PytatoPyOpenCLArrayContext`, but applies no program
+    transformations whatsoever. Only to be used for testing internal to
+    :mod:`arraycontext`.
+    """
+
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
+class _PyOpenCLArrayContextWithHostScalarsForTestsFactory(
+        _PytestPyOpenCLArrayContextFactoryWithClass):
+    actx_class = _PyOpenCLArrayContextForTests
+
+
+class _PyOpenCLArrayContextForTestsFactory(
+        _PyOpenCLArrayContextWithHostScalarsForTestsFactory):
+    force_device_scalars = True
+
+
+class _PytatoPyOpenCLArrayContextForTestsFactory(
+        _PytestPytatoPyOpenCLArrayContextFactory):
+    actx_class = _PytatoPyOpenCLArrayContextForTests
+
+
+pytest_generate_tests = pytest_generate_tests_for_array_contexts([
+    _PyOpenCLArrayContextForTestsFactory,
+    _PyOpenCLArrayContextWithHostScalarsForTestsFactory,
+    _PytatoPyOpenCLArrayContextForTestsFactory,
+    ])
+
+
+def _acf():
+    import pyopencl as cl
+
+    context = cl._csc()
+    queue = cl.CommandQueue(context)
+    return _PyOpenCLArrayContextForTests(queue, force_device_scalars=True)
+
+# }}}
 
 
 # {{{ stand-in DOFArray implementation
@@ -46,6 +104,7 @@ logger = logging.getLogger(__name__)
 @with_container_arithmetic(
         bcast_obj_array=True,
         bcast_numpy_array=True,
+        bitwise=True,
         rel_comparison=True,
         _cls_has_array_context_attr=True)
 class DOFArray:
@@ -60,6 +119,14 @@ class DOFArray:
         self.data = data
 
     __array_priority__ = 10
+
+    def __bool__(self):
+        if len(self) == 1 and self.data[0].size == 1:
+            return bool(self.data[0])
+
+        raise ValueError(
+                "The truth value of an array with more than one element is "
+                "ambiguous. Use actx.np.any(x) or actx.np.all(x)")
 
     def __len__(self):
         return len(self.data)
@@ -129,6 +196,22 @@ def _thaw_dofarray(ary, actx):
 
 # {{{ assert_close_to_numpy*
 
+def randn(shape, dtype):
+    rng = np.random.default_rng()
+    dtype = np.dtype(dtype)
+
+    if dtype.kind == "c":
+        dtype = np.dtype(f"<f{dtype.itemsize // 2}")
+        return rng.standard_normal(shape, dtype) \
+            + 1j * rng.standard_normal(shape, dtype)
+    elif dtype.kind == "f":
+        return rng.standard_normal(shape, dtype)
+    elif dtype.kind == "i":
+        return rng.integers(0, 128, shape, dtype)
+    else:
+        raise TypeError(dtype.kind)
+
+
 def assert_close_to_numpy(actx, op, args):
     assert np.allclose(
             actx.to_numpy(
@@ -149,9 +232,12 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             DOFArray(actx, (actx.from_numpy(arg),))
             if isinstance(arg, np.ndarray) else arg
             for arg in args]
-    actx_result = actx.to_numpy(op(actx.np, *dofarray_args)[0])
 
-    assert np.allclose(actx_result, ref_result)
+    actx_result = op(actx.np, *dofarray_args)
+    if isinstance(actx_result, DOFArray):
+        actx_result = actx_result[0]
+
+    assert np.allclose(actx.to_numpy(actx_result), ref_result)
 
     # }}}
 
@@ -160,9 +246,12 @@ def assert_close_to_numpy_in_containers(actx, op, args):
     obj_array_args = [
             make_obj_array([arg]) if isinstance(arg, DOFArray) else arg
             for arg in dofarray_args]
-    obj_array_result = actx.to_numpy(op(actx.np, *obj_array_args)[0][0])
 
-    assert np.allclose(obj_array_result, ref_result)
+    obj_array_result = op(actx.np, *obj_array_args)
+    if isinstance(obj_array_result, np.ndarray):
+        obj_array_result = obj_array_result[0][0]
+
+    assert np.allclose(actx.to_numpy(obj_array_result), ref_result)
 
     # }}}
 
@@ -171,34 +260,54 @@ def assert_close_to_numpy_in_containers(actx, op, args):
 
 # {{{ np.function same as numpy
 
-@pytest.mark.parametrize(("sym_name", "n_args"), [
-            ("sin", 1),
-            ("exp", 1),
-            ("arctan2", 2),
-            ("minimum", 2),
-            ("maximum", 2),
-            ("where", 3),
-            ("conj", 1),
-            ])
-def test_array_context_np_workalike(actx_factory, sym_name, n_args):
-    actx = actx_factory()
+@pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
+            # float only
+            ("arctan2", 2, np.float64),
+            ("minimum", 2, np.float64),
+            ("maximum", 2, np.float64),
+            ("where", 3, np.float64),
+            ("min", 1, np.float64),
+            ("max", 1, np.float64),
+            ("any", 1, np.float64),
+            ("all", 1, np.float64),
 
-    ndofs = 5000
-    args = [np.random.randn(ndofs) for i in range(n_args)]
+            # float + complex
+            ("sin", 1, np.float64),
+            ("sin", 1, np.complex128),
+            ("exp", 1, np.float64),
+            ("exp", 1, np.complex128),
+            ("conj", 1, np.float64),
+            ("conj", 1, np.complex128),
+            ("vdot", 2, np.float64),
+            ("vdot", 2, np.complex128),
+            ("abs", 1, np.float64),
+            ("abs", 1, np.complex128),
+            ("sum", 1, np.float64),
+            ("sum", 1, np.complex64),
+            ])
+def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
+    actx = actx_factory()
+    if not hasattr(actx.np, sym_name):
+        pytest.skip(f"'{sym_name}' not implemented on '{type(actx).__name__}'")
+
+    ndofs = 512
+    args = [randn(ndofs, dtype) for i in range(n_args)]
+
     assert_close_to_numpy_in_containers(
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
 
-@pytest.mark.parametrize(("sym_name", "n_args"), [
-            # ("empty_like", 1),    # NOTE: fails np.allclose, obviously
-            ("zeros_like", 1),
-            ("ones_like", 1),
+@pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
+            ("zeros_like", 1, np.float64),
+            ("zeros_like", 1, np.complex128),
+            ("ones_like", 1, np.float64),
+            ("ones_like", 1, np.complex128),
             ])
-def test_array_context_np_like(actx_factory, sym_name, n_args):
+def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
     actx = actx_factory()
 
-    ndofs = 5000
-    args = [np.random.randn(ndofs) for i in range(n_args)]
+    ndofs = 512
+    args = [randn(ndofs, dtype) for i in range(n_args)]
     assert_close_to_numpy(
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
@@ -260,7 +369,7 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
         return ary.real
 
     def get_imag(ary):
-        return ary.real
+        return ary.imag
 
     import operator
     from pytools import generate_nonnegative_integer_tuples_below as gnitb
@@ -318,6 +427,19 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
                 # can't do in place operations with a scalar lhs
                 continue
 
+            if op_func == operator.ge:
+                op_func_actx = actx.np.greater_equal
+            elif op_func == operator.lt:
+                op_func_actx = actx.np.less
+            elif op_func == operator.gt:
+                op_func_actx = actx.np.greater
+            elif op_func == operator.eq:
+                op_func_actx = actx.np.equal
+            elif op_func == operator.ne:
+                op_func_actx = actx.np.not_equal
+            else:
+                op_func_actx = op_func
+
             args = [
                     (0.5+np.random.rand(ndofs)
                         if not use_integers else
@@ -346,7 +468,7 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
                     if isinstance(arg, np.ndarray) else arg
                     for arg in args]
 
-            actx_result = actx.to_numpy(op_func(*actx_args)[0])
+            actx_result = actx.to_numpy(op_func_actx(*actx_args)[0])
 
             assert np.allclose(actx_result, ref_result)
 
@@ -378,7 +500,7 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
                         for arg in actx_args]
 
                 obj_array_result = actx.to_numpy(
-                        op_func(*obj_array_args)[0][0])
+                        op_func_actx(*obj_array_args)[0][0])
 
                 assert np.allclose(obj_array_result, ref_result)
 
@@ -389,17 +511,41 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
 
 # {{{ reductions same as numpy
 
-def test_dof_array_reductions_same_as_numpy(actx_factory):
+@pytest.mark.parametrize("op", ["sum", "min", "max"])
+def test_reductions_same_as_numpy(actx_factory, op):
     actx = actx_factory()
 
-    from numbers import Number
-    for name in ["sum", "min", "max"]:
-        ary = np.random.randn(3000)
-        np_red = getattr(np, name)(ary)
-        actx_red = getattr(actx.np, name)(actx.from_numpy(ary))
+    ary = np.random.randn(3000)
+    np_red = getattr(np, op)(ary)
+    actx_red = getattr(actx.np, op)(actx.from_numpy(ary))
+    actx_red = actx.to_numpy(actx_red)
 
+    from numbers import Number
+
+    if isinstance(actx, PyOpenCLArrayContext) and (not actx._force_device_scalars):
         assert isinstance(actx_red, Number)
-        assert np.allclose(np_red, actx_red)
+    else:
+        assert actx_red.shape == ()
+
+    assert np.allclose(np_red, actx_red)
+
+
+@pytest.mark.parametrize("sym_name", ["any", "all"])
+def test_any_all_same_as_numpy(actx_factory, sym_name):
+    actx = actx_factory()
+    if not hasattr(actx.np, sym_name):
+        pytest.skip(f"'{sym_name}' not implemented on '{type(actx).__name__}'")
+
+    rng = np.random.default_rng()
+    ary_any = rng.integers(0, 2, 512)
+    ary_all = np.ones(512)
+
+    assert_close_to_numpy_in_containers(actx,
+                lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary_any])
+    assert_close_to_numpy_in_containers(actx,
+                lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary_all])
+    assert_close_to_numpy_in_containers(actx,
+                lambda _np, *_args: getattr(_np, sym_name)(*_args), [1 - ary_all])
 
 # }}}
 
@@ -457,9 +603,10 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
 # }}}
 
 
-# {{{ test array container
+# {{{ array container classes for test
 
-@with_container_arithmetic(bcast_obj_array=False, rel_comparison=True)
+@with_container_arithmetic(bcast_obj_array=False,
+        eq_comparison=False, rel_comparison=False)
 @dataclass_array_container
 @dataclass(frozen=True)
 class MyContainer:
@@ -525,8 +672,8 @@ def test_container_multimap(actx_factory):
 
     # {{{ check
 
-    def _check_allclose(f, arg1, arg2, atol=1.0e-14):
-        assert np.linalg.norm((f(arg1) - arg2).get()) < atol
+    def _check_allclose(f, arg1, arg2, atol=2.0e-14):
+        assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
 
     def func_all_scalar(x, y):
         return x + y
@@ -566,8 +713,8 @@ def test_container_arithmetic(actx_factory):
 
     # {{{ check
 
-    def _check_allclose(f, arg1, arg2, atol=1.0e-14):
-        assert np.linalg.norm((f(arg1) - arg2).get()) < atol
+    def _check_allclose(f, arg1, arg2, atol=5.0e-14):
+        assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
 
     from functools import partial
     from arraycontext import rec_multimap_array_container
@@ -594,7 +741,8 @@ def test_container_arithmetic(actx_factory):
     bcast_result = ary_dof + bcast_dc_of_dofs
     bcast_dc_of_dofs + ary_dof
 
-    assert actx.np.linalg.norm(bcast_result.mass - 2*ary_of_dofs) < 1e-8
+    assert actx.to_numpy(actx.np.linalg.norm(bcast_result.mass
+                                             - 2*ary_of_dofs)) < 1e-8
 
     mock_gradient = MyContainerDOFBcast(
             name="yo",
@@ -605,7 +753,9 @@ def test_container_arithmetic(actx_factory):
     grad_matvec_result = mock_gradient @ ary_of_dofs
     assert isinstance(grad_matvec_result.mass, DOFArray)
     assert grad_matvec_result.momentum.shape == (3,)
-    assert actx.np.linalg.norm(grad_matvec_result.mass - 3*ary_of_dofs**2) < 1e-8
+
+    assert actx.to_numpy(actx.np.linalg.norm(grad_matvec_result.mass
+                                             - 3*ary_of_dofs**2)) < 1e-8
 
     # }}}
 
@@ -656,9 +806,6 @@ def test_container_freeze_thaw(actx_factory):
 def test_container_norm(actx_factory, ord):
     actx = actx_factory()
 
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
-            _get_test_containers(actx)
-
     from pytools.obj_array import make_obj_array
     c = MyContainer(name="hey", mass=1, momentum=make_obj_array([2, 3]), enthalpy=5)
     n1 = actx.np.linalg.norm(make_obj_array([c, c]), ord)
@@ -702,22 +849,26 @@ def test_numpy_conversion(actx_factory):
 # }}}
 
 
+# {{{ test actx.np.linalg.norm
+
 @pytest.mark.parametrize("norm_ord", [2, np.inf])
 def test_norm_complex(actx_factory, norm_ord):
     actx = actx_factory()
-    a = np.random.randn(2000) + 1j * np.random.randn(2000)
+    a = randn(2000, np.complex128)
 
     norm_a_ref = np.linalg.norm(a, norm_ord)
     norm_a = actx.np.linalg.norm(actx.from_numpy(a), norm_ord)
+
+    norm_a = actx.to_numpy(norm_a)
 
     assert abs(norm_a_ref - norm_a)/norm_a < 1e-13
 
 
 @pytest.mark.parametrize("ndim", [1, 2, 3, 4, 5])
 def test_norm_ord_none(actx_factory, ndim):
-    from numpy.random import default_rng
-
     actx = actx_factory()
+
+    from numpy.random import default_rng
 
     rng = default_rng()
     shape = tuple(rng.integers(2, 7, ndim))
@@ -727,7 +878,158 @@ def test_norm_ord_none(actx_factory, ndim):
     norm_a_ref = np.linalg.norm(a, ord=None)
     norm_a = actx.np.linalg.norm(actx.from_numpy(a), ord=None)
 
-    np.testing.assert_allclose(norm_a, norm_a_ref)
+    np.testing.assert_allclose(actx.to_numpy(norm_a), norm_a_ref)
+
+# }}}
+
+
+# {{{ test_actx_compile helpers
+
+@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class Velocity2D:
+    u: ArrayContainer
+    v: ArrayContainer
+    array_context: ArrayContext
+
+
+def scale_and_orthogonalize(alpha, vel):
+    from arraycontext import rec_map_array_container
+    actx = vel.array_context
+    scaled_vel = rec_map_array_container(lambda x: alpha * x,
+                                         vel)
+    return Velocity2D(-scaled_vel.v, scaled_vel.u, actx)
+
+
+def test_actx_compile(actx_factory):
+    from arraycontext import (to_numpy, from_numpy)
+    actx = actx_factory()
+
+    compiled_rhs = actx.compile(scale_and_orthogonalize)
+
+    v_x = np.random.rand(10)
+    v_y = np.random.rand(10)
+
+    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+
+    scaled_speed = compiled_rhs(np.float64(3.14), vel)
+
+    result = to_numpy(scaled_speed, actx)
+    np.testing.assert_allclose(result.u, -3.14*v_y)
+    np.testing.assert_allclose(result.v, 3.14*v_x)
+
+
+def test_actx_compile_python_scalar(actx_factory):
+    from arraycontext import (to_numpy, from_numpy)
+    actx = actx_factory()
+
+    compiled_rhs = actx.compile(scale_and_orthogonalize)
+
+    v_x = np.random.rand(10)
+    v_y = np.random.rand(10)
+
+    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+
+    scaled_speed = compiled_rhs(3.14, vel)
+
+    result = to_numpy(scaled_speed, actx)
+    np.testing.assert_allclose(result.u, -3.14*v_y)
+    np.testing.assert_allclose(result.v, 3.14*v_x)
+
+
+def test_actx_compile_kwargs(actx_factory):
+    from arraycontext import (to_numpy, from_numpy)
+    actx = actx_factory()
+
+    compiled_rhs = actx.compile(scale_and_orthogonalize)
+
+    v_x = np.random.rand(10)
+    v_y = np.random.rand(10)
+
+    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+
+    scaled_speed = compiled_rhs(3.14, vel=vel)
+
+    result = to_numpy(scaled_speed, actx)
+    np.testing.assert_allclose(result.u, -3.14*v_y)
+    np.testing.assert_allclose(result.v, 3.14*v_x)
+
+# }}}
+
+
+# {{{ test_container_equality
+
+def test_container_equality(actx_factory):
+    actx = actx_factory()
+
+    ary_dof, _, _, dc_of_dofs, bcast_dc_of_dofs = \
+            _get_test_containers(actx)
+    _, _, _, dc_of_dofs_2, bcast_dc_of_dofs_2 = \
+            _get_test_containers(actx)
+
+    # MyContainer sets eq_comparison to False, so equality comparison should
+    # not succeed.
+    dc = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
+    dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
+    assert dc != dc2
+
+    assert isinstance(bcast_dc_of_dofs == bcast_dc_of_dofs_2, MyContainerDOFBcast)
+
+# }}}
+
+
+# {{{ test_leaf_array_type_broadcasting
+
+@with_container_arithmetic(
+    bcast_obj_array=True,
+    bcast_numpy_array=True,
+    rel_comparison=True,
+    _cls_has_array_context_attr=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class Foo:
+    u: DOFArray
+
+    @property
+    def array_context(self):
+        return self.u.array_context
+
+
+def test_leaf_array_type_broadcasting(actx_factory):
+    # test support for https://github.com/inducer/arraycontext/issues/49
+    actx = actx_factory()
+
+    foo = Foo(DOFArray(actx, (actx.zeros(3, dtype=np.float64) + 41, )))
+    bar = foo + 4
+    baz = foo + actx.from_numpy(4*np.ones((3, )))
+    qux = actx.from_numpy(4*np.ones((3, ))) + foo
+
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(baz.u[0]))
+
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(qux.u[0]))
+
+    def _actx_allows_scalar_broadcast(actx):
+        if not isinstance(actx, PyOpenCLArrayContext):
+            return True
+        else:
+            import pyopencl as cl
+            # See https://github.com/inducer/pyopencl/issues/498
+            return cl.version.VERSION > (2021, 2, 5)
+
+    if _actx_allows_scalar_broadcast(actx):
+        quux = foo + actx.from_numpy(np.array(4))
+        quuz = actx.from_numpy(np.array(4)) + foo
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quux.u[0]))
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quuz.u[0]))
+
+# }}}
 
 
 if __name__ == "__main__":

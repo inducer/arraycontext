@@ -28,9 +28,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import sys
 from .context import ArrayContext
 
-from .metadata import CommonSubexpressionTag, FirstAxisIsElementsTag, ParameterValue, IsDOFArray
+<<<<<<< HEAD
+from .metadata import ParameterValue, IsDOFArray, _FirstAxisIsElementsTag
+from .transform_metadata import (CommonSubexpressionTag,
+        ElementwiseMapKernelTag)
 
 from .container import (
         ArrayContainer,
@@ -47,12 +51,18 @@ from .container.traversal import (
         rec_multimap_array_container,
         mapped_over_array_containers,
         multimapped_over_array_containers,
+        rec_map_reduce_array_container,
+        rec_multimap_reduce_array_container,
         thaw, freeze,
         from_numpy, to_numpy)
 
 from .impl.pyopencl import PyOpenCLArrayContext
+from .impl.pytato import PytatoPyOpenCLArrayContext
 
-from .pytest import pytest_generate_tests_for_pyopencl_array_context
+from .pytest import (
+        PytestPyOpenCLArrayContextFactory,
+        pytest_generate_tests_for_array_contexts,
+        pytest_generate_tests_for_pyopencl_array_context)
 
 from .loopy import make_loopy_program
 
@@ -61,7 +71,7 @@ __all__ = (
         "ArrayContext",
 
         "CommonSubexpressionTag",
-        "FirstAxisIsElementsTag",
+        "ElementwiseMapKernelTag",
 
         "ArrayContainer",
         "is_array_container", "is_array_container_type",
@@ -74,18 +84,23 @@ __all__ = (
         "rec_map_array_container", "rec_multimap_array_container",
         "mapped_over_array_containers",
         "multimapped_over_array_containers",
+        "rec_map_reduce_array_container", "rec_multimap_reduce_array_container",
         "thaw", "freeze",
         "from_numpy", "to_numpy",
 
-        "PyOpenCLArrayContext",
+        "PyOpenCLArrayContext", "PytatoPyOpenCLArrayContext",
 
         "make_loopy_program",
 
+        "PytestPyOpenCLArrayContextFactory",
+        "pytest_generate_tests_for_array_contexts",
         "pytest_generate_tests_for_pyopencl_array_context"
         )
 
 
-def _acf():
+# {{{ deprecation handling
+
+def _deprecated_acf():
     """A tiny undocumented function to pass to tests that take an ``actx_factory``
     argument when running them from the command line.
     """
@@ -94,5 +109,33 @@ def _acf():
     context = cl._csc()
     queue = cl.CommandQueue(context)
     return PyOpenCLArrayContext(queue)
+
+
+_depr_name_to_replacement_and_obj = {
+        "FirstAxisIsElementsTag":
+        ("meshmode.transform_metadata.FirstAxisIsElementsTag",
+            _FirstAxisIsElementsTag),
+        "_acf":
+        ("<no replacement yet>", _deprecated_acf),
+        }
+
+if sys.version_info >= (3, 7):
+    def __getattr__(name):
+        replacement_and_obj = _depr_name_to_replacement_and_obj.get(name, None)
+        if replacement_and_obj is not None:
+            replacement, obj = replacement_and_obj
+            from warnings import warn
+            warn(f"'arraycontext.{name}' is deprecated. "
+                    f"Use '{replacement}' instead. "
+                    f"'arraycontext.{name}' will continue to work until 2022.",
+                    DeprecationWarning, stacklevel=2)
+            return obj
+        else:
+            raise AttributeError(name)
+else:
+    FirstAxisIsElementsTag = _FirstAxisIsElementsTag
+    _acf = _deprecated_acf
+
+# }}}
 
 # vim: foldmethod=marker
