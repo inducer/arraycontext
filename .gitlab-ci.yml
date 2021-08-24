@@ -61,7 +61,7 @@ Python 3 Conda:
 
 Documentation:
   script: |
-    EXTRA_INSTALL="pybind11 cython numpy"
+    EXTRA_INSTALL="pybind11 cython numpy sphinx-autodoc-typehints"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-docs.sh
     CI_SUPPORT_SPHINX_VERSION_SPECIFIER=">=4.0"
     . ./build-docs.sh
