@@ -2,6 +2,7 @@
 .. currentmodule:: arraycontext.impl.pytato.compile
 .. autoclass:: LazilyCompilingFunctionCaller
 .. autoclass:: CompiledFunction
+.. autoclass:: FromArrayContextCompile
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -40,11 +41,23 @@ from pyrsistent import pmap, PMap
 import pyopencl.array as cla
 import pytato as pt
 import itertools
+from pytools.tag import Tag
 
 from pytools import ProcessLogger
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+class FromArrayContextCompile(Tag):
+    """
+    Tagged to the entrypoint kernel of every translation unit that is generated
+    by :meth:`~arraycontext.PytatoPyOpenCLArrayContext.compile`.
+
+    Typically this tag serves as a branch condition in implementing a
+    specialized transform strategy for kernels compiled by
+    :meth:`~arraycontext.PytatoPyOpenCLArrayContext.compile`.
+    """
 
 
 # {{{ helper classes: AbstractInputDescriptor
@@ -245,6 +258,13 @@ class LazilyCompilingFunctionCaller:
             assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
         with ProcessLogger(logger, "transform_loopy_program"):
+
+            pytato_program = (pytato_program
+                              .with_transformed_program(
+                                  lambda x: x.with_kernel(
+                                      x.default_entrypoint
+                                      .tagged(FromArrayContextCompile()))))
+
             pytato_program = (pytato_program
                               .with_transformed_program(self
                                                         .actx
