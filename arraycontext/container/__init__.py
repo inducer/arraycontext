@@ -3,10 +3,15 @@
 """
 .. currentmodule:: arraycontext
 
-.. class:: ArrayContainerT
-    :canonical: arraycontext.container.ArrayContainerT
+.. class:: ContainerT
+    :canonical: arraycontext.container.ContainerT
 
     :class:`~typing.TypeVar` for array container-like objects.
+
+.. class:: ArrayOrContainerT
+    :canonical: arraycontext.container.ArrayOrContainerT
+
+    :class:`~typing.TypeVar` for arrays or array container-like objects.
 
 .. autoclass:: ArrayContainer
 
@@ -52,7 +57,8 @@ from arraycontext.context import ArrayContext
 from typing import Any, Iterable, Tuple, TypeVar, Optional
 import numpy as np
 
-ArrayContainerT = TypeVar("ArrayContainerT")
+ContainerT = TypeVar("ContainerT")
+ArrayOrContainerT = TypeVar("ArrayOrContainerT")
 
 
 # {{{ ArrayContainer
