@@ -3,6 +3,11 @@
 """
 .. currentmodule:: arraycontext
 
+.. class:: ArrayT
+    :canonical: arraycontext.container.ArrayT
+
+    :class:`~typing.TypeVar` for arrays.
+
 .. class:: ContainerT
     :canonical: arraycontext.container.ContainerT
 
@@ -54,11 +59,12 @@ THE SOFTWARE.
 
 from functools import singledispatch
 from arraycontext.context import ArrayContext
-from typing import Any, Iterable, Tuple, TypeVar, Optional
+from typing import Any, Iterable, Tuple, TypeVar, Optional, Union
 import numpy as np
 
+ArrayT = TypeVar("ArrayT")
 ContainerT = TypeVar("ContainerT")
-ArrayOrContainerT = TypeVar("ArrayOrContainerT")
+ArrayOrContainerT = Union[ArrayT, ContainerT]
 
 
 # {{{ ArrayContainer
