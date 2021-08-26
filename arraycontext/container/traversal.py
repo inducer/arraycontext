@@ -300,12 +300,12 @@ def rec_map_reduce_array_container(
         ary: ArrayContainerT) -> Any:
     """Perform a map-reduce over array containers recursively.
 
-    :param reduce_func: callable used to reduce over the components of the
-        :class:`~arraycontext.ArrayContainer`.
-    :param map_func: callable used to map a single component of the
-        :class:`~arraycontext.ArrayContainer`. The callable takes arrays of
-        type :class:`arraycontext.ArrayContext.array_types` and returns an
-        array of the same type or a scalar.
+    :param reduce_func: callable used to reduce over the components of *ary*
+        (and those of its sub-containers) if *ary* is a
+        :class:`~arraycontext.ArrayContainer`. Must be associative.
+    :param map_func: callable used to map a single array of type
+        :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
+        same type or a scalar.
     """
     def rec(_ary: ArrayContainerT) -> ArrayContainerT:
         if is_array_container(_ary):
@@ -322,14 +322,14 @@ def rec_multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[..., Any],
         *args: Any) -> Any:
-    """Perform a map-reduce over multiple array containers recursively.
+    r"""Perform a map-reduce over multiple array containers recursively.
 
-    :param reduce_func: callable used to reduce over the components of the
-        :class:`~arraycontext.ArrayContainer`.
-    :param map_func: callable used to map a single component of the
-        :class:`~arraycontext.ArrayContainer`. The callable takes arrays of
-        type :class:`arraycontext.ArrayContext.array_types` and returns an
-        array of the same type or a scalar.
+    :param reduce_func: callable used to reduce over the components of any
+        :class:`~arraycontext.ArrayContainer`\ s in *\*args* (and those of their
+        sub-containers). Must be associative.
+    :param map_func: callable used to map a single array of type
+        :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
+        same type or a scalar.
     """
     # NOTE: this wrapper matches the signature of `deserialize_container`
     # to make plugging into `_multimap_array_container_impl` easier
