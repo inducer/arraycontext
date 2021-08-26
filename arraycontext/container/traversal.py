@@ -306,6 +306,11 @@ def rec_map_reduce_array_container(
     :param map_func: callable used to map a single array of type
         :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
         same type or a scalar.
+
+    .. note::
+
+        The traversal order is unspecified. *reduce_func* must be associative in
+        order to guarantee a sensible result.
     """
     def rec(_ary: ArrayContainerT) -> ArrayContainerT:
         if is_array_container(_ary):
@@ -330,6 +335,11 @@ def rec_multimap_reduce_array_container(
     :param map_func: callable used to map a single array of type
         :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
         same type or a scalar.
+
+    .. note::
+
+        The traversal order is unspecified. *reduce_func* must be associative in
+        order to guarantee a sensible result.
     """
     # NOTE: this wrapper matches the signature of `deserialize_container`
     # to make plugging into `_multimap_array_container_impl` easier
