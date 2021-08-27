@@ -362,30 +362,8 @@ def rec_multimap_reduce_array_container(
     .. note::
 
         The traversal order is unspecified. *reduce_func* must be associative in
-        order to guarantee a sensible result. This is because *reduce_func* may be
-        called on subsets of the component arrays, and then again (potentially
-        multiple times) on the results. As an example, consider a container made up
-        of two sub-containers, *subcontainer0* and *subcontainer1*, that each
-        contain two component arrays, *array0* and *array1*. The same result must be
-        computed whether traversing recursively::
-
-            reduce_func([
-                reduce_func([
-                    map_func(subcontainer0.array0),
-                    map_func(subcontainer0.array1)]),
-                reduce_func([
-                    map_func(subcontainer1.array0),
-                    map_func(subcontainer1.array1)])])
-
-        reducing all of the arrays at once::
-
-            reduce_func([
-                map_func(subcontainer0.array0),
-                map_func(subcontainer0.array1),
-                map_func(subcontainer1.array0),
-                map_func(subcontainer1.array1)])
-
-        or any other such traversal.
+        order to guarantee a sensible result. See
+        :func:`rec_map_reduce_array_container` for additional details.
     """
     # NOTE: this wrapper matches the signature of `deserialize_container`
     # to make plugging into `_multimap_array_container_impl` easier
