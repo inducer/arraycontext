@@ -41,7 +41,8 @@ from .container import (
         ArrayContainer,
         is_array_container, is_array_container_type,
         get_container_context, get_container_context_recursively,
-        serialize_container, deserialize_container)
+        serialize_container, deserialize_container,
+        register_multivector_as_array_container)
 from .container.arithmetic import with_container_arithmetic
 from .container.dataclass import dataclass_array_container
 
@@ -78,6 +79,7 @@ __all__ = (
         "is_array_container", "is_array_container_type",
         "get_container_context", "get_container_context_recursively",
         "serialize_container", "deserialize_container",
+        "register_multivector_as_array_container",
         "with_container_arithmetic",
         "dataclass_array_container",
 

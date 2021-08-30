@@ -355,6 +355,11 @@ class ArrayContext(ABC):
     def permits_inplace_modification(self):
         pass
 
+    # undocumented for now
+    @abstractproperty
+    def supports_nonscalar_broadcasting(self):
+        pass
+
 # }}}
 
 # vim: foldmethod=marker

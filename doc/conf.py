@@ -18,6 +18,7 @@ intersphinx_mapping = {
     "https://docs.python.org/3/": None,
     "https://numpy.org/doc/stable/": None,
     "https://documen.tician.de/pytools": None,
+    "https://documen.tician.de/pymbolic": None,
     "https://documen.tician.de/pyopencl": None,
     "https://documen.tician.de/pytato": None,
     "https://documen.tician.de/loopy": None,
