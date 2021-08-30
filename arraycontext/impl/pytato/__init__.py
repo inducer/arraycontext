@@ -200,3 +200,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     @property
     def permits_inplace_modification(self):
         return False
+
+    @property
+    def supports_nonscalar_broadcasting(self):
+        return True

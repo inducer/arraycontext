@@ -278,6 +278,10 @@ class PyOpenCLArrayContext(ArrayContext):
     def permits_inplace_modification(self):
         return True
 
+    @property
+    def supports_nonscalar_broadcasting(self):
+        return False
+
 # }}}
 
 # vim: foldmethod=marker
