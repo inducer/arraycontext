@@ -30,6 +30,11 @@ Context retrieval
 -----------------
 .. autofunction:: get_container_context
 .. autofunction:: get_container_context_recursively
+
+:class:`~pymbolic.geometric_algebra.MultiVector` support
+---------------------------------------------------------
+
+.. autofunction:: register_multivector_as_array_container
 """
 
 
@@ -59,12 +64,15 @@ THE SOFTWARE.
 
 from functools import singledispatch
 from arraycontext.context import ArrayContext
-from typing import Any, Iterable, Tuple, TypeVar, Optional, Union
+from typing import Any, Iterable, Tuple, TypeVar, Optional, Union, TYPE_CHECKING
 import numpy as np
 
 ArrayT = TypeVar("ArrayT")
 ContainerT = TypeVar("ContainerT")
 ArrayOrContainerT = Union[ArrayT, ContainerT]
+
+if TYPE_CHECKING:
+    from pymbolic.geometric_algebra import MultiVector
 
 
 # {{{ ArrayContainer
@@ -244,6 +252,42 @@ def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
             assert actx is context
 
     return actx
+
+# }}}
+
+
+# {{{ MultiVector support, see pymbolic.geometric_algebra
+
+# FYI: This doesn't, and never should, make arraycontext directly depend on pymbolic.
+# (Though clearly there exists a dependency via loopy.)
+
+def _serialize_multivec_as_container(mv: "MultiVector") -> Iterable[Tuple[Any, Any]]:
+    return list(mv.data.items())
+
+
+def _deserialize_multivec_as_container(template: "MultiVector",
+        iterable: Iterable[Tuple[Any, Any]]) -> "MultiVector":
+    from pymbolic.geometric_algebra import MultiVector
+    return MultiVector(dict(iterable), space=template.space)
+
+
+def _get_container_context_from_multivec(mv: "MultiVector") -> None:
+    return None
+
+
+def register_multivector_as_array_container() -> None:
+    """Registers :class:`~pymbolic.geometric_algebra.MultiVector` as an
+    :class:`ArrayContainer`.  This function may be called multiple times. The
+    second and subsequent calls have no effect.
+    """
+    from pymbolic.geometric_algebra import MultiVector
+    if MultiVector not in serialize_container.registry:
+        serialize_container.register(MultiVector)(_serialize_multivec_as_container)
+        deserialize_container.register(MultiVector)(
+                _deserialize_multivec_as_container)
+        get_container_context.register(MultiVector)(
+                _get_container_context_from_multivec)
+        assert MultiVector in serialize_container.registry
 
 # }}}
 
