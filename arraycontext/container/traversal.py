@@ -303,7 +303,8 @@ def map_reduce_array_container(
     """Perform a map-reduce over array containers.
 
     :param reduce_func: callable used to reduce over the components of *ary*
-        if *ary* is an :class:`~arraycontext.ArrayContainer`.
+        if *ary* is an :class:`~arraycontext.ArrayContainer`. The callable
+        should be associative, as for :func:`rec_map_reduce_array_container`.
     :param map_func: callable used to map a single array of type
         :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
         same type or a scalar.
@@ -323,7 +324,8 @@ def multimap_reduce_array_container(
     r"""Perform a map-reduce over multiple array containers.
 
     :param reduce_func: callable used to reduce over the components of any
-        :class:`~arraycontext.ArrayContainer`\ s in *\*args*.
+        :class:`~arraycontext.ArrayContainer`\ s in *\*args*. The callable
+        should be associative, as for :func:`rec_map_reduce_array_container`.
     :param map_func: callable used to map a single array of type
         :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
         same type or a scalar.
