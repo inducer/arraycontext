@@ -269,6 +269,7 @@ class ArrayContext(ABC):
             options=_DEFAULT_LOOPY_OPTIONS,
             lang_version=MOST_RECENT_LANGUAGE_VERSION,
             tags=tagged,
+            default_offset=lp.auto,
         )
 
     # This lives here rather than in .np because the interface does not
