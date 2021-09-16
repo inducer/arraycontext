@@ -30,7 +30,7 @@ from functools import partial, reduce
 import operator
 
 from arraycontext.fake_numpy import \
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
+        BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import \
         LoopyBasedFakeNumpyNamespace
 from arraycontext.container.traversal import (

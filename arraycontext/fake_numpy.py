@@ -25,8 +25,7 @@ THE SOFTWARE.
 
 import numpy as np
 from arraycontext.container import is_array_container, serialize_container
-from arraycontext.container.traversal import (
-        rec_map_array_container, multimapped_over_array_containers)
+from arraycontext.container.traversal import rec_map_array_container
 from pytools import memoize_in
 
 
@@ -144,7 +143,6 @@ class BaseFakeNumpyNamespace:
 
     _c_to_numpy_arc_functions = {c_name: numpy_name
             for numpy_name, c_name in _numpy_to_c_arc_functions.items()}
-            
     def _new_like(self, ary, alloc_like):
         from numbers import Number
 
