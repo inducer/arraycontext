@@ -69,12 +69,12 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
 # {{{ BaseFakeNumpyNamespace
 
 class BaseFakeNumpyNamespace:
-    def __init__(self, _array_context):
-        self._array_context = _array_context
+    def __init__(self, array_context):
+        self._array_context = array_context
         self.linalg = self._get_fake_numpy_linalg_namespace()
 
     def _get_fake_numpy_linalg_namespace(self):
-        return BaseFakeNumpyLinalgNamespace(self.array_context)
+        return BaseFakeNumpyLinalgNamespace(self._array_context)
 
     _numpy_math_functions = frozenset({
         # https://numpy.org/doc/stable/reference/routines.math.html
