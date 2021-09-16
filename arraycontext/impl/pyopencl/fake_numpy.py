@@ -31,6 +31,8 @@ import operator
 
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
+from arraycontext.loopy import \
+        LoopyBasedFakeNumpyNamespace
 from arraycontext.container.traversal import (
         rec_multimap_array_container, rec_map_array_container,
         rec_map_reduce_array_container,
@@ -45,7 +47,7 @@ except ImportError:
 
 # {{{ fake numpy
 
-class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def _get_fake_numpy_linalg_namespace(self):
         return _PyOpenCLFakeNumpyLinalgNamespace(self._array_context)
 
@@ -57,6 +59,17 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
     # i.e. more like "are you two equal", and not like numpy semantics.
     # These operations provide access to numpy-style comparisons in that
     # case.
+
+    def __getattr__(self, name):
+        print(name)
+        cl_funcs = ["abs", "sin", "cos", "tan", "arcsin", "arccos", "arctan",
+                    "sinh", "cosh", "tanh", "exp", "log", "log10", "isnan",
+                    "sqrt", "exp"]
+        if name in cl_funcs:
+            from functools import partial
+            return partial(rec_map_array_container, getattr(cl, name))
+
+        return super().__getattr__(name)
 
     def equal(self, x, y):
         return rec_multimap_array_container(operator.eq, x, y)
