@@ -31,6 +31,7 @@ import loopy as lp
 from loopy.version import MOST_RECENT_LANGUAGE_VERSION
 from arraycontext.fake_numpy import BaseFakeNumpyNamespace
 from arraycontext.container.traversal import multimapped_over_array_containers
+from pytools import memoize_in
 
 # {{{ loopy
 
@@ -69,6 +70,7 @@ def get_default_entrypoint(t_unit):
             raise TypeError("unable to find default entry point for loopy "
                     "translation unit")
 
+
 def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
     @memoize_in(actx, _get_scalar_func_loopy_program)
     def get(c_name, nargs, naxes):
@@ -100,6 +102,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                 tags=(ElementwiseMapKernelTag(),))
 
     return get(c_name, nargs, naxes)
+
 
 class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
     _numpy_to_c_arc_functions = {

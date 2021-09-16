@@ -143,6 +143,7 @@ class BaseFakeNumpyNamespace:
 
     _c_to_numpy_arc_functions = {c_name: numpy_name
             for numpy_name, c_name in _numpy_to_c_arc_functions.items()}
+
     def _new_like(self, ary, alloc_like):
         from numbers import Number
 
