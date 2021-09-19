@@ -1,6 +1,7 @@
 """
 .. currentmodule:: arraycontext
 
+.. autoclass:: PytestArrayContextFactory
 .. autoclass:: PytestPyOpenCLArrayContextFactory
 
 .. autofunction:: pytest_generate_tests_for_array_contexts
@@ -39,7 +40,11 @@ from arraycontext.context import ArrayContext
 
 # {{{ array context factories
 
-class PytestPyOpenCLArrayContextFactory:
+class PytestArrayContextFactory:
+    pass
+
+
+class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     """
     .. automethod:: __init__
     .. automethod:: __call__
@@ -108,7 +113,9 @@ class _PytestPytatoPyOpenCLArrayContextFactory(
     @property
     def actx_class(self):
         from arraycontext import PytatoPyOpenCLArrayContext
-        return PytatoPyOpenCLArrayContext
+        actx_cls = PytatoPyOpenCLArrayContext
+        actx_cls.transform_loopy_program = lambda s, t_unit: t_unit
+        return actx_cls
 
     def __call__(self):
         # The ostensibly pointless assignment to *ctx* keeps the CL context alive
@@ -126,18 +133,48 @@ class _PytestPytatoPyOpenCLArrayContextFactory(
                     self.device.platform.name.strip()))
 
 
+class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __call__(self):
+        from arraycontext import EagerJAXArrayContext
+        from jax.config import config
+        config.update("jax_enable_x64", True)
+        return EagerJAXArrayContext()
+
+    def __str__(self):
+        return "<EagerJAXArrayContext>"
+
+
+class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __call__(self):
+        from arraycontext import PytatoJAXArrayContext
+        from jax.config import config
+        config.update("jax_enable_x64", True)
+        return PytatoJAXArrayContext()
+
+    def __str__(self):
+        return "<PytatoJAXArrayContext>"
+
+
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
-        Dict[str, Type[PytestPyOpenCLArrayContextFactory]] = {
+        Dict[str, Type[PytestArrayContextFactory]] = {
                 "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
                 "pyopencl-deprecated":
                 _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars,
-                "pytato-pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
+                "pytato:pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
+                "pytato:jax": _PytestPytatoJaxArrayContextFactory,
+                "eagerjax": _PytestEagerJaxArrayContextFactory,
                 }
 
 
 def register_pytest_array_context_factory(
         name: str,
-        factory: Type[PytestPyOpenCLArrayContextFactory]) -> None:
+        factory: Type[PytestArrayContextFactory]) -> None:
     if name in _ARRAY_CONTEXT_FACTORY_REGISTRY:
         raise ValueError(f"factory '{name}' already exists")
 
@@ -149,7 +186,7 @@ def register_pytest_array_context_factory(
 # {{{ pytest integration
 
 def pytest_generate_tests_for_array_contexts(
-        factories: Sequence[Union[str, Type[PytestPyOpenCLArrayContextFactory]]], *,
+        factories: Sequence[Union[str, Type[PytestArrayContextFactory]]], *,
         factory_arg_name: str = "actx_factory",
         ) -> Callable[[Any], None]:
     """Parametrize tests for pytest to use an :class:`~arraycontext.ArrayContext`.

@@ -42,7 +42,9 @@ from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
         )
 from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
-                                 _PytestPytatoPyOpenCLArrayContextFactory)
+                                 _PytestPytatoPyOpenCLArrayContextFactory,
+                                 _PytestEagerJaxArrayContextFactory,
+                                 _PytestPytatoJaxArrayContextFactory)
 
 
 import logging
@@ -89,6 +91,8 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PyOpenCLArrayContextForTestsFactory,
     _PyOpenCLArrayContextWithHostScalarsForTestsFactory,
     _PytatoPyOpenCLArrayContextForTestsFactory,
+    _PytestEagerJaxArrayContextFactory,
+    _PytestPytatoJaxArrayContextFactory,
     ])
 
 
@@ -291,7 +295,6 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ("any", 1, np.float64),
             ("all", 1, np.float64),
             ("arctan", 1, np.float64),
-            ("atan", 1, np.float64),
 
             # float + complex
             ("sin", 1, np.float64),
