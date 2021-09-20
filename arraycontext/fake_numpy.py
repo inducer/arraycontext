@@ -27,6 +27,7 @@ import numpy as np
 from arraycontext.container import is_array_container, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
+from arraycontext.metadata import IsDOFArray
 from pytools import memoize_in
 
 
@@ -51,7 +52,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
         import loopy as lp
         from .loopy import make_loopy_program
         from arraycontext.transform_metadata import ElementwiseMapKernelTag
-        return make_loopy_program(
+        prg = make_loopy_program(
                 [domain_bset],
                 [
                     lp.Assignment(
@@ -61,6 +62,11 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                     ],
                 name="actx_special_%s" % c_name,
                 tags=(ElementwiseMapKernelTag(),))
+        for arg in prg.default_entrypoint.args:
+            if isinstance(arg, lp.ArrayArg):
+                arg.tags = [IsDOFArray()]
+
+        return prg
 
     return get(c_name, nargs, naxes)
 
@@ -152,7 +158,7 @@ class BaseFakeNumpyNamespace:
                     c_name, nargs=len(args), naxes=len(args[0].shape))
             outputs = actx.call_loopy(prg,
                     **{"inp%d" % i: arg for i, arg in enumerate(args)})
-            return outputs["out"]
+            return outputs[1]["out"]
 
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
