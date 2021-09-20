@@ -39,7 +39,8 @@ from .container import (
         ArrayContainer,
         is_array_container, is_array_container_type,
         get_container_context, get_container_context_recursively,
-        serialize_container, deserialize_container)
+        serialize_container, deserialize_container,
+        register_multivector_as_array_container)
 from .container.arithmetic import with_container_arithmetic
 from .container.dataclass import dataclass_array_container
 
@@ -50,6 +51,8 @@ from .container.traversal import (
         rec_multimap_array_container,
         mapped_over_array_containers,
         multimapped_over_array_containers,
+        map_reduce_array_container,
+        multimap_reduce_array_container,
         rec_map_reduce_array_container,
         rec_multimap_reduce_array_container,
         thaw, freeze,
@@ -76,6 +79,7 @@ __all__ = (
         "is_array_container", "is_array_container_type",
         "get_container_context", "get_container_context_recursively",
         "serialize_container", "deserialize_container",
+        "register_multivector_as_array_container",
         "with_container_arithmetic",
         "dataclass_array_container",
 
@@ -83,6 +87,7 @@ __all__ = (
         "rec_map_array_container", "rec_multimap_array_container",
         "mapped_over_array_containers",
         "multimapped_over_array_containers",
+        "map_reduce_array_container", "multimap_reduce_array_container",
         "rec_map_reduce_array_container", "rec_multimap_reduce_array_container",
         "thaw", "freeze",
         "from_numpy", "to_numpy",

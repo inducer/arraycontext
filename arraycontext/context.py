@@ -305,6 +305,7 @@ class ArrayContext(ABC):
             options=_DEFAULT_LOOPY_OPTIONS,
             lang_version=MOST_RECENT_LANGUAGE_VERSION,
             tags=tagged,
+            default_offset=lp.auto,
         )
 
     # This lives here rather than in .np because the interface does not
@@ -389,6 +390,11 @@ class ArrayContext(ABC):
     # undocumented for now
     @abstractproperty
     def permits_inplace_modification(self):
+        pass
+
+    # undocumented for now
+    @abstractproperty
+    def supports_nonscalar_broadcasting(self):
         pass
 
 # }}}
