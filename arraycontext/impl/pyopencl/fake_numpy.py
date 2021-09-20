@@ -105,32 +105,57 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
-    def sum(self, a, dtype=None):
-        result = rec_map_reduce_array_container(
-                sum,
-                partial(cl_array.sum, dtype=dtype, queue=self._array_context.queue),
-                a)
+    def sum(self, a, axis=None, dtype=None):
+
+        if isinstance(axis, int):
+            axis = axis,
+
+        def _rec_sum(ary):
+            if axis not in [None, tuple(range(ary.ndim))]:
+                raise NotImplementedError(f"Sum over '{axis}' axes not supported.")
+
+            return cl_array.sum(ary, dtype=dtype, queue=self._array_context.queue)
+
+        result = rec_map_reduce_array_container(sum, _rec_sum, a)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
         return result
 
-    def min(self, a):
+    def min(self, a, axis=None):
         queue = self._array_context.queue
+
+        if isinstance(axis, int):
+            axis = axis,
+
+        def _rec_min(ary):
+            if axis not in [None, tuple(range(ary.ndim))]:
+                raise NotImplementedError(f"Min. over '{axis}' axes not supported.")
+            return cl_array.min(ary, queue=queue)
+
         result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
-                partial(cl_array.min, queue=queue),
+                _rec_min,
                 a)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
         return result
 
-    def max(self, a):
+    def max(self, a, axis=None):
         queue = self._array_context.queue
+
+        if isinstance(axis, int):
+            axis = axis,
+
+        def _rec_max(ary):
+            if axis not in [None, tuple(range(ary.ndim))]:
+                raise NotImplementedError(f"Max. over '{axis}' axes not supported.")
+            return cl_array.max(ary, queue=queue)
+
         result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
-                partial(cl_array.max, queue=queue),
+                _rec_max,
                 a)
 
         if not self._array_context._force_device_scalars:
