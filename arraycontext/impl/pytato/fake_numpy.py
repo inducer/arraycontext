@@ -85,22 +85,22 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def where(self, criterion, then, else_):
         return rec_multimap_array_container(pt.where, criterion, then, else_)
 
-    def sum(self, a, dtype=None):
+    def sum(self, a, axis=None, dtype=None):
         def _pt_sum(ary):
             if dtype not in [ary.dtype, None]:
                 raise NotImplementedError
 
-            return pt.sum(ary)
+            return pt.sum(ary, axis=axis)
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
 
-    def min(self, a):
+    def min(self, a, axis=None):
         return rec_map_reduce_array_container(
-                partial(reduce, pt.minimum), pt.amin, a)
+                partial(reduce, pt.minimum), partial(pt.amin, axis=axis), a)
 
-    def max(self, a):
+    def max(self, a, axis=None):
         return rec_map_reduce_array_container(
-                partial(reduce, pt.maximum), pt.amax, a)
+                partial(reduce, pt.maximum), partial(pt.amax, axis=axis), a)
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(
