@@ -107,6 +107,9 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 lambda *args: pt.stack(arrays=args, axis=axis),
                 *arrays)
 
+    def broadcast_to(self, array, shape):
+        return rec_map_array_container(partial(pt.broadcast_to, shape=shape), array)
+
     # {{{ relational operators
 
     def equal(self, x, y):
