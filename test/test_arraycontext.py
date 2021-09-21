@@ -547,6 +547,37 @@ def test_any_all_same_as_numpy(actx_factory, sym_name):
     assert_close_to_numpy_in_containers(actx,
                 lambda _np, *_args: getattr(_np, sym_name)(*_args), [1 - ary_all])
 
+
+def test_array_equal_same_as_numpy(actx_factory):
+    actx = actx_factory()
+
+    sym_name = "array_equal"
+    if not hasattr(actx.np, sym_name):
+        pytest.skip(f"'{sym_name}' not implemented on '{type(actx).__name__}'")
+
+    rng = np.random.default_rng()
+    ary = rng.integers(0, 2, 512)
+    ary_copy = ary.copy()
+    ary_diff_values = np.ones(512)
+    ary_diff_shape = np.ones(511)
+    ary_diff_type = DOFArray(actx, (np.ones(512),))
+
+    # Equal
+    assert_close_to_numpy_in_containers(actx,
+        lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary, ary_copy])
+
+    # Different values
+    assert_close_to_numpy_in_containers(actx,
+        lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary, ary_diff_values])
+
+    # Different shapes
+    assert_close_to_numpy_in_containers(actx,
+        lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary, ary_diff_shape])
+
+    # Different types
+    assert not actx.np.array_equal(ary, ary_diff_type)
+
+
 # }}}
 
 

@@ -31,9 +31,13 @@ import operator
 
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
+from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
-        rec_multimap_array_container, rec_map_array_container,
+        rec_map_array_container,
+        rec_multimap_array_container,
+        multimap_reduce_array_container,
         rec_map_reduce_array_container,
+        rec_multimap_reduce_array_container,
         )
 
 try:
@@ -201,7 +205,6 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_array_container(_rec_ravel, a)
 
     def vdot(self, x, y, dtype=None):
-        from arraycontext import rec_multimap_reduce_array_container
         result = rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
@@ -228,6 +231,35 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 lambda subary: subary.all(queue=queue),
                 a)
+
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+        return result
+
+    def array_equal(self, a, b):
+        def as_device_scalar(bool_value):
+            import numpy as np
+            return self._array_context.from_numpy(
+                np.array(int(bool_value), dtype=np.int8))
+
+        # Do recursion separately from device-to-host conversion (below) so that
+        # we don't pass host booleans to cl_array.minimum
+        def rec_equal(x, y):
+            if type(x) != type(y):
+                return as_device_scalar(False)
+            elif not is_array_container(x):
+                if x.shape != y.shape:
+                    return as_device_scalar(False)
+                else:
+                    return (x == y).all()
+            else:
+                queue = self._array_context.queue
+                reduce_func = partial(reduce, partial(cl_array.minimum, queue=queue))
+                map_func = rec_equal
+                return multimap_reduce_array_container(
+                    reduce_func, map_func, x, y)
+
+        result = rec_equal(a, b)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
