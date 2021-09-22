@@ -135,7 +135,7 @@ def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
         for arbitrarily nested structures. The identifiers need to be hashable
         but are otherwise treated as opaque.
     """
-    raise NotImplementedError(type(ary).__name__)
+    raise TypeError(f"'{type(ary).__name__}' cannot be serialized as a container")
 
 
 @singledispatch
@@ -148,7 +148,8 @@ def deserialize_container(template: Any, iterable: Iterable[Tuple[Any, Any]]) ->
     :param iterable: an iterable that mirrors the output of
         :meth:`serialize_container`.
     """
-    raise NotImplementedError(type(template).__name__)
+    raise TypeError(
+            f"'{type(template).__name__}' cannot be deserialized as a container")
 
 
 def is_array_container_type(cls: type) -> bool:
@@ -190,7 +191,7 @@ def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
 def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
     if ary.dtype.char != "O":
         raise ValueError(
-                f"only object arrays are supported, given dtype '{ary.dtype}'")
+                f"cannot seriealize '{type(ary).__name__}' with dtype '{ary.dtype}'")
 
     # special-cased for speed
     if ary.ndim == 1:
