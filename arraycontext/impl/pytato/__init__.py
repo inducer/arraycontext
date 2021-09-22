@@ -45,6 +45,7 @@ from arraycontext.context import ArrayContext
 import numpy as np
 from typing import Any, Callable, Union, Sequence, TYPE_CHECKING
 from pytools.tag import Tag
+from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
 
 if TYPE_CHECKING:
     import pytato
@@ -121,7 +122,6 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     def freeze(self, array):
         import pytato as pt
         import pyopencl.array as cla
-        import loopy as lp
 
         if isinstance(array, cla.Array):
             return array.with_queue(None)
@@ -150,8 +150,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
             pt_prg = self._freeze_prg_cache[normalized_expr]
         except KeyError:
             pt_prg = pt.generate_loopy(self.transform_dag(normalized_expr),
-                                       options=lp.Options(return_dict=True,
-                                                          no_numpy=True),
+                                       options=_DEFAULT_LOOPY_OPTIONS,
                                        cl_device=self.queue.device)
             pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
             self._freeze_prg_cache[normalized_expr] = pt_prg

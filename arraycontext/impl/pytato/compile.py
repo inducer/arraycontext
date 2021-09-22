@@ -31,6 +31,7 @@ from arraycontext.container import ArrayContainer
 from arraycontext import PytatoPyOpenCLArrayContext
 from arraycontext.container.traversal import (rec_keyed_map_array_container,
                                               is_array_container)
+from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
 
 import numpy as np
 from typing import Any, Callable, Tuple, Dict, Mapping
@@ -225,15 +226,11 @@ class LazilyCompilingFunctionCaller:
         rec_keyed_map_array_container(_as_dict_of_named_arrays,
                                       outputs)
 
-        import loopy as lp
-
         pt_dict_of_named_arrays = self.actx.transform_dag(
             pt.make_dict_of_named_arrays(dict_of_named_arrays))
 
         pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
-                                           options=lp.Options(
-                                               return_dict=True,
-                                               no_numpy=True),
+                                           options=_DEFAULT_LOOPY_OPTIONS,
                                            cl_device=self.actx.queue.device)
         assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
