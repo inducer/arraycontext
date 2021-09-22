@@ -180,7 +180,7 @@ def map_array_container(
     """
     try:
         iterable = serialize_container(ary)
-    except NotImplementedError:
+    except TypeError:
         return f(ary)
     else:
         return deserialize_container(ary, [
@@ -265,7 +265,7 @@ def keyed_map_array_container(f: Callable[[Any, Any], Any],
     """
     try:
         iterable = serialize_container(ary)
-    except NotImplementedError:
+    except TypeError:
         raise ValueError(
                 f"Non-array container type has no key: {type(ary).__name__}")
     else:
@@ -287,7 +287,7 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
             _ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
-        except NotImplementedError:
+        except TypeError:
             return f(keys, _ary)
         else:
             return deserialize_container(_ary, [
@@ -316,7 +316,7 @@ def map_reduce_array_container(
     """
     try:
         iterable = serialize_container(ary)
-    except NotImplementedError:
+    except TypeError:
         return map_func(ary)
     else:
         return reduce_func([
@@ -391,7 +391,7 @@ def rec_map_reduce_array_container(
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
-        except NotImplementedError:
+        except TypeError:
             return map_func(_ary)
         else:
             return reduce_func([
@@ -483,7 +483,7 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
     """
     try:
         iterable = serialize_container(ary)
-    except NotImplementedError:
+    except TypeError:
         return actx.thaw(ary)
     else:
         return deserialize_container(ary, [
