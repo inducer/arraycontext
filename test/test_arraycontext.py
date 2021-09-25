@@ -882,12 +882,15 @@ def test_container_norm(actx_factory, ord):
 def test_numpy_conversion(actx_factory):
     actx = actx_factory()
 
+    nelements = 42
     ac = MyContainer(
             name="test_numpy_conversion",
-            mass=np.random.rand(42),
-            momentum=make_obj_array([np.random.rand(42) for _ in range(3)]),
-            enthalpy=np.random.rand(42),
+            mass=np.random.rand(nelements, nelements),
+            momentum=make_obj_array([np.random.rand(nelements) for _ in range(3)]),
+            enthalpy=np.array(np.random.rand()),
             )
+
+    # {{{ to/from_numpy
 
     from arraycontext import from_numpy, to_numpy
     ac_actx = from_numpy(ac, actx)
@@ -906,6 +909,33 @@ def test_numpy_conversion(actx_factory):
 
     with pytest.raises(ValueError):
         to_numpy(ac, actx)
+
+    # }}}
+
+    # {{{ un/flatten
+
+    from arraycontext import flatten_to_numpy, unflatten_from_numpy
+    ac_flat = flatten_to_numpy(ac_actx, actx)
+    assert ac_flat.shape == (nelements**2 + 3 * nelements + 1,)
+
+    ac_roundtrip = unflatten_from_numpy(ac_actx, ac_flat, actx)
+    for name in ("mass", "momentum", "enthalpy"):
+        field = getattr(ac_actx, name)
+        field_roundtrip = getattr(ac_roundtrip, name)
+
+        assert field.dtype == field_roundtrip.dtype
+        assert field.shape == field_roundtrip.shape
+        assert np.linalg.norm(
+                np.linalg.norm(to_numpy(field - field_roundtrip, actx))
+                ) < 1.0e-15
+
+    with pytest.raises(ValueError):
+        unflatten_from_numpy(ac_actx, ac_flat[:-12], actx)
+
+    with pytest.raises(ValueError):
+        unflatten_from_numpy(ac_actx, ac_flat.reshape(2, -1), actx)
+
+    # }}}
 
 # }}}
 

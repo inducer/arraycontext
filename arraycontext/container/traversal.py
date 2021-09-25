@@ -27,6 +27,8 @@ Numpy conversion
 ~~~~~~~~~~~~~~~~
 .. autofunction:: from_numpy
 .. autofunction:: to_numpy
+.. autofunction:: flatten_to_numpy
+.. autofunction:: unflatten_from_numpy
 """
 
 __copyright__ = """
@@ -519,6 +521,71 @@ def to_numpy(ary: Any, actx: ArrayContext) -> Any:
     The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
     """
     return rec_map_array_container(actx.to_numpy, ary)
+
+
+def flatten_to_numpy(ary: ArrayOrContainerT, actx: ArrayContext) -> np.ndarray:
+    """Convert all arrays in the :class:`~arraycontext.ArrayContainer`
+    to host :mod:`numpy` arrays, flatten them using :func:`~numpy.ravel`
+    and concatenate them into a single :class:`~numpy.ndarray`.
+
+    The order in which the individual leaf arrays appear in the final array is
+    dependent on the order given by :func:`~arraycontext.serialize_container`.
+    """
+    def _flatten_to_numpy(subary: ArrayOrContainerT) -> None:
+        try:
+            iterable = serialize_container(subary)
+        except TypeError:
+            result.append(actx.to_numpy(subary).ravel())
+        else:
+            for _, isubary in iterable:
+                _flatten_to_numpy(isubary)
+
+    result: List[np.ndarray] = []
+    _flatten_to_numpy(ary)
+
+    return np.concatenate(result)
+
+
+def unflatten_from_numpy(
+        template: ArrayOrContainerT, ary: np.ndarray,
+        actx: ArrayContext) -> ArrayOrContainerT:
+    """Unflatten an :class:`~numpy.ndarray` produced by :func:`flatten_to_numpy`
+    back into an :class:`~arraycontext.ArrayContainer`.
+
+    The order and sizes of each slice into *ary* are determined by the
+    array container *template*.
+    """
+    # NOTE: https://github.com/python/mypy/issues/7057
+    offset = 0
+
+    def _unflatten_from_numpy(subary: ArrayOrContainerT) -> ArrayOrContainerT:
+        nonlocal offset
+
+        try:
+            iterable = serialize_container(subary)
+        except TypeError:
+            # NOTE: the max is needed to handle device scalars with size == 0
+            offset += max(1, subary.size)
+            if offset > ary.size:
+                raise ValueError("'template' and 'ary' sizes do not match")
+
+            # FIXME: subary can be F-contiguous and ary will always be C-contiguous
+            return actx.from_numpy(
+                    ary[offset - subary.size:offset]
+                    .astype(subary.dtype, copy=False)
+                    .reshape(subary.shape)
+                    )
+        else:
+            return deserialize_container(subary, [
+                (key, _unflatten_from_numpy(isubary)) for key, isubary in iterable
+                ])
+
+    if ary.ndim != 1:
+        raise ValueError(
+                "only one dimensional arrays can be unflattened: "
+                f"'ary' has shape {ary.shape}")
+
+    return _unflatten_from_numpy(template)
 
 # }}}
 
