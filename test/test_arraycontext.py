@@ -45,6 +45,8 @@ from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
                                  _PytestPytatoPyOpenCLArrayContextFactory,
                                  _PytestEagerJaxArrayContextFactory,
                                  _PytestPytatoJaxArrayContextFactory)
+                                 _PytestPytatoPyOpenCLArrayContextFactory,
+                                 _PytestNumpyArrayContextFactory)
 
 
 import logging
@@ -93,6 +95,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestNumpyArrayContextFactory,
     ])
 
 

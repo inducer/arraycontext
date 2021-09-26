@@ -35,6 +35,7 @@ THE SOFTWARE.
 from typing import Any, Callable, Dict, Sequence, Type, Union
 
 from arraycontext.context import ArrayContext
+from arraycontext import NumpyArrayContext
 
 
 # {{{ array context factories
@@ -195,6 +196,26 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
         return "<PytatoJAXArrayContext>"
 
 
+# {{{ _PytestArrayContextFactory
+
+class _NumpyArrayContextForTests(NumpyArrayContext):
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
+class _PytestNumpyArrayContextFactory(PytestArrayContextFactory):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def __call__(self):
+        return _NumpyArrayContextForTests()
+
+    def __str__(self):
+        return "<NumpyArrayContext>"
+
+# }}}
+
+
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
         Dict[str, Type[PytestArrayContextFactory]] = {
                 "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
@@ -203,6 +224,7 @@ _ARRAY_CONTEXT_FACTORY_REGISTRY: \
                 "pytato:pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
                 "pytato:jax": _PytestPytatoJaxArrayContextFactory,
                 "eagerjax": _PytestEagerJaxArrayContextFactory,
+                "numpy": _PytestNumpyArrayContextFactory,
                 }
 
 
