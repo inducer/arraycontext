@@ -218,7 +218,11 @@ def is_array_container(ary: Any) -> bool:
             "cheaper option, see is_array_container_type.",
             DeprecationWarning, stacklevel=2)
     return (serialize_container.dispatch(ary.__class__)
-            is not serialize_container.__wrapped__)       # type:ignore[attr-defined]
+            is not serialize_container.__wrapped__       # type:ignore[attr-defined]
+            # numpy values with scalar elements aren't array containers
+            and not (isinstance(ary, np.ndarray)
+                     and ary.dtype.kind != "O")
+            )
 
 
 @singledispatch
