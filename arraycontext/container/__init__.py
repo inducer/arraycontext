@@ -168,8 +168,12 @@ def is_array_container(ary: Any) -> bool:
     :returns: *True* if the instance *ary* has a registered implementation of
         :func:`serialize_container`.
     """
-    return (serialize_container.dispatch(ary.__class__)
-            is not serialize_container.__wrapped__)       # type:ignore[attr-defined]
+    return ((serialize_container.dispatch(ary.__class__)
+             is not serialize_container.__wrapped__)
+            # numpy values with scalar elements aren't array containers
+            and not (isinstance(ary, np.ndarray)
+                     and ary.dtype.kind != "O")
+            )       # type:ignore[attr-defined]
 
 
 @singledispatch
@@ -190,7 +194,7 @@ def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
 @serialize_container.register(np.ndarray)
 def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
     if ary.dtype.char != "O":
-        raise ValueError(
+        raise TypeError(
                 f"cannot seriealize '{type(ary).__name__}' with dtype '{ary.dtype}'")
 
     # special-cased for speed
