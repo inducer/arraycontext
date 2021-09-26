@@ -78,6 +78,7 @@ from .context import (
     tag_axes,
 )
 from .impl.jax import EagerJAXArrayContext
+from .impl.numpy import NumpyArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
 from .loopy import make_loopy_program
@@ -92,7 +93,6 @@ from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 
 __all__ = (
     "Array",
-    "Array",
     "ArrayContainer",
     "ArrayContainerT",
     "ArrayContext",
@@ -105,12 +105,12 @@ __all__ = (
     "EagerJAXArrayContext",
     "ElementwiseMapKernelTag",
     "NotAnArrayContainerError",
+    "NumpyArrayContext",
     "PyOpenCLArrayContext",
     "PytatoJAXArrayContext",
     "PytatoPyOpenCLArrayContext",
     "PytestArrayContextFactory",
     "PytestPyOpenCLArrayContextFactory",
-    "Scalar",
     "Scalar",
     "ScalarLike",
     "dataclass_array_container",
@@ -146,8 +146,9 @@ __all__ = (
     "to_numpy",
     "unflatten",
     "with_array_context",
+    "with_container_arithmetic",
     "with_container_arithmetic"
-)
+    )
 
 
 # {{{ deprecation handling

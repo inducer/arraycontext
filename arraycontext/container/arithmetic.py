@@ -33,7 +33,6 @@ THE SOFTWARE.
 """
 
 from typing import Any, Callable, Optional, Tuple, Type, TypeVar, Union
-from warnings import warn
 
 import numpy as np
 

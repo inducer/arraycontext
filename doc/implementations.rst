@@ -8,6 +8,11 @@ Implementations of the Array Context Abstraction
     ```
     to update the coverage table below!
 
+Array context based on :mod:`numpy`
+--------------------------------------------
+
+.. automodule:: arraycontext.impl.numpy
+
 Array context based on :mod:`pyopencl.array`
 --------------------------------------------
 
