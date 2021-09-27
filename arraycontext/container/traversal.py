@@ -23,6 +23,11 @@ Freezing and thawing
 .. autofunction:: freeze
 .. autofunction:: thaw
 
+Flattening and unflattening
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: flatten
+.. autofunction:: unflatten
+
 Numpy conversion
 ~~~~~~~~~~~~~~~~
 .. autofunction:: from_numpy
@@ -64,6 +69,7 @@ from arraycontext.context import ArrayContext
 from arraycontext.container import (
         ContainerT, ArrayOrContainerT, is_array_container,
         serialize_container, deserialize_container)
+from pytools import memoize_in
 
 
 # {{{ array container traversal helpers
@@ -491,6 +497,97 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
         return deserialize_container(ary, [
             (key, thaw(subary, actx)) for key, subary in iterable
             ])
+
+# }}}
+
+
+# {{{ flatten / unflatten
+
+def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
+    """Convert all arrays in the :class:`~arraycontext.ArrayContainer`
+    into single flat array of a type :attr:`arraycontext.ArrayContext.array_types`.
+
+    The operation requires :attr:`arraycontext.ArrayContext.np` to have
+    ``ravel`` and ``concatenate`` methods implemented. The order in which the
+    individual leaf arrays appear in the final array is dependent on the order
+    given by :func:`~arraycontext.serialize_container`.
+    """
+    @memoize_in(actx, (flatten, "ravel_prg"))
+    def _ravel_prg(shape: Tuple[int, ...]) -> Any:
+        raise NotImplementedError
+
+    def _flatten(subary: ArrayOrContainerT) -> None:
+        try:
+            iterable = serialize_container(subary)
+        except TypeError:
+            try:
+                flat_subary = actx.np.ravel(subary, order="A")
+            except ValueError:
+                flat_subary = actx.call_loopy(
+                        _ravel_prg(subary.shape), ary=subary)
+
+            result.append(flat_subary)
+        else:
+            for _, isubary in iterable:
+                _flatten(isubary)
+
+    result: List[Any] = []
+    _flatten(ary)
+
+    return actx.np.concatenate(result)
+
+
+def unflatten(
+        template: ArrayOrContainerT, ary: Any,
+        actx: ArrayContext) -> ArrayOrContainerT:
+    """Unflatten an array produced by :func:`flatten` back into an
+    :class:`~arraycontext.ArrayContainer`.
+
+    The order and sizes of each slice into *ary* are determined by the
+    array container *template*.
+    """
+    # NOTE: https://github.com/python/mypy/issues/7057
+    offset = 0
+
+    @memoize_in(actx, (unflatten, "reshape_prg"))
+    def _reshape_prg(shape: Tuple[int, ...]) -> Any:
+        raise NotImplementedError
+
+    def _unflatten(template_subary: ArrayOrContainerT) -> ArrayOrContainerT:
+        nonlocal offset
+
+        try:
+            iterable = serialize_container(template_subary)
+        except TypeError:
+            # NOTE: the max is needed to handle device scalars with size == 0
+            offset += max(1, template_subary.size)
+            if offset > ary.size:
+                raise ValueError("'template' and 'ary' sizes do not match")
+
+            flat_subary = ary[offset - template_subary.size:offset]
+            try:
+                subary = actx.np.reshape(flat_subary, template_subary.shape)
+            except ValueError:
+                subary = actx.call_loopy(
+                        _reshape_prg(template_subary.shape), ary=flat_subary)
+
+            return actx.np.astype(subary, template_subary.dtype)
+        else:
+            return deserialize_container(template_subary, [
+                (key, _unflatten(isubary)) for key, isubary in iterable
+                ])
+
+    if not isinstance(ary, actx.array_types):
+        raise TypeError("'ary' does not have a type supported by the provided "
+                f"array context: got '{type(ary).__name__}', expected one of "
+                f"{actx.array_types}")
+
+    if ary.ndim != 1:
+        raise ValueError(
+                "only one dimensional arrays can be unflattened: "
+                f"'ary' has shape {ary.shape}")
+
+    return _unflatten(template)
 
 # }}}
 

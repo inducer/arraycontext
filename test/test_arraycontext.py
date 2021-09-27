@@ -159,7 +159,7 @@ class DOFArray:
 
 @serialize_container.register(DOFArray)
 def _serialize_dof_container(ary: DOFArray):
-    return enumerate(ary.data)
+    return list(enumerate(ary.data))
 
 
 @deserialize_container.register(DOFArray)
@@ -873,6 +873,27 @@ def test_container_norm(actx_factory, ord):
     n2 = np.linalg.norm([1, 2, 3, 5]*2, ord)
 
     assert abs(n1 - n2) < 1e-12
+
+# }}}
+
+
+# {{{ test flatten and unflatten
+
+def test_flatten_array_container(actx_factory):
+    actx = actx_factory()
+    if not hasattr(actx.np, "astype"):
+        pytest.skip(f"'astype' not implemented on '{type(actx).__name__}'")
+
+    from arraycontext import flatten, unflatten
+    arys = _get_test_containers(actx, size=512)
+    for ary in arys:
+        flat = flatten(ary, actx)
+        assert flat.ndim == 1
+
+        ary_roundtrip = unflatten(ary, flat, actx)
+        assert actx.to_numpy(
+                actx.np.linalg.norm(ary - ary_roundtrip)
+                ) < 1.0e-15
 
 # }}}
 

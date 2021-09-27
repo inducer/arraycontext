@@ -58,6 +58,7 @@ from .container.traversal import (
         rec_map_reduce_array_container,
         rec_multimap_reduce_array_container,
         thaw, freeze,
+        flatten, unflatten,
         from_numpy, to_numpy,
         flatten_to_numpy, unflatten_from_numpy)
 
@@ -93,6 +94,7 @@ __all__ = (
         "map_reduce_array_container", "multimap_reduce_array_container",
         "rec_map_reduce_array_container", "rec_multimap_reduce_array_container",
         "thaw", "freeze",
+        "flatten", "unflatten",
         "from_numpy", "to_numpy",
         "flatten_to_numpy", "unflatten_from_numpy",
 
