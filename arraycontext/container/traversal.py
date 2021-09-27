@@ -582,6 +582,12 @@ def unflatten(
                         "functionality that is not implemented in the array "
                         f"context '{type(actx).__name__}'") from exc
 
+            if hasattr(template_subary, "strides"):
+                if template_subary.strides != subary.strides:
+                    raise ValueError(
+                            f"strides do not match template: got {subary.strides}, "
+                            f"expected {template_subary.strides}")
+
             return subary
         else:
             return deserialize_container(template_subary, [
