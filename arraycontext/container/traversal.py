@@ -67,7 +67,6 @@ from arraycontext.context import ArrayContext
 from arraycontext.container import (
         ContainerT, ArrayOrContainerT, is_array_container,
         serialize_container, deserialize_container)
-from pytools import memoize_in
 
 
 # {{{ array container traversal helpers
