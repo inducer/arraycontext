@@ -994,7 +994,11 @@ def test_flatten_array_container_failure(actx_factory):
 # {{{ test from_numpy and to_numpy
 
 def test_numpy_conversion(actx_factory):
+    from arraycontext import NumpyArrayContext
+
     actx = actx_factory()
+    if isinstance(actx, NumpyArrayContext):
+        pytest.skip("Irrelevant tests  for NumpyArrayContext")
 
     nelements = 42
     ac = MyContainer(
@@ -1166,6 +1170,8 @@ def test_container_equality(actx_factory):
 @dataclass(frozen=True)
 class Foo:
     u: DOFArray
+
+    __array_priority__ = 1  # disallow numpy arithmetic to take precedence
 
     @property
     def array_context(self):
