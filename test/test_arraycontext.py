@@ -1360,6 +1360,8 @@ def test_container_equality(actx_factory):
 class Foo:
     u: DOFArray
 
+    __array_priority__ = 1  # disallow numpy arithmetic to take precedence
+
     @property
     def array_context(self):
         return self.u.array_context
