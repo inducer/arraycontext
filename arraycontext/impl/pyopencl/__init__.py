@@ -164,6 +164,9 @@ class PyOpenCLArrayContext(ArrayContext):
         if np.isscalar(array):
             return array
 
+        if not isinstance(array, self.array_types):
+            raise TypeError(f"to_numpy called on {type(array)}.")
+
         return array.get(queue=self.queue)
 
     def call_loopy(self, t_unit, **kwargs):
