@@ -526,7 +526,7 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
                         f"got {subary.dtype}, expected {common_dtype}")
 
             try:
-                flat_subary = actx.np.ravel(subary, order="A")
+                flat_subary = actx.np.ravel(subary, order="C")
             except ValueError as exc:
                 # NOTE: we can't do much if the array context fails to ravel,
                 # since it is the one responsible for the actual memory layout
@@ -580,7 +580,8 @@ def unflatten(
 
             flat_subary = ary[offset - template_subary.size:offset]
             try:
-                subary = actx.np.reshape(flat_subary, template_subary.shape)
+                subary = actx.np.reshape(flat_subary,
+                        template_subary.shape, order="C")
             except ValueError as exc:
                 # NOTE: we can't do much if the array context fails to reshape,
                 # since it is the one responsible for the actual memory layout

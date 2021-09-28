@@ -64,8 +64,9 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return super().__getattr__(name)
 
-    def reshape(self, a, newshape):
-        return rec_multimap_array_container(pt.reshape, a, newshape)
+    def reshape(self, a, newshape, order="C"):
+        return rec_multimap_array_container(
+                partial(pt.reshape, order=order), a, newshape)
 
     def transpose(self, a, axes=None):
         return rec_multimap_array_container(pt.transpose, a, axes)

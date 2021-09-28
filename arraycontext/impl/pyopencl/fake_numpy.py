@@ -172,8 +172,10 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
                     queue=self._array_context.queue),
                 *arrays)
 
-    def reshape(self, a, newshape):
-        return cl_array.reshape(a, newshape)
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: ary.reshape(newshape, order=order),
+                a)
 
     def concatenate(self, arrays, axis=0):
         return cl_array.concatenate(
