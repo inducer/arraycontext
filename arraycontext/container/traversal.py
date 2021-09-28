@@ -530,9 +530,16 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
             except ValueError as exc:
                 # NOTE: we can't do much if the array context fails to ravel,
                 # since it is the one responsible for the actual memory layout
-                raise NotImplementedError("'flatten' requires advanced reshaping "
-                        "functionality that is not implemented in the array "
-                        f"context '{type(actx).__name__}'") from exc
+                if hasattr(subary, "strides"):
+                    strides_msg = f"and strides {subary.strides}"
+                else:
+                    strides_msg = ""
+
+                raise NotImplementedError(
+                        f"'{type(actx).__name__}.np.ravel' failed to reshape "
+                        f"an array with shape {subary.shape}{strides_msg}. "
+                        "This functionality needs to be implemented by the "
+                        "array context.") from exc
 
             result.append(flat_subary)
         else:
@@ -577,9 +584,11 @@ def unflatten(
             except ValueError as exc:
                 # NOTE: we can't do much if the array context fails to reshape,
                 # since it is the one responsible for the actual memory layout
-                raise NotImplementedError("'unflatten' requires advanced reshaping "
-                        "functionality that is not implemented in the array "
-                        f"context '{type(actx).__name__}'") from exc
+                raise NotImplementedError(
+                        f"'{type(actx).__name__}.np.reshape' failed to reshape "
+                        f"the flat array into shape {template_subary.shape}. "
+                        "This functionality needs to be implemented by the "
+                        "array context.") from exc
 
             if hasattr(template_subary, "strides"):
                 if template_subary.strides != subary.strides:
