@@ -8,6 +8,8 @@
 .. autofunction:: rec_map_array_container
 .. autofunction:: rec_multimap_array_container
 
+.. autofunction:: map_reduce_array_container
+.. autofunction:: multimap_reduce_array_container
 .. autofunction:: rec_map_reduce_array_container
 .. autofunction:: rec_multimap_reduce_array_container
 
@@ -293,6 +295,50 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
 
 
 # {{{ array container reductions
+
+def map_reduce_array_container(
+        reduce_func: Callable[[Iterable[Any]], Any],
+        map_func: Callable[[Any], Any],
+        ary: ArrayOrContainerT) -> Any:
+    """Perform a map-reduce over array containers.
+
+    :param reduce_func: callable used to reduce over the components of *ary*
+        if *ary* is an :class:`~arraycontext.ArrayContainer`. The callable
+        should be associative, as for :func:`rec_map_reduce_array_container`.
+    :param map_func: callable used to map a single array of type
+        :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
+        same type or a scalar.
+    """
+    if is_array_container(ary):
+        return reduce_func([
+            map_func(subary) for _, subary in serialize_container(ary)
+            ])
+    else:
+        return map_func(ary)
+
+
+def multimap_reduce_array_container(
+        reduce_func: Callable[[Iterable[Any]], Any],
+        map_func: Callable[..., Any],
+        *args: Any) -> Any:
+    r"""Perform a map-reduce over multiple array containers.
+
+    :param reduce_func: callable used to reduce over the components of any
+        :class:`~arraycontext.ArrayContainer`\ s in *\*args*. The callable
+        should be associative, as for :func:`rec_map_reduce_array_container`.
+    :param map_func: callable used to map a single array of type
+        :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
+        same type or a scalar.
+    """
+    # NOTE: this wrapper matches the signature of `deserialize_container`
+    # to make plugging into `_multimap_array_container_impl` easier
+    def _reduce_wrapper(ary: ContainerT, iterable: Iterable[Tuple[Any, Any]]) -> Any:
+        return reduce_func([subary for _, subary in iterable])
+
+    return _multimap_array_container_impl(
+        map_func, *args,
+        reduce_func=_reduce_wrapper, leaf_cls=None, recursive=False)
+
 
 def rec_map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
