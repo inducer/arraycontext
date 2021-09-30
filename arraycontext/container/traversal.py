@@ -531,7 +531,7 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
                 # NOTE: we can't do much if the array context fails to ravel,
                 # since it is the one responsible for the actual memory layout
                 if hasattr(subary, "strides"):
-                    strides_msg = f"and strides {subary.strides}"
+                    strides_msg = f" and strides {subary.strides}"
                 else:
                     strides_msg = ""
 
