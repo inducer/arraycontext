@@ -892,13 +892,20 @@ def test_container_norm(actx_factory, ord):
 
 # {{{ test flatten and unflatten
 
-def test_flatten_array_container(actx_factory):
+@pytest.mark.parametrize("shapes", [
+    0,                          # tests device scalars when flattening
+    512,
+    [(128, 67)],
+    [(127, 67), (18, 0)],       # tests 0-sized arrays
+    [(64, 7), (154, 12)]
+    ])
+def test_flatten_array_container(actx_factory, shapes):
     actx = actx_factory()
+    if np.prod(shapes) == 0 and isinstance(actx, PytatoPyOpenCLArrayContext):
+        pytest.skip("operation not supported on PytatoPyOpenCLArrayContext")
 
     from arraycontext import flatten, unflatten
-    arys = _get_test_containers(actx, shapes=512) \
-            + _get_test_containers(actx, shapes=(128, 67)) \
-            + _get_test_containers(actx, shapes=[(64, 7), (154, 12)])
+    arys = _get_test_containers(actx, shapes=shapes)
 
     for ary in arys:
         flat = flatten(ary, actx)
@@ -908,6 +915,12 @@ def test_flatten_array_container(actx_factory):
         assert actx.to_numpy(
                 actx.np.linalg.norm(ary - ary_roundtrip)
                 ) < 1.0e-15
+
+        from arraycontext import rec_multimap_reduce_array_container
+        assert rec_multimap_reduce_array_container(
+                np.prod,
+                lambda x, y: x.shape == y.shape,
+                ary, ary_roundtrip)
 
 # }}}
 

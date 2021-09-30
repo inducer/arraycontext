@@ -569,8 +569,7 @@ def unflatten(
         try:
             iterable = serialize_container(template_subary)
         except TypeError:
-            # NOTE: the max is needed to handle device scalars with size == 0
-            offset += max(1, template_subary.size)
+            offset += template_subary.size
             if offset > ary.size:
                 raise ValueError("'template' and 'ary' sizes do not match")
 
@@ -592,7 +591,8 @@ def unflatten(
                         "array context.") from exc
 
             if hasattr(template_subary, "strides"):
-                if template_subary.strides != subary.strides:
+                if template_subary.size != 0 \
+                        and template_subary.strides != subary.strides:
                     raise ValueError(
                             f"strides do not match template: got {subary.strides}, "
                             f"expected {template_subary.strides}")
