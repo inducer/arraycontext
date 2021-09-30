@@ -29,8 +29,7 @@ THE SOFTWARE.
 from functools import partial, reduce
 import operator
 
-from arraycontext.fake_numpy import \
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
+from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
@@ -39,6 +38,7 @@ from arraycontext.container.traversal import (
         rec_map_reduce_array_container,
         rec_multimap_reduce_array_container,
         )
+from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 try:
     import pyopencl as cl  # noqa: F401
@@ -49,7 +49,7 @@ except ImportError:
 
 # {{{ fake numpy
 
-class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def _get_fake_numpy_linalg_namespace(self):
         return _PyOpenCLFakeNumpyLinalgNamespace(self._array_context)
 

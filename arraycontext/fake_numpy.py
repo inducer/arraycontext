@@ -25,8 +25,7 @@ THE SOFTWARE.
 
 import numpy as np
 from arraycontext.container import is_array_container, serialize_container
-from arraycontext.container.traversal import (
-        rec_map_array_container, multimapped_over_array_containers)
+from arraycontext.container.traversal import rec_map_array_container
 from pytools import memoize_in
 
 
@@ -75,7 +74,7 @@ class BaseFakeNumpyNamespace:
         self.linalg = self._get_fake_numpy_linalg_namespace()
 
     def _get_fake_numpy_linalg_namespace(self):
-        return BaseFakeNumpyLinalgNamespace(self.array_context)
+        return BaseFakeNumpyLinalgNamespace(self._array_context)
 
     _numpy_math_functions = frozenset({
         # https://numpy.org/doc/stable/reference/routines.math.html
@@ -128,47 +127,7 @@ class BaseFakeNumpyNamespace:
 
         # FIXME:
         # "interp",
-
         })
-
-    _numpy_to_c_arc_functions = {
-            "arcsin": "asin",
-            "arccos": "acos",
-            "arctan": "atan",
-            "arctan2": "atan2",
-
-            "arcsinh": "asinh",
-            "arccosh": "acosh",
-            "arctanh": "atanh",
-            }
-
-    _c_to_numpy_arc_functions = {c_name: numpy_name
-            for numpy_name, c_name in _numpy_to_c_arc_functions.items()}
-
-    def __getattr__(self, name):
-        def loopy_implemented_elwise_func(*args):
-            actx = self._array_context
-            prg = _get_scalar_func_loopy_program(actx,
-                    c_name, nargs=len(args), naxes=len(args[0].shape))
-            outputs = actx.call_loopy(prg,
-                    **{"inp%d" % i: arg for i, arg in enumerate(args)})
-            return outputs["out"]
-
-        if name in self._c_to_numpy_arc_functions:
-            from warnings import warn
-            warn(f"'{name}' in ArrayContext.np is deprecated. "
-                    "Use '{c_to_numpy_arc_functions[name]}' as in numpy. "
-                    "The old name will stop working in 2021.",
-                    DeprecationWarning, stacklevel=3)
-
-        # normalize to C names anyway
-        c_name = self._numpy_to_c_arc_functions.get(name, name)
-
-        # limit which functions we try to hand off to loopy
-        if name in self._numpy_math_functions:
-            return multimapped_over_array_containers(loopy_implemented_elwise_func)
-        else:
-            raise AttributeError(name)
 
     def _new_like(self, ary, alloc_like):
         from numbers import Number

@@ -23,9 +23,7 @@ THE SOFTWARE.
 """
 from functools import partial, reduce
 
-from arraycontext.fake_numpy import (
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
-        )
+from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
@@ -33,6 +31,7 @@ from arraycontext.container.traversal import (
         multimap_reduce_array_container,
         rec_map_reduce_array_container,
         )
+from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 import pytato as pt
 
 
@@ -41,7 +40,7 @@ class PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     pass
 
 
-class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     """
     A :mod:`numpy` mimic for :class:`PytatoPyOpenCLArrayContext`.
 
