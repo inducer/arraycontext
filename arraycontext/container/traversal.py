@@ -590,8 +590,7 @@ def unflatten(
                         "array context.") from exc
 
             if hasattr(template_subary, "strides"):
-                if template_subary.size != 0 \
-                        and template_subary.strides != subary.strides:
+                if template_subary.strides != subary.strides:
                     raise ValueError(
                             f"strides do not match template: got {subary.strides}, "
                             f"expected {template_subary.strides}")

@@ -900,9 +900,11 @@ def test_container_norm(actx_factory, ord):
     [(64, 7), (154, 12)]
     ])
 def test_flatten_array_container(actx_factory, shapes):
+    if np.prod(shapes) == 0:
+        # https://github.com/inducer/compyte/pull/36
+        pytest.xfail("strides do not match in subary")
+
     actx = actx_factory()
-    if np.prod(shapes) == 0 and isinstance(actx, PytatoPyOpenCLArrayContext):
-        pytest.skip("operation not supported on PytatoPyOpenCLArrayContext")
 
     from arraycontext import flatten, unflatten
     arys = _get_test_containers(actx, shapes=shapes)
@@ -912,15 +914,16 @@ def test_flatten_array_container(actx_factory, shapes):
         assert flat.ndim == 1
 
         ary_roundtrip = unflatten(ary, flat, actx)
-        assert actx.to_numpy(
-                actx.np.linalg.norm(ary - ary_roundtrip)
-                ) < 1.0e-15
 
         from arraycontext import rec_multimap_reduce_array_container
         assert rec_multimap_reduce_array_container(
                 np.prod,
                 lambda x, y: x.shape == y.shape,
                 ary, ary_roundtrip)
+
+        assert actx.to_numpy(
+                actx.np.linalg.norm(ary - ary_roundtrip)
+                ) < 1.0e-15
 
 
 def test_flatten_array_container_failure(actx_factory):
