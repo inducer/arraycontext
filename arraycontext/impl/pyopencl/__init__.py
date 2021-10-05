@@ -287,6 +287,10 @@ class PyOpenCLArrayContext(ArrayContext):
     def supports_nonscalar_broadcasting(self):
         return False
 
+    @property
+    def permits_advanced_indexing(self):
+        return False
+
 # }}}
 
 # vim: foldmethod=marker

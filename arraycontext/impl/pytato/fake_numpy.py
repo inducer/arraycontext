@@ -26,8 +26,11 @@ from functools import partial, reduce
 from arraycontext.fake_numpy import (
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
         )
+from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
-        rec_multimap_array_container, rec_map_array_container,
+        rec_map_array_container,
+        rec_multimap_array_container,
+        multimap_reduce_array_container,
         rec_map_reduce_array_container,
         )
 import pytato as pt
@@ -85,27 +88,30 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def where(self, criterion, then, else_):
         return rec_multimap_array_container(pt.where, criterion, then, else_)
 
-    def sum(self, a, dtype=None):
+    def sum(self, a, axis=None, dtype=None):
         def _pt_sum(ary):
             if dtype not in [ary.dtype, None]:
                 raise NotImplementedError
 
-            return pt.sum(ary)
+            return pt.sum(ary, axis=axis)
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
 
-    def min(self, a):
+    def min(self, a, axis=None):
         return rec_map_reduce_array_container(
-                partial(reduce, pt.minimum), pt.amin, a)
+                partial(reduce, pt.minimum), partial(pt.amin, axis=axis), a)
 
-    def max(self, a):
+    def max(self, a, axis=None):
         return rec_map_reduce_array_container(
-                partial(reduce, pt.maximum), pt.amax, a)
+                partial(reduce, pt.maximum), partial(pt.amax, axis=axis), a)
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(
                 lambda *args: pt.stack(arrays=args, axis=axis),
                 *arrays)
+
+    def broadcast_to(self, array, shape):
+        return rec_map_array_container(partial(pt.broadcast_to, shape=shape), array)
 
     # {{{ relational operators
 
@@ -154,5 +160,32 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                                  f"(got {order})")
 
         return rec_map_array_container(_rec_ravel, a)
+
+    def any(self, a):
+        return rec_map_reduce_array_container(
+                partial(reduce, pt.logical_or),
+                lambda subary: pt.any(subary), a)
+
+    def all(self, a):
+        return rec_map_reduce_array_container(
+                partial(reduce, pt.logical_and),
+                lambda subary: pt.all(subary), a)
+
+    def array_equal(self, a, b):
+        def as_device_scalar(bool_value):
+            import numpy as np
+            return self._array_context.from_numpy(
+                np.array(int(bool_value), dtype=np.int8))
+
+        if type(a) != type(b):
+            return as_device_scalar(False)
+        elif not is_array_container(a):
+            if a.shape != b.shape:
+                return as_device_scalar(False)
+            else:
+                return pt.all(pt.equal(a, b))
+        else:
+            return multimap_reduce_array_container(
+                partial(reduce, pt.logical_and), self.array_equal, a, b)
 
     # }}}
