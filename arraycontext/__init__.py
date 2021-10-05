@@ -44,7 +44,7 @@ from .container import (
         serialize_container, deserialize_container,
         register_multivector_as_array_container)
 from .container.arithmetic import with_container_arithmetic
-from .container.dataclass import dataclass_array_container
+from .container.dataclass import dataclass_array_container, ExcludedField
 
 from .container.traversal import (
         map_array_container,
@@ -85,7 +85,7 @@ __all__ = (
         "serialize_container", "deserialize_container",
         "register_multivector_as_array_container",
         "with_container_arithmetic",
-        "dataclass_array_container",
+        "dataclass_array_container", "ExcludedField",
 
         "map_array_container", "multimap_array_container",
         "rec_map_array_container", "rec_multimap_array_container",
