@@ -41,6 +41,11 @@ import pyopencl.array as cla
 import pytato as pt
 import itertools
 
+from pytools import ProcessLogger
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 # {{{ helper classes: AbstractInputDescriptor
 
@@ -227,20 +232,23 @@ class LazilyCompilingFunctionCaller:
 
         import loopy as lp
 
-        pt_dict_of_named_arrays = self.actx.transform_dag(
-            pt.make_dict_of_named_arrays(dict_of_named_arrays))
+        with ProcessLogger(logger, "transform_dag"):
+            pt_dict_of_named_arrays = self.actx.transform_dag(
+                pt.make_dict_of_named_arrays(dict_of_named_arrays))
 
-        pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
-                                           options=lp.Options(
-                                               return_dict=True,
-                                               no_numpy=True),
-                                           cl_device=self.actx.queue.device)
-        assert isinstance(pytato_program, BoundPyOpenCLProgram)
+        with ProcessLogger(logger, "generate_loopy"):
+            pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
+                                               options=lp.Options(
+                                                   return_dict=True,
+                                                   no_numpy=True),
+                                               cl_device=self.actx.queue.device)
+            assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
-        pytato_program = (pytato_program
-                          .with_transformed_program(self
-                                                    .actx
-                                                    .transform_loopy_program))
+        with ProcessLogger(logger, "transform_loopy_porgram"):
+            pytato_program = (pytato_program
+                              .with_transformed_program(self
+                                                        .actx
+                                                        .transform_loopy_program))
 
         self.program_cache[arg_id_to_descr] = CompiledFunction(
                                                 self.actx, pytato_program,
