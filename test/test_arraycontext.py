@@ -134,6 +134,9 @@ class DOFArray:
     def __getitem__(self, i):
         return self.data[i]
 
+    def __repr__(self):
+        return f"DOFArray({repr(self.data)})"
+
     @classmethod
     def _serialize_init_arrays_code(cls, instance_name):
         return {"_":
@@ -547,6 +550,37 @@ def test_any_all_same_as_numpy(actx_factory, sym_name):
     assert_close_to_numpy_in_containers(actx,
                 lambda _np, *_args: getattr(_np, sym_name)(*_args), [1 - ary_all])
 
+
+def test_array_equal_same_as_numpy(actx_factory):
+    actx = actx_factory()
+
+    sym_name = "array_equal"
+    if not hasattr(actx.np, sym_name):
+        pytest.skip(f"'{sym_name}' not implemented on '{type(actx).__name__}'")
+
+    rng = np.random.default_rng()
+    ary = rng.integers(0, 2, 512)
+    ary_copy = ary.copy()
+    ary_diff_values = np.ones(512)
+    ary_diff_shape = np.ones(511)
+    ary_diff_type = DOFArray(actx, (np.ones(512),))
+
+    # Equal
+    assert_close_to_numpy_in_containers(actx,
+        lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary, ary_copy])
+
+    # Different values
+    assert_close_to_numpy_in_containers(actx,
+        lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary, ary_diff_values])
+
+    # Different shapes
+    assert_close_to_numpy_in_containers(actx,
+        lambda _np, *_args: getattr(_np, sym_name)(*_args), [ary, ary_diff_shape])
+
+    # Different types
+    assert not actx.to_numpy(actx.np.array_equal(ary, ary_diff_type))
+
+
 # }}}
 
 
@@ -638,31 +672,57 @@ class MyContainerDOFBcast:
         return self.mass.array_context
 
 
-def _get_test_containers(actx, ambient_dim=2):
-    x = DOFArray(actx, (actx.from_numpy(np.random.randn(50_000)),))
+def _get_test_containers(actx, ambient_dim=2, size=50_000):
+    if size == 0:
+        x = DOFArray(actx, (actx.from_numpy(np.array(np.random.randn())),))
+    else:
+        x = DOFArray(actx, (actx.from_numpy(np.random.randn(size)),))
 
     # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     dataclass_of_dofs = MyContainer(
             name="container",
             mass=x,
-            momentum=make_obj_array([x, x]),
+            momentum=make_obj_array([x] * ambient_dim),
             enthalpy=x)
 
     # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     bcast_dataclass_of_dofs = MyContainerDOFBcast(
             name="container",
             mass=x,
-            momentum=make_obj_array([x, x]),
+            momentum=make_obj_array([x] * ambient_dim),
             enthalpy=x)
 
     ary_dof = x
-    ary_of_dofs = make_obj_array([x, x, x])
-    mat_of_dofs = np.empty((3, 3), dtype=object)
+    ary_of_dofs = make_obj_array([x] * ambient_dim)
+    mat_of_dofs = np.empty((ambient_dim, ambient_dim), dtype=object)
     for i in np.ndindex(mat_of_dofs.shape):
         mat_of_dofs[i] = x
 
     return (ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs,
             bcast_dataclass_of_dofs)
+
+
+def test_container_scalar_map(actx_factory):
+    actx = actx_factory()
+
+    arys = _get_test_containers(actx, size=0)
+    arys += (np.pi,)
+
+    from arraycontext import (
+            map_array_container, rec_map_array_container,
+            map_reduce_array_container, rec_map_reduce_array_container,
+            )
+
+    for ary in arys:
+        result = map_array_container(lambda x: x, ary)
+        assert result is not None
+        result = rec_map_array_container(lambda x: x, ary)
+        assert result is not None
+
+        result = map_reduce_array_container(np.shape, lambda x: x, ary)
+        assert result is not None
+        result = rec_map_reduce_array_container(np.shape, lambda x: x, ary)
+        assert result is not None
 
 
 def test_container_multimap(actx_factory):
@@ -752,10 +812,11 @@ def test_container_arithmetic(actx_factory):
 
     grad_matvec_result = mock_gradient @ ary_of_dofs
     assert isinstance(grad_matvec_result.mass, DOFArray)
-    assert grad_matvec_result.momentum.shape == (3,)
+    assert grad_matvec_result.momentum.shape == ary_of_dofs.shape
 
-    assert actx.to_numpy(actx.np.linalg.norm(grad_matvec_result.mass
-                                             - 3*ary_of_dofs**2)) < 1e-8
+    assert actx.to_numpy(actx.np.linalg.norm(
+        grad_matvec_result.mass - sum(ary_of_dofs**2)
+        )) < 1e-8
 
     # }}}
 

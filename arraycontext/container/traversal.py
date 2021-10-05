@@ -179,12 +179,13 @@ def map_array_container(
         or an instance of a base array type.
     """
     try:
-        ser_ctr = serialize_container(ary)
+        iterable = serialize_container(ary)
     except TypeError:
         return f(ary)
     else:
         return deserialize_container(ary, [
-                (key, f(subary)) for key, subary in ser_ctr])
+            (key, f(subary)) for key, subary in iterable
+            ])
 
 
 def multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
@@ -262,12 +263,15 @@ def keyed_map_array_container(f: Callable[[Any, Any], Any],
     :param ary: a (potentially nested) structure of :class:`ArrayContainer`\ s,
         or an instance of a base array type.
     """
-    if is_array_container(ary):
-        return deserialize_container(ary, [
-                (key, f(key, subary)) for key, subary in serialize_container(ary)
-                ])
+    try:
+        iterable = serialize_container(ary)
+    except TypeError:
+        raise ValueError(
+                f"Non-array container type has no key: {type(ary).__name__}")
     else:
-        raise ValueError("Not an array-container, i.e. unknown key to pass.")
+        return deserialize_container(ary, [
+            (key, f(key, subary)) for key, subary in iterable
+            ])
 
 
 def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
@@ -281,13 +285,14 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
 
     def rec(keys: Tuple[Union[str, int], ...],
             _ary: ArrayOrContainerT) -> ArrayOrContainerT:
-        if is_array_container(_ary):
-            return deserialize_container(_ary, [
-                    (key, rec(keys + (key,), subary))
-                    for key, subary in serialize_container(_ary)
-                    ])
-        else:
+        try:
+            iterable = serialize_container(_ary)
+        except TypeError:
             return f(keys, _ary)
+        else:
+            return deserialize_container(_ary, [
+                (key, rec(keys + (key,), subary)) for key, subary in iterable
+                ])
 
     return rec((), ary)
 
@@ -309,12 +314,14 @@ def map_reduce_array_container(
         :class:`arraycontext.ArrayContext.array_types`. Returns an array of the
         same type or a scalar.
     """
-    if is_array_container(ary):
-        return reduce_func([
-            map_func(subary) for _, subary in serialize_container(ary)
-            ])
-    else:
+    try:
+        iterable = serialize_container(ary)
+    except TypeError:
         return map_func(ary)
+    else:
+        return reduce_func([
+            map_func(subary) for _, subary in iterable
+            ])
 
 
 def multimap_reduce_array_container(
@@ -382,12 +389,14 @@ def rec_map_reduce_array_container(
         or any other such traversal.
     """
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
-        if is_array_container(_ary):
-            return reduce_func([
-                rec(subary) for _, subary in serialize_container(_ary)
-                ])
-        else:
+        try:
+            iterable = serialize_container(_ary)
+        except TypeError:
             return map_func(_ary)
+        else:
+            return reduce_func([
+                rec(subary) for _, subary in iterable
+                ])
 
     return rec(ary)
 
@@ -472,13 +481,14 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
         in :mod:`meshmode`. This was necessary because
         :func:`~functools.singledispatch` only dispatches on the first argument.
     """
-    if is_array_container(ary):
-        return deserialize_container(ary, [
-            (key, thaw(subary, actx))
-            for key, subary in serialize_container(ary)
-            ])
-    else:
+    try:
+        iterable = serialize_container(ary)
+    except TypeError:
         return actx.thaw(ary)
+    else:
+        return deserialize_container(ary, [
+            (key, thaw(subary, actx)) for key, subary in iterable
+            ])
 
 # }}}
 
