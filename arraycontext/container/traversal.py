@@ -570,7 +570,8 @@ def unflatten(
             iterable = serialize_container(template_subary)
         except TypeError:
             if (offset + template_subary.size) > ary.size:
-                raise ValueError("'template' and 'ary' sizes do not match")
+                raise ValueError("'template' and 'ary' sizes do not match: "
+                    "'template' is too large")
 
             if template_subary.dtype != ary.dtype:
                 raise ValueError("'template' dtype does not match 'ary': "
@@ -612,7 +613,12 @@ def unflatten(
                 "only one dimensional arrays can be unflattened: "
                 f"'ary' has shape {ary.shape}")
 
-    return _unflatten(template)
+    result = _unflatten(template)
+    if offset != ary.size:
+        raise ValueError("'template' and 'ary' sizes do not match: "
+            "'ary' is too large")
+
+    return result
 
 # }}}
 
