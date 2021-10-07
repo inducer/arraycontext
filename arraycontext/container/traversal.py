@@ -554,7 +554,7 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
 def unflatten(
         template: ArrayOrContainerT, ary: Any,
         actx: ArrayContext) -> ArrayOrContainerT:
-    """Unflatten an array produced by :func:`flatten` back into an
+    """Unflatten an array *ary* produced by :func:`flatten` back into an
     :class:`~arraycontext.ArrayContainer`.
 
     The order and sizes of each slice into *ary* are determined by the

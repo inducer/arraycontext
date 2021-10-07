@@ -125,7 +125,7 @@ def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
     the control of the container class. However, the order is required to be
     deterministic, i.e. two calls to :func:`serialize_container` on
     array containers of the same types with the same number of
-    sub-arrays should result in an iterable with the keys in the same
+    sub-arrays must result in an iterable with the keys in the same
     order.
 
     If *ary* is mutable, the serialization function is not required to ensure
