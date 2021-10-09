@@ -26,7 +26,7 @@ THE SOFTWARE.
 import numpy as np
 from arraycontext.container import is_array_container, serialize_container
 from arraycontext.container.traversal import rec_map_array_container
-from pytools import memoize_in
+
 
 # {{{ BaseFakeNumpyNamespace
 
