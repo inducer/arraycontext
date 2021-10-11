@@ -244,7 +244,7 @@ class LazilyCompilingFunctionCaller:
                                                cl_device=self.actx.queue.device)
             assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
-        with ProcessLogger(logger, "transform_loopy_porgram"):
+        with ProcessLogger(logger, "transform_loopy_program"):
             pytato_program = (pytato_program
                               .with_transformed_program(self
                                                         .actx
