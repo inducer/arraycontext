@@ -531,7 +531,8 @@ def to_numpy(ary: Any, actx: ArrayContext) -> Any:
 
 def outer(a: Any, b: Any) -> Any:
     """
-    Compute the outer product of *a* and *b*.
+    Compute the outer product of *a* and *b* while allowing either of them
+    to be an :class:`ArrayContainer`.
 
     Tweaks the behavior of :func:`numpy.outer` to return a lower-dimensional
     object if either/both of *a* and *b* are scalars (whereas :func:`numpy.outer`
