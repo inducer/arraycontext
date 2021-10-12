@@ -307,6 +307,7 @@ def with_container_arithmetic(
         gen(f"cls._bcast_numpy_array = {bcast_numpy_array}")
         gen(f"cls._bcast_obj_array = {bcast_obj_array}")
         gen("")
+
         # {{{ unary operators
 
         for dunder_name, op_str, op_cls in _UNARY_OP_AND_DUNDER:
