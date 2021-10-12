@@ -537,7 +537,8 @@ def outer(a: Any, b: Any) -> Any:
     Tweaks the behavior of :func:`numpy.outer` to return a lower-dimensional
     object if either/both of *a* and *b* are scalars (whereas :func:`numpy.outer`
     always returns a matrix). Here the definition of "scalar" includes
-    all non-array-container types and any scalar-like array container types.
+    all non-array-container types and any scalar-like array container types
+    (including non-object numpy arrays).
 
     If *a* and *b* are both array containers, the result will have the same type
     as *a*. If both are array containers and neither is an object array, they must
@@ -546,10 +547,11 @@ def outer(a: Any, b: Any) -> Any:
 
     def treat_as_scalar(x: Any) -> bool:
         if is_array_container(x):
-            return (
-                not isinstance(x, np.ndarray)
+            if isinstance(x, np.ndarray):
+                return x.dtype != object
+            else:
                 # This condition is whether "ndarrays should broadcast inside x".
-                and np.ndarray not in x.__class__._outer_bcast_types)
+                return np.ndarray not in x.__class__._outer_bcast_types
         else:
             return True
 
