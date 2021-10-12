@@ -547,6 +547,7 @@ def outer(a: Any, b: Any) -> Any:
         if is_array_container(x):
             return (
                 not isinstance(x, np.ndarray)
+                # This condition is whether "ndarrays should broadcast inside x".
                 and np.ndarray not in x.__class__._outer_bcast_types)
         else:
             return True
