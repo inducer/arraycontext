@@ -544,7 +544,7 @@ def outer(a: Any, b: Any) -> Any:
     have the same type.
     """
 
-    def is_scalar(x: Any) -> bool:
+    def treat_as_scalar(x: Any) -> bool:
         if is_array_container(x):
             return (
                 not isinstance(x, np.ndarray)
@@ -553,7 +553,7 @@ def outer(a: Any, b: Any) -> Any:
         else:
             return True
 
-    if is_scalar(a) or is_scalar(b):
+    if treat_as_scalar(a) or treat_as_scalar(b):
         return a*b
     elif isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
         return np.outer(a, b)
