@@ -244,11 +244,17 @@ class PyOpenCLArrayContext(ArrayContext):
 
             if "idof" in all_inames:
                 inner_iname = "idof"
+
         elif "i0" in all_inames:
             outer_iname = "i0"
 
             if "i1" in all_inames:
                 inner_iname = "i1"
+
+        elif not all_inames:
+            # no loops, nothing to transform
+            return t_unit
+
         else:
             raise RuntimeError(
                 "Unable to reason what outer_iname and inner_iname "
