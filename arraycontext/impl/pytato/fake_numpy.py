@@ -26,7 +26,7 @@ from functools import partial, reduce
 from arraycontext.fake_numpy import (
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
         )
-from arraycontext.container import is_array_container
+from arraycontext.container import is_array_container_type
 from arraycontext.container.traversal import (
         rec_map_array_container,
         rec_multimap_array_container,
@@ -179,7 +179,7 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         if type(a) != type(b):
             return as_device_scalar(False)
-        elif not is_array_container(a):
+        elif not is_array_container_type(a.__class__):
             if a.shape != b.shape:
                 return as_device_scalar(False)
             else:

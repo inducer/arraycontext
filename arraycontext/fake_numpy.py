@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import is_array_container, serialize_container
+from arraycontext.container import is_array_container_type, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
 from pytools import memoize_in
@@ -182,7 +182,7 @@ class BaseFakeNumpyNamespace:
             # e.g. `np.zeros_like(x)` returns `array([0, 0, ...], dtype=object)`
             # FIXME: what about object arrays nested in an ArrayContainer?
             raise NotImplementedError("operation not implemented for object arrays")
-        elif is_array_container(ary):
+        elif is_array_container_type(ary.__class__):
             return rec_map_array_container(alloc_like, ary)
         elif isinstance(ary, Number):
             # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
@@ -273,7 +273,7 @@ class BaseFakeNumpyLinalgNamespace:
 
                 return flat_norm(ary, ord=ord)
 
-        if is_array_container(ary):
+        if is_array_container_type(ary.__class__):
             return _reduce_norm(actx, [
                 self.norm(subary, ord=ord)
                 for _, subary in serialize_container(ary)
