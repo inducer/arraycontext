@@ -901,7 +901,8 @@ def test_container_norm(actx_factory, ord):
     ])
 def test_flatten_array_container(actx_factory, shapes):
     if np.prod(shapes) == 0:
-        # https://github.com/inducer/compyte/pull/36
+        # https://github.com/inducer/loopy/pull/497
+        # NOTE: only fails for the pytato array context at the moment
         pytest.xfail("strides do not match in subary")
 
     actx = actx_factory()
