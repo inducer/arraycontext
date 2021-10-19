@@ -202,7 +202,7 @@ def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
 @serialize_container.register(np.ndarray)
 def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
     if ary.dtype.char != "O":
-        raise ValueError(
+        raise TypeError(
                 f"cannot seriealize '{type(ary).__name__}' with dtype '{ary.dtype}'")
 
     # special-cased for speed
