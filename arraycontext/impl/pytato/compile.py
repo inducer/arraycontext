@@ -34,7 +34,7 @@ from arraycontext.container.traversal import rec_keyed_map_array_container
 
 import abc
 import numpy as np
-from typing import Any, Callable, Tuple, Dict, Mapping
+from typing import Any, Callable, Tuple, Dict, Mapping, FrozenSet
 from dataclasses import dataclass, field
 from pyrsistent import pmap, PMap
 
@@ -169,7 +169,11 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name):
     elif is_array_container_type(arg.__class__):
         def _rec_to_placeholder(keys, ary):
             name = arg_id_to_name[(kw,) + keys]
-            return pt.make_placeholder(name, ary.shape, ary.dtype)
+            return pt.make_placeholder(name,
+                                       ary.shape,
+                                       ary.dtype,
+                                       axes=ary.axes,
+                                       tags=ary.tags)
 
         return rec_keyed_map_array_container(_rec_to_placeholder, arg)
     else:
@@ -204,6 +208,13 @@ class LazilyCompilingFunctionCaller:
         with ProcessLogger(logger, "transform_dag"):
             pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
 
+        name_in_program_to_tags = {
+            name: out.tags
+            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_axes = {
+            name: out.axes
+            for name, out in pt_dict_of_named_arrays._data.items()}
+
         with ProcessLogger(logger, "generate_loopy"):
             pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
                                                options=lp.Options(
@@ -225,7 +236,7 @@ class LazilyCompilingFunctionCaller:
                                                         .actx
                                                         .transform_loopy_program))
 
-        return pytato_program
+        return pytato_program, name_in_program_to_tags, name_in_program_to_axes
 
     def _dag_to_compiled_func(self, ary_or_dict_of_named_arrays,
             input_id_to_name_in_program, output_id_to_name_in_program,
@@ -234,18 +245,23 @@ class LazilyCompilingFunctionCaller:
             output_id = "_pt_out"
             dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 {output_id: ary_or_dict_of_named_arrays})
-            pytato_program = self._dag_to_transformed_loopy_prg(dict_of_named_arrays)
+            pytato_program, name_in_program_to_tags, name_in_program_to_axes = (
+                self._dag_to_transformed_loopy_prg(dict_of_named_arrays))
             return CompiledFunctionReturningArray(
                 self.actx, pytato_program,
                 input_id_to_name_in_program=input_id_to_name_in_program,
-                output_name_in_program=output_id)
+                output_tags=name_in_program_to_tags[output_id],
+                output_axes=name_in_program_to_axes[output_id],
+                output_name=output_id)
         elif isinstance(ary_or_dict_of_named_arrays, pt.DictOfNamedArrays):
-            pytato_program = self._dag_to_transformed_loopy_prg(
-                ary_or_dict_of_named_arrays)
+            pytato_program, name_in_program_to_tags, name_in_program_to_axes = (
+                self._dag_to_transformed_loopy_prg(ary_or_dict_of_named_arrays))
             return CompiledFunctionReturningArrayContainer(
                     self.actx, pytato_program,
                     input_id_to_name_in_program=input_id_to_name_in_program,
                     output_id_to_name_in_program=output_id_to_name_in_program,
+                    name_in_program_to_tags=name_in_program_to_tags,
+                    name_in_program_to_axes=name_in_program_to_axes,
                     output_template=output_template)
         else:
             raise NotImplementedError(type(ary_or_dict_of_named_arrays))
@@ -312,6 +328,8 @@ class LazilyCompilingFunctionCaller:
 
 
 def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
+    from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
+
     input_kwargs_for_loopy = {}
 
     for arg_id, arg in arg_id_to_arg.items():
@@ -320,7 +338,7 @@ def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
         elif isinstance(arg, pt.array.DataWrapper):
             # got a Datwwrapper => simply gets its data
             arg = arg.data
-        elif isinstance(arg, cla.Array):
+        elif isinstance(arg, TaggableCLArray):
             # got a frozen array  => do nothing
             pass
         elif isinstance(arg, pt.Array):
@@ -383,9 +401,14 @@ class CompiledFunctionReturningArrayContainer(CompiledFunction):
     pytato_program: pt.target.BoundProgram
     input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
     output_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
+    name_in_program_to_tags: Mapping[str, FrozenSet[Tag]]
+    name_in_program_to_axes: Mapping[str, Tuple[pt.Axis, ...]]
     output_template: ArrayContainer
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
+        from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
+        from .utils import get_cl_axes_from_pt_axes
+
         input_kwargs_for_loopy = _args_to_cl_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
@@ -399,7 +422,12 @@ class CompiledFunctionReturningArrayContainer(CompiledFunction):
         evt.wait()
 
         def to_output_template(keys, _):
-            return self.actx.thaw(out_dict[self.output_id_to_name_in_program[keys]])
+            name_in_program = self.output_id_to_name_in_program[keys]
+            return self.actx.thaw(to_tagged_cl_array(
+                out_dict[name_in_program],
+                axes=get_cl_axes_from_pt_axes(
+                    self.name_in_program_to_axes[name_in_program]),
+                tags=self.name_in_program_to_tags[name_in_program]))
 
         return rec_keyed_map_array_container(to_output_template,
                                              self.output_template)
@@ -415,9 +443,14 @@ class CompiledFunctionReturningArray(CompiledFunction):
     actx: PytatoPyOpenCLArrayContext
     pytato_program: pt.target.BoundProgram
     input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
+    output_tags: FrozenSet[Tag]
+    output_axes: Tuple[pt.Axis, ...]
     output_name: str
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
+        from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
+        from .utils import get_cl_axes_from_pt_axes
+
         input_kwargs_for_loopy = _args_to_cl_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
@@ -430,4 +463,7 @@ class CompiledFunctionReturningArray(CompiledFunction):
         # running out of memory. This mitigates that risk a bit, for now.
         evt.wait()
 
-        return self.actx.thaw(out_dict[self.output_name])
+        return self.actx.thaw(to_tagged_cl_array(out_dict[self.output_name],
+                                                 axes=get_cl_axes_from_pt_axes(
+                                                     self.output_axes),
+                                                 tags=self.output_tags))

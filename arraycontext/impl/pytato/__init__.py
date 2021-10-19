@@ -79,6 +79,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         self.allocator = allocator
         self.array_types = (pt.Array, )
         self._freeze_prg_cache = {}
+        self._dag_transform_cache = {}
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context
@@ -113,24 +114,56 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return cl_array.get(queue=self.queue)
 
     def call_loopy(self, program, **kwargs):
-        import pyopencl.array as cla
+        from pytato.scalar_expr import SCALAR_CLASSES
         from pytato.loopy import call_loopy
+        from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 
         entrypoint = program.default_entrypoint.name
 
-        # thaw frozen arrays
-        kwargs = {kw: (self.thaw(arg) if isinstance(arg, cla.Array) else arg)
-                  for kw, arg in kwargs.items()}
+        # {{{ preprocess args
 
-        return call_loopy(program, kwargs, entrypoint)
+        processed_kwargs = {}
+
+        for kw, arg in sorted(kwargs.items()):
+            if isinstance(arg, self.array_types + SCALAR_CLASSES):
+                pass
+            elif isinstance(arg, TaggableCLArray):
+                arg = self.thaw(arg)
+            else:
+                raise ValueError(f"call_loopy argument '{kw}' expected to be an"
+                                 " instance of 'pytato.Array', 'Number' or"
+                                 f"'TaggableCLArray', got '{type(arg)}'")
+
+            processed_kwargs[kw] = arg
+
+        # }}}
+
+        return call_loopy(program, processed_kwargs, entrypoint)
 
     def freeze(self, array):
         import pytato as pt
         import pyopencl.array as cla
         import loopy as lp
+        from arraycontext.impl.pytato.utils import (_normalize_pt_expr,
+                                                    get_cl_axes_from_pt_axes)
+        from arraycontext.impl.pyopencl.taggable_cl_array import (to_tagged_cl_array,
+                                                                  TaggableCLArray)
 
-        if isinstance(array, cla.Array):
+        if isinstance(array, TaggableCLArray):
             return array.with_queue(None)
+        if isinstance(array, cla.Array):
+            from warnings import warn
+            warn("Freezing pyopencl.array.Array will be deprecated in 2023."
+                 " Use `to_tagged_cl_array` to convert the array to"
+                 " TaggableCLArray", DeprecationWarning, stacklevel=2)
+            return to_tagged_cl_array(array.with_queue(None),
+                                      axes=None,
+                                      tags=frozenset())
+        if isinstance(array, pt.DataWrapper):
+            # trivial freeze.
+            return to_tagged_cl_array(array.data.with_queue(None),
+                                      axes=get_cl_axes_from_pt_axes(array.axes),
+                                      tags=array.tags)
         if not isinstance(array, pt.Array):
             raise TypeError("PytatoPyOpenCLArrayContext.freeze invoked with "
                             f"non-pytato array of type '{type(array)}'")
@@ -138,14 +171,16 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         # {{{ early exit for 0-sized arrays
 
         if array.size == 0:
-            return cla.empty(self.queue.context,
-                             shape=array.shape,
-                             dtype=array.dtype,
-                             allocator=self.allocator)
+            return to_tagged_cl_array(
+                cla.empty(self.queue.context,
+                          shape=array.shape,
+                          dtype=array.dtype,
+                          allocator=self.allocator),
+                get_cl_axes_from_pt_axes(array.axes),
+                array.tags)
 
         # }}}
 
-        from arraycontext.impl.pytato.utils import _normalize_pt_expr
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 {"_actx_out": array})
 
@@ -155,7 +190,13 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         try:
             pt_prg = self._freeze_prg_cache[normalized_expr]
         except KeyError:
-            pt_prg = pt.generate_loopy(self.transform_dag(normalized_expr),
+            if normalized_expr in self._dag_transform_cache:
+                transformed_dag = self._dag_transform_cache[normalized_expr]
+            else:
+                transformed_dag = self.transform_dag(normalized_expr)
+                self._dag_transform_cache[normalized_expr] = transformed_dag
+
+            pt_prg = pt.generate_loopy(transformed_dag,
                                        options=lp.Options(return_dict=True,
                                                           no_numpy=True),
                                        cl_device=self.queue.device)
@@ -166,17 +207,31 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         evt, out_dict = pt_prg(self.queue, **bound_arguments)
         evt.wait()
 
-        return out_dict["_actx_out"].with_queue(None)
+        return to_tagged_cl_array(
+            out_dict["_actx_out"].with_queue(None),
+            get_cl_axes_from_pt_axes(
+                self._dag_transform_cache[normalized_expr]["_actx_out"].expr.axes),
+            array.tags)
 
     def thaw(self, array):
         import pytato as pt
-        import pyopencl.array as cla
+        from .utils import get_pt_axes_from_cl_axes
+        from arraycontext.impl.pyopencl.taggable_cl_array import (TaggableCLArray,
+                                                                  to_tagged_cl_array)
+        import pyopencl.array as cl_array
 
-        if not isinstance(array, cla.Array):
-            raise TypeError("PytatoPyOpenCLArrayContext.thaw expects CL arrays, got "
-                    f"{type(array)}")
+        if isinstance(array, TaggableCLArray):
+            pass
+        elif isinstance(array, cl_array.Array):
+            array = to_tagged_cl_array(array, axes=None, tags=frozenset())
+        else:
+            raise TypeError("PytatoPyOpenCLArrayContext.thaw expects "
+                            "'TaggableCLArray' or 'cl.array.Array' got "
+                            f"{type(array)}.")
 
-        return pt.make_data_wrapper(array.with_queue(self.queue))
+        return pt.make_data_wrapper(array.with_queue(self.queue),
+                                    axes=get_pt_axes_from_cl_axes(array.axes),
+                                    tags=array.tags)
 
     # }}}
 
@@ -219,12 +274,23 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pyopencl.array as cla
         import pytato as pt
+        from arraycontext.impl.pyopencl.taggable_cl_array import (TaggableCLArray,
+                                                                  to_tagged_cl_array)
         if arg_names is None:
             arg_names = (None,) * len(args)
 
         def preprocess_arg(name, arg):
-            if isinstance(arg, cla.Array):
+            if isinstance(arg, TaggableCLArray):
                 ary = self.thaw(arg)
+            elif isinstance(arg, cla.Array):
+                from warnings import warn
+                warn("Passing pyopencl.array.Array to einsum will be "
+                     "deprecated in 2023."
+                     " Use `to_tagged_cl_array` to convert the array to"
+                     " TaggableCLArray.", DeprecationWarning, stacklevel=2)
+                ary = self.thaw(to_tagged_cl_array(arg,
+                                                   axes=None,
+                                                   tags=frozenset()))
             else:
                 assert isinstance(arg, pt.Array)
                 ary = arg

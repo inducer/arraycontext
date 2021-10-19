@@ -58,6 +58,7 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                     shape=tuple(self.rec(s) if isinstance(s, Array) else s
                                 for s in expr.shape),
                     dtype=expr.dtype,
+                    axes=expr.axes,
                     tags=expr.tags)
 
     def map_size_param(self, expr: SizeParam) -> Array:
