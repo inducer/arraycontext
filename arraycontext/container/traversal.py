@@ -546,14 +546,15 @@ def outer(a: Any, b: Any) -> Any:
     """
 
     def treat_as_scalar(x: Any) -> bool:
-        if is_array_container(x):
-            if isinstance(x, np.ndarray):
-                return x.dtype != object
-            else:
-                # This condition is whether "ndarrays should broadcast inside x".
-                return np.ndarray not in x.__class__._outer_bcast_types
-        else:
+        try:
+            serialize_container(x)
+        except TypeError:
             return True
+        else:
+            return (
+                not isinstance(x, np.ndarray)
+                # This condition is whether "ndarrays should broadcast inside x".
+                and np.ndarray not in x.__class__._outer_bcast_types)
 
     if treat_as_scalar(a) or treat_as_scalar(b):
         return a*b
