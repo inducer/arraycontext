@@ -120,7 +120,11 @@ def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
     r"""Serialize the array container into an iterable over its components.
 
     The order of the components and their identifiers are entirely under
-    the control of the container class.
+    the control of the container class. However, the order is required to be
+    deterministic, i.e. two calls to :func:`serialize_container` on
+    array containers of the same types with the same number of
+    sub-arrays must result in an iterable with the keys in the same
+    order.
 
     If *ary* is mutable, the serialization function is not required to ensure
     that the serialization result reflects the array state at the time of the

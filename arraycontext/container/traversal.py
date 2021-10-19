@@ -23,6 +23,11 @@ Freezing and thawing
 .. autofunction:: freeze
 .. autofunction:: thaw
 
+Flattening and unflattening
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: flatten
+.. autofunction:: unflatten
+
 Numpy conversion
 ~~~~~~~~~~~~~~~~
 .. autofunction:: from_numpy
@@ -489,6 +494,131 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
         return deserialize_container(ary, [
             (key, thaw(subary, actx)) for key, subary in iterable
             ])
+
+# }}}
+
+
+# {{{ flatten / unflatten
+
+def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
+    """Convert all arrays in the :class:`~arraycontext.ArrayContainer`
+    into single flat array of a type :attr:`arraycontext.ArrayContext.array_types`.
+
+    The operation requires :attr:`arraycontext.ArrayContext.np` to have
+    ``ravel`` and ``concatenate`` methods implemented. The order in which the
+    individual leaf arrays appear in the final array is dependent on the order
+    given by :func:`~arraycontext.serialize_container`.
+    """
+    common_dtype = None
+    result: List[Any] = []
+
+    def _flatten(subary: ArrayOrContainerT) -> None:
+        nonlocal common_dtype
+
+        try:
+            iterable = serialize_container(subary)
+        except TypeError:
+            if common_dtype is None:
+                common_dtype = subary.dtype
+
+            if subary.dtype != common_dtype:
+                raise ValueError("arrays in container have different dtypes: "
+                        f"got {subary.dtype}, expected {common_dtype}")
+
+            try:
+                flat_subary = actx.np.ravel(subary, order="C")
+            except ValueError as exc:
+                # NOTE: we can't do much if the array context fails to ravel,
+                # since it is the one responsible for the actual memory layout
+                if hasattr(subary, "strides"):
+                    strides_msg = f" and strides {subary.strides}"
+                else:
+                    strides_msg = ""
+
+                raise NotImplementedError(
+                        f"'{type(actx).__name__}.np.ravel' failed to reshape "
+                        f"an array with shape {subary.shape}{strides_msg}. "
+                        "This functionality needs to be implemented by the "
+                        "array context.") from exc
+
+            result.append(flat_subary)
+        else:
+            for _, isubary in iterable:
+                _flatten(isubary)
+
+    _flatten(ary)
+
+    return actx.np.concatenate(result)
+
+
+def unflatten(
+        template: ArrayOrContainerT, ary: Any,
+        actx: ArrayContext) -> ArrayOrContainerT:
+    """Unflatten an array *ary* produced by :func:`flatten` back into an
+    :class:`~arraycontext.ArrayContainer`.
+
+    The order and sizes of each slice into *ary* are determined by the
+    array container *template*.
+    """
+    # NOTE: https://github.com/python/mypy/issues/7057
+    offset = 0
+
+    def _unflatten(template_subary: ArrayOrContainerT) -> ArrayOrContainerT:
+        nonlocal offset
+
+        try:
+            iterable = serialize_container(template_subary)
+        except TypeError:
+            if (offset + template_subary.size) > ary.size:
+                raise ValueError("'template' and 'ary' sizes do not match: "
+                    "'template' is too large")
+
+            if template_subary.dtype != ary.dtype:
+                raise ValueError("'template' dtype does not match 'ary': "
+                        f"got {template_subary.dtype}, expected {ary.dtype}")
+
+            flat_subary = ary[offset:offset + template_subary.size]
+            try:
+                subary = actx.np.reshape(flat_subary,
+                        template_subary.shape, order="C")
+            except ValueError as exc:
+                # NOTE: we can't do much if the array context fails to reshape,
+                # since it is the one responsible for the actual memory layout
+                raise NotImplementedError(
+                        f"'{type(actx).__name__}.np.reshape' failed to reshape "
+                        f"the flat array into shape {template_subary.shape}. "
+                        "This functionality needs to be implemented by the "
+                        "array context.") from exc
+
+            if hasattr(template_subary, "strides"):
+                if template_subary.strides != subary.strides:
+                    raise ValueError(
+                            f"strides do not match template: got {subary.strides}, "
+                            f"expected {template_subary.strides}")
+
+            offset += template_subary.size
+            return subary
+        else:
+            return deserialize_container(template_subary, [
+                (key, _unflatten(isubary)) for key, isubary in iterable
+                ])
+
+    if not isinstance(ary, actx.array_types):
+        raise TypeError("'ary' does not have a type supported by the provided "
+                f"array context: got '{type(ary).__name__}', expected one of "
+                f"{actx.array_types}")
+
+    if ary.ndim != 1:
+        raise ValueError(
+                "only one dimensional arrays can be unflattened: "
+                f"'ary' has shape {ary.shape}")
+
+    result = _unflatten(template)
+    if offset != ary.size:
+        raise ValueError("'template' and 'ary' sizes do not match: "
+            "'ary' is too large")
+
+    return result
 
 # }}}
 
