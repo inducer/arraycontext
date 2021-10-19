@@ -558,6 +558,7 @@ def outer(a: Any, b: Any) -> Any:
 
     if treat_as_scalar(a) or treat_as_scalar(b):
         return a*b
+    # After this point, "isinstance(o, ndarray)" means o is an object array.
     elif isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
         return np.outer(a, b)
     elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
