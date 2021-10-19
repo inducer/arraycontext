@@ -210,21 +210,6 @@ class BaseFakeNumpyNamespace:
 
 # {{{ BaseFakeNumpyLinalgNamespace
 
-def _scalar_list_norm(ary, ord):
-    if ord is None:
-        ord = 2
-
-    from numbers import Number
-    if ord == np.inf:
-        return max(ary)
-    elif ord == -np.inf:
-        return min(ary)
-    elif isinstance(ord, Number) and ord > 0:
-        return sum(iary**ord for iary in ary)**(1/ord)
-    else:
-        raise NotImplementedError(f"unsupported value of 'ord': {ord}")
-
-
 def _reduce_norm(actx, arys, ord):
     from numbers import Number
     from functools import reduce
