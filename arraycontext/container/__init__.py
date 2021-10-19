@@ -22,7 +22,7 @@
 
 Serialization/deserialization
 -----------------------------
-.. autofunction:: is_array_container
+.. autofunction:: is_array_container_type
 .. autofunction:: serialize_container
 .. autofunction:: deserialize_container
 
@@ -95,8 +95,6 @@ class ArrayContainer:
 
     This allows enumeration of the component arrays in a container and the
     construction of modified containers from an iterable of those component arrays.
-    :func:`is_array_container` will return *True* for types that have
-    a container serialization function registered.
 
     Packages may register their own types as array containers. They must not
     register other types (e.g. :class:`list`) as array containers.
@@ -156,6 +154,13 @@ def is_array_container_type(cls: type) -> bool:
     """
     :returns: *True* if the type *cls* has a registered implementation of
         :func:`serialize_container`, or if it is an :class:`ArrayContainer`.
+
+    .. warning::
+
+        Not all instances of a type that this function labels an array container
+        must automatically be array containers. For example, while this
+        function will say that :class:`numpy.ndarray` is an array container
+        type, only object arrays *actually are* array containers.
     """
     return (
             cls is ArrayContainer
@@ -168,6 +173,13 @@ def is_array_container(ary: Any) -> bool:
     :returns: *True* if the instance *ary* has a registered implementation of
         :func:`serialize_container`.
     """
+
+    from warnings import warn
+    warn("is_array_container is deprecated and will be removed in 2022. "
+            "If you must know precisely whether something is an array container, "
+            "try serializing it and catch TypeError. For a cheaper option, see "
+            "is_array_container_type.",
+            DeprecationWarning, stacklevel=2)
     return (serialize_container.dispatch(ary.__class__)
             is not serialize_container.__wrapped__)       # type:ignore[attr-defined]
 
@@ -190,7 +202,7 @@ def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
 @serialize_container.register(np.ndarray)
 def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
     if ary.dtype.char != "O":
-        raise ValueError(
+        raise TypeError(
                 f"cannot seriealize '{type(ary).__name__}' with dtype '{ary.dtype}'")
 
     # special-cased for speed
@@ -232,7 +244,7 @@ def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
     any level, an assertion error is raised.
     """
     actx = None
-    if not is_array_container(ary):
+    if not is_array_container_type(ary.__class__):
         return actx
 
     # try getting the array context directly

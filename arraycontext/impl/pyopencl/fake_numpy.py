@@ -31,7 +31,7 @@ import operator
 
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
-from arraycontext.container import is_array_container
+from arraycontext.container import is_array_container_type
 from arraycontext.container.traversal import (
         rec_map_array_container,
         rec_multimap_array_container,
@@ -247,7 +247,7 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
         def rec_equal(x, y):
             if type(x) != type(y):
                 return as_device_scalar(False)
-            elif not is_array_container(x):
+            elif not is_array_container_type(x.__class__):
                 if x.shape != y.shape:
                     return as_device_scalar(False)
                 else:
