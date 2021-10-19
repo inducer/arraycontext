@@ -977,7 +977,7 @@ def test_numpy_conversion(actx_factory):
     with pytest.raises(TypeError):
         from_numpy(ac_actx, actx)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         to_numpy(ac, actx)
 
 # }}}

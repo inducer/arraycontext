@@ -44,7 +44,7 @@ def dataclass_array_container(cls: type) -> type:
 
     Attributes that are not array containers are allowed. In order to decide
     whether an attribute is an array container, the declared attribute type
-    is checked by the criteria from :func:`is_array_container`.
+    is checked by the criteria from :func:`is_array_container_type`.
     """
     from dataclasses import is_dataclass
     assert is_dataclass(cls)

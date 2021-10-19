@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import is_array_container, serialize_container
+from arraycontext.container import is_array_container_type, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
 from pytools import memoize_in
@@ -182,7 +182,7 @@ class BaseFakeNumpyNamespace:
             # e.g. `np.zeros_like(x)` returns `array([0, 0, ...], dtype=object)`
             # FIXME: what about object arrays nested in an ArrayContainer?
             raise NotImplementedError("operation not implemented for object arrays")
-        elif is_array_container(ary):
+        elif is_array_container_type(ary.__class__):
             return rec_map_array_container(alloc_like, ary)
         elif isinstance(ary, Number):
             # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
@@ -209,21 +209,6 @@ class BaseFakeNumpyNamespace:
 
 
 # {{{ BaseFakeNumpyLinalgNamespace
-
-def _scalar_list_norm(ary, ord):
-    if ord is None:
-        ord = 2
-
-    from numbers import Number
-    if ord == np.inf:
-        return max(ary)
-    elif ord == -np.inf:
-        return min(ary)
-    elif isinstance(ord, Number) and ord > 0:
-        return sum(iary**ord for iary in ary)**(1/ord)
-    else:
-        raise NotImplementedError(f"unsupported value of 'ord': {ord}")
-
 
 def _reduce_norm(actx, arys, ord):
     from numbers import Number
@@ -273,7 +258,7 @@ class BaseFakeNumpyLinalgNamespace:
 
                 return flat_norm(ary, ord=ord)
 
-        if is_array_container(ary):
+        if is_array_container_type(ary.__class__):
             return _reduce_norm(actx, [
                 self.norm(subary, ord=ord)
                 for _, subary in serialize_container(ary)

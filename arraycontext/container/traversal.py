@@ -65,7 +65,7 @@ import numpy as np
 
 from arraycontext.context import ArrayContext
 from arraycontext.container import (
-        ContainerT, ArrayOrContainerT, is_array_container,
+        ContainerT, ArrayOrContainerT, is_array_container_type,
         serialize_container, deserialize_container)
 
 
@@ -86,7 +86,7 @@ def _map_array_container_impl(
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(_ary)
-        elif is_array_container(_ary):
+        elif is_array_container_type(_ary.__class__):
             return deserialize_container(_ary, [
                 (key, frec(subary)) for key, subary in serialize_container(_ary)
                 ])
@@ -113,7 +113,7 @@ def _multimap_array_container_impl(
     def rec(*_args: Any) -> Any:
         template_ary = _args[container_indices[0]]
         if (type(template_ary) is leaf_cls
-                or not is_array_container(template_ary)):
+                or not is_array_container_type(template_ary.__class__)):
             return f(*_args)
 
         assert all(
@@ -141,7 +141,7 @@ def _multimap_array_container_impl(
 
     container_indices: List[int] = [
             i for i, arg in enumerate(args)
-            if is_array_container(arg) and type(arg) is not leaf_cls]
+            if is_array_container_type(arg.__class__) and type(arg) is not leaf_cls]
 
     if not container_indices:
         return f(*args)
@@ -453,7 +453,7 @@ def freeze(
 
     See :meth:`ArrayContext.thaw`.
     """
-    if is_array_container(ary):
+    if is_array_container_type(ary.__class__):
         return map_array_container(partial(freeze, actx=actx), ary)
     else:
         if actx is None:
@@ -634,7 +634,7 @@ def from_numpy(ary: Any, actx: ArrayContext) -> Any:
     def _from_numpy(subary: Any) -> Any:
         if isinstance(subary, np.ndarray) and subary.dtype != "O":
             return actx.from_numpy(subary)
-        elif is_array_container(subary):
+        elif is_array_container_type(subary.__class__):
             return map_array_container(_from_numpy, subary)
         else:
             raise TypeError(f"unrecognized array type: '{type(subary).__name__}'")
