@@ -320,6 +320,7 @@ class CompiledFunction:
             representation.
         """
         from arraycontext.container.traversal import rec_keyed_map_array_container
+        from .utils import TaggableCLArray, to_tagged_cl_array
 
         input_kwargs_to_loopy = {}
 
@@ -332,7 +333,7 @@ class CompiledFunction:
             elif isinstance(arg, pt.array.DataWrapper):
                 # got a Datwwrapper => simply gets its data
                 arg = arg.data
-            elif isinstance(arg, cla.Array):
+            elif isinstance(arg, TaggableCLArray):
                 # got a frozen array  => do nothing
                 pass
             elif isinstance(arg, pt.Array):
@@ -354,7 +355,11 @@ class CompiledFunction:
         # }}}
 
         def to_output_template(keys, _):
-            return self.actx.thaw(out_dict[self.output_id_to_name_in_program[keys]])
+            # TODO: What should be done about the tags here?
+            return self.actx.thaw(to_tagged_cl_array(
+                out_dict[self.output_id_to_name_in_program[keys]],
+                None,
+                frozenset()))
 
         return rec_keyed_map_array_container(to_output_template,
                                              self.output_template)

@@ -103,6 +103,7 @@ def to_tagged_cl_array(ary: cl_array.Array,
                            events=ary.events, _fast=True,
                            _context=ary.context,
                            _queue=ary.queue, _size=ary.size,
+                           axes=axes,
                            tags=tags)
 
 
@@ -133,6 +134,7 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                     shape=tuple(self.rec(s) if isinstance(s, Array) else s
                                 for s in expr.shape),
                     dtype=expr.dtype,
+                    axes=expr.axes,
                     tags=expr.tags)
 
     def map_size_param(self, expr: SizeParam) -> Array:
