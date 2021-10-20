@@ -90,12 +90,15 @@ def _map_array_container_impl(
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(_ary)
-        elif is_array_container_type(_ary.__class__):
-            return deserialize_container(_ary, [
-                (key, frec(subary)) for key, subary in serialize_container(_ary)
-                ])
-        else:
+
+        try:
+            iterable = serialize_container(_ary)
+        except TypeError:
             return f(_ary)
+        else:
+            return deserialize_container(_ary, [
+                (key, frec(subary)) for key, subary in iterable
+                ])
 
     frec = rec if recursive else f
     return rec(ary)
@@ -457,9 +460,9 @@ def freeze(
 
     See :meth:`ArrayContext.thaw`.
     """
-    if is_array_container_type(ary.__class__):
-        return map_array_container(partial(freeze, actx=actx), ary)
-    else:
+    try:
+        iterable = serialize_container(ary)
+    except TypeError:
         if actx is None:
             raise TypeError(
                     f"cannot freeze arrays of type {type(ary).__name__} "
@@ -467,6 +470,10 @@ def freeze(
                     "directly or supplying an array context")
         else:
             return actx.freeze(ary)
+    else:
+        return deserialize_container(ary, [
+            (key, freeze(subary, actx=actx)) for key, subary in iterable
+            ])
 
 
 @singledispatch
@@ -635,15 +642,15 @@ def from_numpy(ary: Any, actx: ArrayContext) -> Any:
 
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
-    def _from_numpy(subary: Any) -> Any:
-        if isinstance(subary, np.ndarray) and subary.dtype != "O":
+    def _from_numpy_with_check(subary: Any) -> Any:
+        if np.isscalar(subary):
+            return subary
+        elif isinstance(subary, np.ndarray):
             return actx.from_numpy(subary)
-        elif is_array_container_type(subary.__class__):
-            return map_array_container(_from_numpy, subary)
         else:
-            raise TypeError(f"unrecognized array type: '{type(subary).__name__}'")
+            raise TypeError(f"array is not an ndarray: '{type(subary).__name__}'")
 
-    return _from_numpy(ary)
+    return rec_map_array_container(_from_numpy_with_check, ary)
 
 
 def to_numpy(ary: Any, actx: ArrayContext) -> Any:
@@ -652,7 +659,17 @@ def to_numpy(ary: Any, actx: ArrayContext) -> Any:
 
     The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
     """
-    return rec_map_array_container(actx.to_numpy, ary)
+    def _to_numpy_with_check(subary: Any) -> Any:
+        if np.isscalar(subary):
+            return subary
+        elif isinstance(subary, actx.array_types):
+            return actx.to_numpy(subary)
+        else:
+            raise TypeError(
+                    f"array of type '{type(subary).__name__}' not in "
+                    f"supported types {actx.array_types}")
+
+    return rec_map_array_container(_to_numpy_with_check, ary)
 
 # }}}
 
