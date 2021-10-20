@@ -67,6 +67,8 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     .. automethod:: __init__
 
     .. automethod:: transform_dag
+
+    .. automethod:: compile
     """
 
     def __init__(self, queue, allocator=None):
