@@ -28,10 +28,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext.container import ArrayContainer
+from arraycontext.container import ArrayContainer, is_array_container_type
 from arraycontext import PytatoPyOpenCLArrayContext
-from arraycontext.container.traversal import (rec_keyed_map_array_container,
-                                              is_array_container_type)
+from arraycontext.container.traversal import rec_keyed_map_array_container
 
 import numpy as np
 from typing import Any, Callable, Tuple, Dict, Mapping
@@ -162,8 +161,8 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name):
         def _rec_to_placeholder(keys, ary):
             name = arg_id_to_name[(kw,) + keys]
             return pt.make_placeholder(name, ary.shape, ary.dtype)
-        return rec_keyed_map_array_container(_rec_to_placeholder,
-                                                arg)
+
+        return rec_keyed_map_array_container(_rec_to_placeholder, arg)
     else:
         raise NotImplementedError(type(arg))
 
