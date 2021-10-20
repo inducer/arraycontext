@@ -32,6 +32,10 @@ Numpy conversion
 ~~~~~~~~~~~~~~~~
 .. autofunction:: from_numpy
 .. autofunction:: to_numpy
+
+Algebraic operations
+~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: outer
 """
 
 __copyright__ = """
@@ -649,6 +653,52 @@ def to_numpy(ary: Any, actx: ArrayContext) -> Any:
     The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
     """
     return rec_map_array_container(actx.to_numpy, ary)
+
+# }}}
+
+
+# {{{ algebraic operations
+
+def outer(a: Any, b: Any) -> Any:
+    """
+    Compute the outer product of *a* and *b* while allowing either of them
+    to be an :class:`ArrayContainer`.
+
+    Tweaks the behavior of :func:`numpy.outer` to return a lower-dimensional
+    object if either/both of *a* and *b* are scalars (whereas :func:`numpy.outer`
+    always returns a matrix). Here the definition of "scalar" includes
+    all non-array-container types and any scalar-like array container types
+    (including non-object numpy arrays).
+
+    If *a* and *b* are both array containers, the result will have the same type
+    as *a*. If both are array containers and neither is an object array, they must
+    have the same type.
+    """
+
+    def treat_as_scalar(x: Any) -> bool:
+        try:
+            serialize_container(x)
+        except TypeError:
+            return True
+        else:
+            return (
+                not isinstance(x, np.ndarray)
+                # This condition is whether "ndarrays should broadcast inside x".
+                and np.ndarray not in x.__class__._outer_bcast_types)
+
+    if treat_as_scalar(a) or treat_as_scalar(b):
+        return a*b
+    # After this point, "isinstance(o, ndarray)" means o is an object array.
+    elif isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+        return np.outer(a, b)
+    elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        return map_array_container(lambda x: outer(x, b), a)
+    else:
+        if type(a) != type(b):
+            raise TypeError(
+                "both arguments must have the same type if they are both "
+                "non-object-array array containers.")
+        return multimap_array_container(lambda x, y: outer(x, y), a, b)
 
 # }}}
 
