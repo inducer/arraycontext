@@ -1243,6 +1243,31 @@ def test_outer(actx_factory):
 # }}}
 
 
+# {{{ test_array_container_with_numpy
+
+@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class ArrayContainerWithNumpy:
+    u: np.ndarray
+    v: DOFArray
+
+
+def test_array_container_with_numpy(actx_factory):
+    actx = actx_factory()
+
+    mystate = ArrayContainerWithNumpy(
+            u=np.zeros(10),
+            v=DOFArray(actx, (actx.from_numpy(np.zeros(42)),)),
+            )
+
+    from arraycontext import rec_map_array_container
+    rec_map_array_container(lambda x: x, mystate)
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:

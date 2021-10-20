@@ -247,28 +247,29 @@ def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
     If different components that have different array contexts are found at
     any level, an assertion error is raised.
     """
-    actx = None
-    if not is_array_container_type(ary.__class__):
-        return actx
-
     # try getting the array context directly
     actx = get_container_context(ary)
     if actx is not None:
         return actx
 
-    for _, subary in serialize_container(ary):
-        context = get_container_context_recursively(subary)
-        if context is None:
-            continue
+    try:
+        iterable = serialize_container(ary)
+    except TypeError:
+        return actx
+    else:
+        for _, subary in iterable:
+            context = get_container_context_recursively(subary)
+            if context is None:
+                continue
 
-        if not __debug__:
-            return context
-        elif actx is None:
-            actx = context
-        else:
-            assert actx is context
+            if not __debug__:
+                return context
+            elif actx is None:
+                actx = context
+            else:
+                assert actx is context
 
-    return actx
+        return actx
 
 # }}}
 
