@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import serialize_container, deserialize_container
+from arraycontext.container import serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
 from pytools import memoize_in
@@ -187,17 +187,7 @@ class BaseFakeNumpyNamespace:
             # FIXME: what about object arrays nested in an ArrayContainer?
             raise NotImplementedError("operation not implemented for object arrays")
 
-        def _new_like_container(_ary):
-            try:
-                iterable = serialize_container(_ary)
-            except TypeError:
-                return alloc_like(_ary)
-            else:
-                return deserialize_container(_ary, [
-                    (key, alloc_like(subary)) for key, subary in iterable
-                    ])
-
-        return _new_like_container(ary)
+        return rec_map_array_container(alloc_like, ary)
 
     def empty_like(self, ary):
         return self._new_like(ary, self._array_context.empty_like)
