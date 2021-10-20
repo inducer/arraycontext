@@ -161,7 +161,7 @@ class PyOpenCLArrayContext(ArrayContext):
         return cl_array.to_device(self.queue, array, allocator=self.allocator)
 
     def to_numpy(self, array):
-        if not self._force_device_scalars and np.isscalar(array):
+        if np.isscalar(array):
             return array
 
         return array.get(queue=self.queue)

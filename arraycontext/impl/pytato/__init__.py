@@ -105,6 +105,9 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return pt.make_data_wrapper(cl_array)
 
     def to_numpy(self, array):
+        if np.isscalar(array):
+            return array
+
         cl_array = self.freeze(array)
         return cl_array.get(queue=self.queue)
 
