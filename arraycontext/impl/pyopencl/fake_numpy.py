@@ -33,7 +33,7 @@ import numpy as np
 
 from arraycontext.fake_numpy import \
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
-from arraycontext.container import serialize_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
         rec_multimap_array_container,
@@ -252,7 +252,7 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
             try:
                 iterable = zip(serialize_container(x), serialize_container(y))
-            except TypeError:
+            except NotAnArrayContainerError:
                 if x.shape != y.shape:
                     return false
                 else:
