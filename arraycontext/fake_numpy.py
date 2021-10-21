@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import serialize_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
 from pytools import memoize_in
@@ -258,7 +258,7 @@ class BaseFakeNumpyLinalgNamespace:
 
         try:
             iterable = serialize_container(ary)
-        except TypeError:
+        except NotAnArrayContainerError:
             pass
         else:
             return _reduce_norm(actx, [

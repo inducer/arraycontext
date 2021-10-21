@@ -69,7 +69,7 @@ import numpy as np
 
 from arraycontext.context import ArrayContext
 from arraycontext.container import (
-        ContainerT, ArrayOrContainerT,
+        ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
         serialize_container, deserialize_container)
 
 
@@ -93,7 +93,7 @@ def _map_array_container_impl(
 
         try:
             iterable = serialize_container(_ary)
-        except TypeError:
+        except NotAnArrayContainerError:
             return f(_ary)
         else:
             return deserialize_container(_ary, [
@@ -127,7 +127,7 @@ def _multimap_array_container_impl(
 
         try:
             iterable_template = serialize_container(template_ary)
-        except TypeError:
+        except NotAnArrayContainerError:
             return f(*_args)
         else:
             pass
@@ -170,7 +170,7 @@ def _multimap_array_container_impl(
             # FIXME: this will serialize again once `rec` is called, which is
             # not great, but it doesn't seem like there's a good way to avoid it
             _ = serialize_container(arg)
-        except TypeError:
+        except NotAnArrayContainerError:
             pass
         else:
             container_indices.append(i)
@@ -231,7 +231,7 @@ def map_array_container(
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         return f(ary)
     else:
         return deserialize_container(ary, [
@@ -316,7 +316,7 @@ def keyed_map_array_container(f: Callable[[Any, Any], Any],
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         raise ValueError(
                 f"Non-array container type has no key: {type(ary).__name__}")
     else:
@@ -338,7 +338,7 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
             _ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
-        except TypeError:
+        except NotAnArrayContainerError:
             return f(keys, _ary)
         else:
             return deserialize_container(_ary, [
@@ -367,7 +367,7 @@ def map_reduce_array_container(
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         return map_func(ary)
     else:
         return reduce_func([
@@ -442,7 +442,7 @@ def rec_map_reduce_array_container(
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
-        except TypeError:
+        except NotAnArrayContainerError:
             return map_func(_ary)
         else:
             return reduce_func([
@@ -501,7 +501,7 @@ def freeze(
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         if actx is None:
             raise TypeError(
                     f"cannot freeze arrays of type {type(ary).__name__} "
@@ -538,7 +538,7 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         return actx.thaw(ary)
     else:
         return deserialize_container(ary, [
@@ -567,7 +567,7 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
 
         try:
             iterable = serialize_container(subary)
-        except TypeError:
+        except NotAnArrayContainerError:
             if common_dtype is None:
                 common_dtype = subary.dtype
 
@@ -618,7 +618,7 @@ def unflatten(
 
         try:
             iterable = serialize_container(template_subary)
-        except TypeError:
+        except NotAnArrayContainerError:
             if (offset + template_subary.size) > ary.size:
                 raise ValueError("'template' and 'ary' sizes do not match: "
                     "'template' is too large")
@@ -682,9 +682,7 @@ def from_numpy(ary: Any, actx: ArrayContext) -> Any:
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
     def _from_numpy_with_check(subary: Any) -> Any:
-        if np.isscalar(subary):
-            return subary
-        elif isinstance(subary, np.ndarray):
+        if isinstance(subary, np.ndarray) or np.isscalar(subary):
             return actx.from_numpy(subary)
         else:
             raise TypeError(f"array is not an ndarray: '{type(subary).__name__}'")
@@ -699,9 +697,7 @@ def to_numpy(ary: Any, actx: ArrayContext) -> Any:
     The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
     """
     def _to_numpy_with_check(subary: Any) -> Any:
-        if np.isscalar(subary):
-            return subary
-        elif isinstance(subary, actx.array_types):
+        if isinstance(subary, actx.array_types) or np.isscalar(subary):
             return actx.to_numpy(subary)
         else:
             raise TypeError(
@@ -734,7 +730,7 @@ def outer(a: Any, b: Any) -> Any:
     def treat_as_scalar(x: Any) -> bool:
         try:
             serialize_container(x)
-        except TypeError:
+        except NotAnArrayContainerError:
             return True
         else:
             return (
