@@ -267,6 +267,11 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
             result = result.get()[()]
         return result
 
+    def astype(self, a, dtype):
+        return rec_map_array_container(
+                lambda ary: ary.astype(dtype, queue=self._array_context.queue),
+                a)
+
 # }}}
 
 
