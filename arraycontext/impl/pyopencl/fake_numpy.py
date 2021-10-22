@@ -28,7 +28,6 @@ THE SOFTWARE.
 
 from functools import partial, reduce
 import operator
-
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
@@ -172,8 +171,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                     queue=self._array_context.queue),
                 *arrays)
 
-    def reshape(self, a, newshape):
-        return cl_array.reshape(a, newshape)
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: ary.reshape(newshape, order=order),
+                a)
 
     def concatenate(self, arrays, axis=0):
         return cl_array.concatenate(
@@ -247,7 +248,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def rec_equal(x, y):
             if type(x) != type(y):
                 return as_device_scalar(False)
-            elif not is_array_container(x):
+            elif not is_array_container_type(x.__class__):
                 if x.shape != y.shape:
                     return as_device_scalar(False)
                 else:

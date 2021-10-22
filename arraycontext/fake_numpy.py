@@ -29,7 +29,6 @@ from arraycontext.container.traversal import rec_map_array_container
 
 
 # {{{ BaseFakeNumpyNamespace
-
 class BaseFakeNumpyNamespace:
     def __init__(self, array_context):
         self._array_context = array_context
@@ -90,7 +89,7 @@ class BaseFakeNumpyNamespace:
         # FIXME:
         # "interp",
         })
-
+    
     def _new_like(self, ary, alloc_like):
         from numbers import Number
 
@@ -99,7 +98,7 @@ class BaseFakeNumpyNamespace:
             # e.g. `np.zeros_like(x)` returns `array([0, 0, ...], dtype=object)`
             # FIXME: what about object arrays nested in an ArrayContainer?
             raise NotImplementedError("operation not implemented for object arrays")
-        elif is_array_container(ary):
+        elif is_array_container_type(ary.__class__):
             return rec_map_array_container(alloc_like, ary)
         elif isinstance(ary, Number):
             # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
@@ -127,17 +126,22 @@ class BaseFakeNumpyNamespace:
 
 # {{{ BaseFakeNumpyLinalgNamespace
 
-def _scalar_list_norm(ary, ord):
+def _reduce_norm(actx, arys, ord):
+    from numbers import Number
+    from functools import reduce
+
     if ord is None:
         ord = 2
 
-    from numbers import Number
-    if ord == np.inf:
-        return max(ary)
+    # NOTE: these are ordered by an expected usage frequency
+    if ord == 2:
+        return actx.np.sqrt(sum(subary*subary for subary in arys))
+    elif ord == np.inf:
+        return reduce(actx.np.maximum, arys)
     elif ord == -np.inf:
-        return min(ary)
+        return reduce(actx.np.minimum, arys)
     elif isinstance(ord, Number) and ord > 0:
-        return sum(iary**ord for iary in ary)**(1/ord)
+        return sum(subary**ord for subary in arys)**(1/ord)
     else:
         raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 
@@ -170,8 +174,8 @@ class BaseFakeNumpyLinalgNamespace:
 
                 return flat_norm(ary, ord=ord)
 
-        if is_array_container(ary):
-            return _scalar_list_norm([
+        if is_array_container_type(ary.__class__):
+            return _reduce_norm(actx, [
                 self.norm(subary, ord=ord)
                 for _, subary in serialize_container(ary)
                 ], ord=ord)
@@ -183,14 +187,16 @@ class BaseFakeNumpyLinalgNamespace:
             raise NotImplementedError("only vector norms are implemented")
 
         if ary.size == 0:
-            return 0
+            return ary.dtype.type(0)
 
+        if ord == 2:
+            return actx.np.sqrt(actx.np.sum(abs(ary)**2))
         if ord == np.inf:
-            return self._array_context.np.max(abs(ary))
+            return actx.np.max(abs(ary))
         elif ord == -np.inf:
-            return self._array_context.np.min(abs(ary))
+            return actx.np.min(abs(ary))
         elif isinstance(ord, Number) and ord > 0:
-            return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
+            return actx.np.sum(abs(ary)**ord)**(1/ord)
         else:
             raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 # }}}

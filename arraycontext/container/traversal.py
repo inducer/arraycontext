@@ -23,10 +23,19 @@ Freezing and thawing
 .. autofunction:: freeze
 .. autofunction:: thaw
 
+Flattening and unflattening
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: flatten
+.. autofunction:: unflatten
+
 Numpy conversion
 ~~~~~~~~~~~~~~~~
 .. autofunction:: from_numpy
 .. autofunction:: to_numpy
+
+Algebraic operations
+~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: outer
 """
 
 __copyright__ = """
@@ -60,7 +69,7 @@ import numpy as np
 
 from arraycontext.context import ArrayContext
 from arraycontext.container import (
-        ContainerT, ArrayOrContainerT, is_array_container,
+        ContainerT, ArrayOrContainerT, is_array_container_type,
         serialize_container, deserialize_container)
 
 
@@ -81,7 +90,7 @@ def _map_array_container_impl(
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(_ary)
-        elif is_array_container(_ary):
+        elif is_array_container_type(_ary.__class__):
             return deserialize_container(_ary, [
                 (key, frec(subary)) for key, subary in serialize_container(_ary)
                 ])
@@ -108,7 +117,7 @@ def _multimap_array_container_impl(
     def rec(*_args: Any) -> Any:
         template_ary = _args[container_indices[0]]
         if (type(template_ary) is leaf_cls
-                or not is_array_container(template_ary)):
+                or not is_array_container_type(template_ary.__class__)):
             return f(*_args)
 
         assert all(
@@ -136,7 +145,7 @@ def _multimap_array_container_impl(
 
     container_indices: List[int] = [
             i for i, arg in enumerate(args)
-            if is_array_container(arg) and type(arg) is not leaf_cls]
+            if is_array_container_type(arg.__class__) and type(arg) is not leaf_cls]
 
     if not container_indices:
         return f(*args)
@@ -448,7 +457,7 @@ def freeze(
 
     See :meth:`ArrayContext.thaw`.
     """
-    if is_array_container(ary):
+    if is_array_container_type(ary.__class__):
         return map_array_container(partial(freeze, actx=actx), ary)
     else:
         if actx is None:
@@ -493,6 +502,131 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
 # }}}
 
 
+# {{{ flatten / unflatten
+
+def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
+    """Convert all arrays in the :class:`~arraycontext.ArrayContainer`
+    into single flat array of a type :attr:`arraycontext.ArrayContext.array_types`.
+
+    The operation requires :attr:`arraycontext.ArrayContext.np` to have
+    ``ravel`` and ``concatenate`` methods implemented. The order in which the
+    individual leaf arrays appear in the final array is dependent on the order
+    given by :func:`~arraycontext.serialize_container`.
+    """
+    common_dtype = None
+    result: List[Any] = []
+
+    def _flatten(subary: ArrayOrContainerT) -> None:
+        nonlocal common_dtype
+
+        try:
+            iterable = serialize_container(subary)
+        except TypeError:
+            if common_dtype is None:
+                common_dtype = subary.dtype
+
+            if subary.dtype != common_dtype:
+                raise ValueError("arrays in container have different dtypes: "
+                        f"got {subary.dtype}, expected {common_dtype}")
+
+            try:
+                flat_subary = actx.np.ravel(subary, order="C")
+            except ValueError as exc:
+                # NOTE: we can't do much if the array context fails to ravel,
+                # since it is the one responsible for the actual memory layout
+                if hasattr(subary, "strides"):
+                    strides_msg = f" and strides {subary.strides}"
+                else:
+                    strides_msg = ""
+
+                raise NotImplementedError(
+                        f"'{type(actx).__name__}.np.ravel' failed to reshape "
+                        f"an array with shape {subary.shape}{strides_msg}. "
+                        "This functionality needs to be implemented by the "
+                        "array context.") from exc
+
+            result.append(flat_subary)
+        else:
+            for _, isubary in iterable:
+                _flatten(isubary)
+
+    _flatten(ary)
+
+    return actx.np.concatenate(result)
+
+
+def unflatten(
+        template: ArrayOrContainerT, ary: Any,
+        actx: ArrayContext) -> ArrayOrContainerT:
+    """Unflatten an array *ary* produced by :func:`flatten` back into an
+    :class:`~arraycontext.ArrayContainer`.
+
+    The order and sizes of each slice into *ary* are determined by the
+    array container *template*.
+    """
+    # NOTE: https://github.com/python/mypy/issues/7057
+    offset = 0
+
+    def _unflatten(template_subary: ArrayOrContainerT) -> ArrayOrContainerT:
+        nonlocal offset
+
+        try:
+            iterable = serialize_container(template_subary)
+        except TypeError:
+            if (offset + template_subary.size) > ary.size:
+                raise ValueError("'template' and 'ary' sizes do not match: "
+                    "'template' is too large")
+
+            if template_subary.dtype != ary.dtype:
+                raise ValueError("'template' dtype does not match 'ary': "
+                        f"got {template_subary.dtype}, expected {ary.dtype}")
+
+            flat_subary = ary[offset:offset + template_subary.size]
+            try:
+                subary = actx.np.reshape(flat_subary,
+                        template_subary.shape, order="C")
+            except ValueError as exc:
+                # NOTE: we can't do much if the array context fails to reshape,
+                # since it is the one responsible for the actual memory layout
+                raise NotImplementedError(
+                        f"'{type(actx).__name__}.np.reshape' failed to reshape "
+                        f"the flat array into shape {template_subary.shape}. "
+                        "This functionality needs to be implemented by the "
+                        "array context.") from exc
+
+            if hasattr(template_subary, "strides"):
+                if template_subary.strides != subary.strides:
+                    raise ValueError(
+                            f"strides do not match template: got {subary.strides}, "
+                            f"expected {template_subary.strides}")
+
+            offset += template_subary.size
+            return subary
+        else:
+            return deserialize_container(template_subary, [
+                (key, _unflatten(isubary)) for key, isubary in iterable
+                ])
+
+    if not isinstance(ary, actx.array_types):
+        raise TypeError("'ary' does not have a type supported by the provided "
+                f"array context: got '{type(ary).__name__}', expected one of "
+                f"{actx.array_types}")
+
+    if ary.ndim != 1:
+        raise ValueError(
+                "only one dimensional arrays can be unflattened: "
+                f"'ary' has shape {ary.shape}")
+
+    result = _unflatten(template)
+    if offset != ary.size:
+        raise ValueError("'template' and 'ary' sizes do not match: "
+            "'ary' is too large")
+
+    return result
+
+# }}}
+
+
 # {{{ numpy conversion
 
 def from_numpy(ary: Any, actx: ArrayContext) -> Any:
@@ -504,7 +638,7 @@ def from_numpy(ary: Any, actx: ArrayContext) -> Any:
     def _from_numpy(subary: Any) -> Any:
         if isinstance(subary, np.ndarray) and subary.dtype != "O":
             return actx.from_numpy(subary)
-        elif is_array_container(subary):
+        elif is_array_container_type(subary.__class__):
             return map_array_container(_from_numpy, subary)
         else:
             raise TypeError(f"unrecognized array type: '{type(subary).__name__}'")
@@ -519,6 +653,52 @@ def to_numpy(ary: Any, actx: ArrayContext) -> Any:
     The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
     """
     return rec_map_array_container(actx.to_numpy, ary)
+
+# }}}
+
+
+# {{{ algebraic operations
+
+def outer(a: Any, b: Any) -> Any:
+    """
+    Compute the outer product of *a* and *b* while allowing either of them
+    to be an :class:`ArrayContainer`.
+
+    Tweaks the behavior of :func:`numpy.outer` to return a lower-dimensional
+    object if either/both of *a* and *b* are scalars (whereas :func:`numpy.outer`
+    always returns a matrix). Here the definition of "scalar" includes
+    all non-array-container types and any scalar-like array container types
+    (including non-object numpy arrays).
+
+    If *a* and *b* are both array containers, the result will have the same type
+    as *a*. If both are array containers and neither is an object array, they must
+    have the same type.
+    """
+
+    def treat_as_scalar(x: Any) -> bool:
+        try:
+            serialize_container(x)
+        except TypeError:
+            return True
+        else:
+            return (
+                not isinstance(x, np.ndarray)
+                # This condition is whether "ndarrays should broadcast inside x".
+                and np.ndarray not in x.__class__._outer_bcast_types)
+
+    if treat_as_scalar(a) or treat_as_scalar(b):
+        return a*b
+    # After this point, "isinstance(o, ndarray)" means o is an object array.
+    elif isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+        return np.outer(a, b)
+    elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        return map_array_container(lambda x: outer(x, b), a)
+    else:
+        if type(a) != type(b):
+            raise TypeError(
+                "both arguments must have the same type if they are both "
+                "non-object-array array containers.")
+        return multimap_array_container(lambda x, y: outer(x, y), a, b)
 
 # }}}
 

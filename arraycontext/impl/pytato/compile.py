@@ -2,6 +2,7 @@
 .. currentmodule:: arraycontext.impl.pytato.compile
 .. autoclass:: LazilyCompilingFunctionCaller
 .. autoclass:: CompiledFunction
+.. autoclass:: FromArrayContextCompile
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -30,7 +31,7 @@ THE SOFTWARE.
 from arraycontext.container import ArrayContainer
 from arraycontext import PytatoPyOpenCLArrayContext
 from arraycontext.container.traversal import (rec_keyed_map_array_container,
-                                              is_array_container)
+                                              is_array_container_type)
 
 import numpy as np
 from typing import Any, Callable, Tuple, Dict, Mapping
@@ -40,11 +41,23 @@ from pyrsistent import pmap, PMap
 import pyopencl.array as cla
 import pytato as pt
 import itertools
+from pytools.tag import Tag
 
 from pytools import ProcessLogger
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+class FromArrayContextCompile(Tag):
+    """
+    Tagged to the entrypoint kernel of every translation unit that is generated
+    by :meth:`~arraycontext.PytatoPyOpenCLArrayContext.compile`.
+
+    Typically this tag serves as a branch condition in implementing a
+    specialized transform strategy for kernels compiled by
+    :meth:`~arraycontext.PytatoPyOpenCLArrayContext.compile`.
+    """
 
 
 # {{{ helper classes: AbstractInputDescriptor
@@ -119,7 +132,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
             arg_id = (kw,)
             arg_id_to_arg[arg_id] = arg
             arg_id_to_descr[arg_id] = ScalarInputDescriptor(np.dtype(type(arg)))
-        elif is_array_container(arg):
+        elif is_array_container_type(arg.__class__):
             def id_collector(keys, ary):
                 arg_id = (kw,) + keys
                 arg_id_to_arg[arg_id] = ary
@@ -145,7 +158,7 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name):
     if np.isscalar(arg):
         name = arg_id_to_name[(kw,)]
         return pt.make_placeholder(name, (), np.dtype(type(arg)))
-    elif is_array_container(arg):
+    elif is_array_container_type(arg.__class__):
         def _rec_to_placeholder(keys, ary):
             name = arg_id_to_name[(kw,) + keys]
             return pt.make_placeholder(name, ary.shape, ary.dtype)
@@ -212,7 +225,7 @@ class LazilyCompilingFunctionCaller:
                          **{kw: _get_f_placeholder_args(arg, kw, input_naming_map)
                             for kw, arg in kwargs.items()})
 
-        if not is_array_container(outputs):
+        if not is_array_container_type(outputs.__class__):
             # TODO: We could possibly just short-circuit this interface if the
             # returned type is a scalar. Not sure if it's worth it though.
             raise NotImplementedError(
@@ -245,6 +258,13 @@ class LazilyCompilingFunctionCaller:
             assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
         with ProcessLogger(logger, "transform_loopy_program"):
+
+            pytato_program = (pytato_program
+                              .with_transformed_program(
+                                  lambda x: x.with_kernel(
+                                      x.default_entrypoint
+                                      .tagged(FromArrayContextCompile()))))
+
             pytato_program = (pytato_program
                               .with_transformed_program(self
                                                         .actx

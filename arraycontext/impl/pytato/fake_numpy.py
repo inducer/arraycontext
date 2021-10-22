@@ -22,7 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
-
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
@@ -63,8 +62,10 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return super().__getattr__(name)
 
-    def reshape(self, a, newshape):
-        return rec_multimap_array_container(pt.reshape, a, newshape)
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: pt.reshape(a, newshape, order=order),
+                a)
 
     def transpose(self, a, axes=None):
         return rec_multimap_array_container(pt.transpose, a, axes)
@@ -178,7 +179,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         if type(a) != type(b):
             return as_device_scalar(False)
-        elif not is_array_container(a):
+        elif not is_array_container_type(a.__class__):
             if a.shape != b.shape:
                 return as_device_scalar(False)
             else:
