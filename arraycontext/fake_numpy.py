@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import is_array_container_type, serialize_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
 from pytools import memoize_in
@@ -176,20 +176,18 @@ class BaseFakeNumpyNamespace:
 
     def _new_like(self, ary, alloc_like):
         from numbers import Number
+        if isinstance(ary, Number):
+            # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
+            # is best implemented by concrete array contexts, if at all
+            raise NotImplementedError("operation not implemented for scalars")
 
         if isinstance(ary, np.ndarray) and ary.dtype.char == "O":
             # NOTE: we don't want to match numpy semantics on object arrays,
             # e.g. `np.zeros_like(x)` returns `array([0, 0, ...], dtype=object)`
             # FIXME: what about object arrays nested in an ArrayContainer?
             raise NotImplementedError("operation not implemented for object arrays")
-        elif is_array_container_type(ary.__class__):
-            return rec_map_array_container(alloc_like, ary)
-        elif isinstance(ary, Number):
-            # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
-            # is best implemented by concrete array contexts, if at all
-            raise NotImplementedError("operation not implemented for scalars")
-        else:
-            return alloc_like(ary)
+
+        return rec_map_array_container(alloc_like, ary)
 
     def empty_like(self, ary):
         return self._new_like(ary, self._array_context.empty_like)
@@ -258,10 +256,13 @@ class BaseFakeNumpyLinalgNamespace:
 
                 return flat_norm(ary, ord=ord)
 
-        if is_array_container_type(ary.__class__):
+        try:
+            iterable = serialize_container(ary)
+        except NotAnArrayContainerError:
+            pass
+        else:
             return _reduce_norm(actx, [
-                self.norm(subary, ord=ord)
-                for _, subary in serialize_container(ary)
+                self.norm(subary, ord=ord) for _, subary in iterable
                 ], ord=ord)
 
         if ord is None:

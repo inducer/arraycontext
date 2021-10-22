@@ -20,6 +20,8 @@
 
 .. autoclass:: ArrayContainer
 
+.. autoexception:: NotAnArrayContainerError
+
 Serialization/deserialization
 -----------------------------
 .. autofunction:: is_array_container_type
@@ -115,6 +117,10 @@ class ArrayContainer:
     """
 
 
+class NotAnArrayContainerError(TypeError):
+    """:class:`TypeError` subclass raised when an array container is expected."""
+
+
 @singledispatch
 def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
     r"""Serialize the array container into an iterable over its components.
@@ -137,7 +143,8 @@ def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
         for arbitrarily nested structures. The identifiers need to be hashable
         but are otherwise treated as opaque.
     """
-    raise TypeError(f"'{type(ary).__name__}' cannot be serialized as a container")
+    raise NotAnArrayContainerError(
+            f"'{type(ary).__name__}' cannot be serialized as a container")
 
 
 @singledispatch
@@ -150,7 +157,7 @@ def deserialize_container(template: Any, iterable: Iterable[Tuple[Any, Any]]) ->
     :param iterable: an iterable that mirrors the output of
         :meth:`serialize_container`.
     """
-    raise TypeError(
+    raise NotAnArrayContainerError(
             f"'{type(template).__name__}' cannot be deserialized as a container")
 
 
@@ -181,8 +188,8 @@ def is_array_container(ary: Any) -> bool:
     from warnings import warn
     warn("is_array_container is deprecated and will be removed in 2022. "
             "If you must know precisely whether something is an array container, "
-            "try serializing it and catch TypeError. For a cheaper option, see "
-            "is_array_container_type.",
+            "try serializing it and catch NotAnArrayContainerError. For a "
+            "cheaper option, see is_array_container_type.",
             DeprecationWarning, stacklevel=2)
     return (serialize_container.dispatch(ary.__class__)
             is not serialize_container.__wrapped__)       # type:ignore[attr-defined]
@@ -206,7 +213,7 @@ def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
 @serialize_container.register(np.ndarray)
 def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
     if ary.dtype.char != "O":
-        raise TypeError(
+        raise NotAnArrayContainerError(
                 f"cannot seriealize '{type(ary).__name__}' with dtype '{ary.dtype}'")
 
     # special-cased for speed
@@ -247,28 +254,29 @@ def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
     If different components that have different array contexts are found at
     any level, an assertion error is raised.
     """
-    actx = None
-    if not is_array_container_type(ary.__class__):
-        return actx
-
     # try getting the array context directly
     actx = get_container_context(ary)
     if actx is not None:
         return actx
 
-    for _, subary in serialize_container(ary):
-        context = get_container_context_recursively(subary)
-        if context is None:
-            continue
+    try:
+        iterable = serialize_container(ary)
+    except NotAnArrayContainerError:
+        return actx
+    else:
+        for _, subary in iterable:
+            context = get_container_context_recursively(subary)
+            if context is None:
+                continue
 
-        if not __debug__:
-            return context
-        elif actx is None:
-            actx = context
-        else:
-            assert actx is context
+            if not __debug__:
+                return context
+            elif actx is None:
+                actx = context
+            else:
+                assert actx is context
 
-    return actx
+        return actx
 
 # }}}
 

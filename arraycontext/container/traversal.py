@@ -69,7 +69,7 @@ import numpy as np
 
 from arraycontext.context import ArrayContext
 from arraycontext.container import (
-        ContainerT, ArrayOrContainerT, is_array_container_type,
+        ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
         serialize_container, deserialize_container)
 
 
@@ -90,12 +90,15 @@ def _map_array_container_impl(
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
         if type(_ary) is leaf_cls:  # type(ary) is never None
             return f(_ary)
-        elif is_array_container_type(_ary.__class__):
-            return deserialize_container(_ary, [
-                (key, frec(subary)) for key, subary in serialize_container(_ary)
-                ])
-        else:
+
+        try:
+            iterable = serialize_container(_ary)
+        except NotAnArrayContainerError:
             return f(_ary)
+        else:
+            return deserialize_container(_ary, [
+                (key, frec(subary)) for key, subary in iterable
+                ])
 
     frec = rec if recursive else f
     return rec(ary)
@@ -114,11 +117,20 @@ def _multimap_array_container_impl(
         specific container classes. By default, the recursion is stopped when
         a non-:class:`ArrayContainer` class is encountered.
     """
+
+    # {{{ recursive traversal
+
     def rec(*_args: Any) -> Any:
         template_ary = _args[container_indices[0]]
-        if (type(template_ary) is leaf_cls
-                or not is_array_container_type(template_ary.__class__)):
+        if type(template_ary) is leaf_cls:
             return f(*_args)
+
+        try:
+            iterable_template = serialize_container(template_ary)
+        except NotAnArrayContainerError:
+            return f(*_args)
+        else:
+            pass
 
         assert all(
                 type(_args[i]) is type(template_ary) for i in container_indices[1:]
@@ -127,9 +139,10 @@ def _multimap_array_container_impl(
         result = []
         new_args = list(_args)
 
-        for subarys in zip(*[
-                serialize_container(_args[i]) for i in container_indices
-                ]):
+        for subarys in zip(
+                iterable_template,
+                *[serialize_container(_args[i]) for i in container_indices[1:]]
+                ):
             key = None
             for i, (subkey, subary) in zip(container_indices, subarys):
                 if key is None:
@@ -143,12 +156,35 @@ def _multimap_array_container_impl(
 
         return process_container(template_ary, result)     # type: ignore[operator]
 
-    container_indices: List[int] = [
-            i for i, arg in enumerate(args)
-            if is_array_container_type(arg.__class__) and type(arg) is not leaf_cls]
+    # }}}
+
+    # {{{ find all containers in the argument list
+
+    container_indices: List[int] = []
+
+    for i, arg in enumerate(args):
+        if type(arg) is leaf_cls:
+            continue
+
+        try:
+            # FIXME: this will serialize again once `rec` is called, which is
+            # not great, but it doesn't seem like there's a good way to avoid it
+            _ = serialize_container(arg)
+        except NotAnArrayContainerError:
+            pass
+        else:
+            container_indices.append(i)
+
+    # }}}
+
+    # {{{ #containers == 0 => call `f`
 
     if not container_indices:
         return f(*args)
+
+    # }}}
+
+    # {{{ #containers == 1 => call `map_array_container`
 
     if len(container_indices) == 1 and reduce_func is None:
         # NOTE: if we just have one ArrayContainer in args, passing it through
@@ -164,8 +200,14 @@ def _multimap_array_container_impl(
                 wrapper, template_ary,
                 leaf_cls=leaf_cls, recursive=recursive)
 
+    # }}}
+
+    # {{{ #containers > 1 => call `rec`
+
     process_container = deserialize_container if reduce_func is None else reduce_func
     frec = rec if recursive else f
+
+    # }}}
 
     return rec(*args)
 
@@ -189,7 +231,7 @@ def map_array_container(
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         return f(ary)
     else:
         return deserialize_container(ary, [
@@ -274,7 +316,7 @@ def keyed_map_array_container(f: Callable[[Any, Any], Any],
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         raise ValueError(
                 f"Non-array container type has no key: {type(ary).__name__}")
     else:
@@ -296,7 +338,7 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
             _ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
-        except TypeError:
+        except NotAnArrayContainerError:
             return f(keys, _ary)
         else:
             return deserialize_container(_ary, [
@@ -325,7 +367,7 @@ def map_reduce_array_container(
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         return map_func(ary)
     else:
         return reduce_func([
@@ -400,7 +442,7 @@ def rec_map_reduce_array_container(
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
-        except TypeError:
+        except NotAnArrayContainerError:
             return map_func(_ary)
         else:
             return reduce_func([
@@ -457,9 +499,9 @@ def freeze(
 
     See :meth:`ArrayContext.thaw`.
     """
-    if is_array_container_type(ary.__class__):
-        return map_array_container(partial(freeze, actx=actx), ary)
-    else:
+    try:
+        iterable = serialize_container(ary)
+    except NotAnArrayContainerError:
         if actx is None:
             raise TypeError(
                     f"cannot freeze arrays of type {type(ary).__name__} "
@@ -467,6 +509,10 @@ def freeze(
                     "directly or supplying an array context")
         else:
             return actx.freeze(ary)
+    else:
+        return deserialize_container(ary, [
+            (key, freeze(subary, actx=actx)) for key, subary in iterable
+            ])
 
 
 @singledispatch
@@ -492,7 +538,7 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
     """
     try:
         iterable = serialize_container(ary)
-    except TypeError:
+    except NotAnArrayContainerError:
         return actx.thaw(ary)
     else:
         return deserialize_container(ary, [
@@ -521,7 +567,7 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
 
         try:
             iterable = serialize_container(subary)
-        except TypeError:
+        except NotAnArrayContainerError:
             if common_dtype is None:
                 common_dtype = subary.dtype
 
@@ -572,7 +618,7 @@ def unflatten(
 
         try:
             iterable = serialize_container(template_subary)
-        except TypeError:
+        except NotAnArrayContainerError:
             if (offset + template_subary.size) > ary.size:
                 raise ValueError("'template' and 'ary' sizes do not match: "
                     "'template' is too large")
@@ -635,15 +681,13 @@ def from_numpy(ary: Any, actx: ArrayContext) -> Any:
 
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
-    def _from_numpy(subary: Any) -> Any:
-        if isinstance(subary, np.ndarray) and subary.dtype != "O":
+    def _from_numpy_with_check(subary: Any) -> Any:
+        if isinstance(subary, np.ndarray) or np.isscalar(subary):
             return actx.from_numpy(subary)
-        elif is_array_container_type(subary.__class__):
-            return map_array_container(_from_numpy, subary)
         else:
-            raise TypeError(f"unrecognized array type: '{type(subary).__name__}'")
+            raise TypeError(f"array is not an ndarray: '{type(subary).__name__}'")
 
-    return _from_numpy(ary)
+    return rec_map_array_container(_from_numpy_with_check, ary)
 
 
 def to_numpy(ary: Any, actx: ArrayContext) -> Any:
@@ -652,7 +696,15 @@ def to_numpy(ary: Any, actx: ArrayContext) -> Any:
 
     The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
     """
-    return rec_map_array_container(actx.to_numpy, ary)
+    def _to_numpy_with_check(subary: Any) -> Any:
+        if isinstance(subary, actx.array_types) or np.isscalar(subary):
+            return actx.to_numpy(subary)
+        else:
+            raise TypeError(
+                    f"array of type '{type(subary).__name__}' not in "
+                    f"supported types {actx.array_types}")
+
+    return rec_map_array_container(_to_numpy_with_check, ary)
 
 # }}}
 
@@ -678,7 +730,7 @@ def outer(a: Any, b: Any) -> Any:
     def treat_as_scalar(x: Any) -> bool:
         try:
             serialize_container(x)
-        except TypeError:
+        except NotAnArrayContainerError:
             return True
         else:
             return (
