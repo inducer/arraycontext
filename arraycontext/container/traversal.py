@@ -603,29 +603,51 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
 
 def unflatten(
         template: ArrayOrContainerT, ary: Any,
-        actx: ArrayContext) -> ArrayOrContainerT:
+        actx: ArrayContext, *,
+        strict: bool = True) -> ArrayOrContainerT:
     """Unflatten an array *ary* produced by :func:`flatten` back into an
     :class:`~arraycontext.ArrayContainer`.
 
     The order and sizes of each slice into *ary* are determined by the
     array container *template*.
+
+    :arg strict: if *True* additional :class:`~numpy.dtype` and stride
+        checking is performed on the unflattened array. Otherwise, these
+        checks are skipped.
     """
     # NOTE: https://github.com/python/mypy/issues/7057
     offset = 0
+    common_dtype = None
 
     def _unflatten(template_subary: ArrayOrContainerT) -> ArrayOrContainerT:
-        nonlocal offset
+        nonlocal offset, common_dtype
 
         try:
             iterable = serialize_container(template_subary)
         except NotAnArrayContainerError:
+            # {{{ validate subary
+
             if (offset + template_subary.size) > ary.size:
                 raise ValueError("'template' and 'ary' sizes do not match: "
                     "'template' is too large")
 
-            if template_subary.dtype != ary.dtype:
-                raise ValueError("'template' dtype does not match 'ary': "
-                        f"got {template_subary.dtype}, expected {ary.dtype}")
+            if strict:
+                if template_subary.dtype != ary.dtype:
+                    raise ValueError("'template' dtype does not match 'ary': "
+                            f"got {template_subary.dtype}, expected {ary.dtype}")
+            else:
+                # NOTE: still require that *template* has a uniform dtype
+                if common_dtype is None:
+                    common_dtype = template_subary.dtype
+                else:
+                    if common_dtype != template_subary.dtype:
+                        raise ValueError("arrays in 'template' have different "
+                                f"dtypes: got {template_subary.dtype}, but "
+                                f"expected {common_dtype}.")
+
+            # }}}
+
+            # {{{ reshape
 
             flat_subary = ary[offset:offset + template_subary.size]
             try:
@@ -640,11 +662,17 @@ def unflatten(
                         "This functionality needs to be implemented by the "
                         "array context.") from exc
 
-            if hasattr(template_subary, "strides"):
+            # }}}
+
+            # {{{ check strides
+
+            if strict and hasattr(template_subary, "strides"):
                 if template_subary.strides != subary.strides:
                     raise ValueError(
                             f"strides do not match template: got {subary.strides}, "
                             f"expected {template_subary.strides}")
+
+            # }}}
 
             offset += template_subary.size
             return subary

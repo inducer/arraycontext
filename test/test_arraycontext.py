@@ -926,6 +926,28 @@ def test_flatten_array_container(actx_factory, shapes):
                 actx.np.linalg.norm(ary - ary_roundtrip)
                 ) < 1.0e-15
 
+    # {{{ complex to real
+
+    if isinstance(shapes, (int, tuple)):
+        shapes = [shapes]
+
+    ary = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes]))
+
+    template = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.complex128))
+        for shape in shapes]))
+
+    flat = flatten(ary, actx)
+    ary_roundtrip = unflatten(template, flat, actx, strict=False)
+
+    assert actx.to_numpy(
+            actx.np.linalg.norm(ary - ary_roundtrip)
+            ) < 1.0e-15
+
+    # }}}
+
 
 def test_flatten_array_container_failure(actx_factory):
     actx = actx_factory()
