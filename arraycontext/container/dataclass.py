@@ -49,10 +49,31 @@ def dataclass_array_container(cls: type) -> type:
     from dataclasses import is_dataclass
     assert is_dataclass(cls)
 
-    array_fields = [
-            f for f in fields(cls) if is_array_container_type(f.type)]
-    non_array_fields = [
-            f for f in fields(cls) if not is_array_container_type(f.type)]
+    def is_array_field(f):
+        if __debug__:
+            if not f.init:
+                raise ValueError(
+                        f"'init=False' field not allowed: '{f.name}'")
+
+            if isinstance(f.type, str):
+                raise TypeError(
+                        f"string annotation on field '{f.name}' not supported")
+
+            from typing import _SpecialForm
+            if isinstance(f.type, _SpecialForm):
+                raise TypeError(
+                        f"typing annotation not supported on field '{f.name}': "
+                        f"'{f.type!r}'")
+
+            if not isinstance(f.type, type):
+                raise TypeError(
+                        f"field '{f.name}' not an instance of 'type': "
+                        f"'{f.type!r}'")
+
+        return is_array_container_type(f.type)
+
+    from pytools import partition
+    array_fields, non_array_fields = partition(is_array_field, fields(cls))
 
     if not array_fields:
         raise ValueError(f"'{cls}' must have fields with array container type "
