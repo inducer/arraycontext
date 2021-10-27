@@ -74,6 +74,19 @@ The interface of an array context
 ---------------------------------
 
 .. currentmodule:: arraycontext
+
+.. class:: DeviceArray
+
+    A (type alias for an) array type supported by the :class:`ArrayContext`
+    meant to aid in typing annotations. For a explicit list of supported types
+    see :attr:`ArrayContext.array_types`.
+
+.. class:: DeviceScalar
+
+    A (type alias for a) scalar type supported by the :class:`ArrayContext`
+    meant to aid in typing annotations, e.g. for reductions. In :mod:`numpy`
+    terminology, this is just an array with a shape of ``()``.
+
 .. autoclass:: ArrayContext
 """
 
@@ -108,6 +121,10 @@ from abc import ABC, abstractmethod, abstractproperty
 import numpy as np
 from pytools import memoize_method
 from pytools.tag import Tag
+
+
+DeviceArray = Any
+DeviceScalar = Any
 
 
 # {{{ ArrayContext

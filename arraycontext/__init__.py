@@ -29,7 +29,7 @@ THE SOFTWARE.
 """
 
 import sys
-from .context import ArrayContext
+from .context import ArrayContext, DeviceArray, DeviceScalar
 
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
@@ -74,7 +74,7 @@ from .loopy import make_loopy_program
 
 
 __all__ = (
-        "ArrayContext",
+        "ArrayContext", "DeviceScalar", "DeviceArray",
 
         "CommonSubexpressionTag",
         "ElementwiseMapKernelTag",
