@@ -67,7 +67,7 @@ from functools import update_wrapper, partial, singledispatch
 
 import numpy as np
 
-from arraycontext.context import ArrayContext
+from arraycontext.context import ArrayContext, DeviceArray
 from arraycontext.container import (
         ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
         serialize_container, deserialize_container)
@@ -355,7 +355,7 @@ def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
 def map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[[Any], Any],
-        ary: ArrayOrContainerT) -> Any:
+        ary: ArrayOrContainerT) -> "DeviceArray":
     """Perform a map-reduce over array containers.
 
     :param reduce_func: callable used to reduce over the components of *ary*
@@ -378,7 +378,7 @@ def map_reduce_array_container(
 def multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[..., Any],
-        *args: Any) -> Any:
+        *args: Any) -> "DeviceArray":
     r"""Perform a map-reduce over multiple array containers.
 
     :param reduce_func: callable used to reduce over the components of any
@@ -401,7 +401,7 @@ def multimap_reduce_array_container(
 def rec_map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[[Any], Any],
-        ary: ArrayOrContainerT) -> Any:
+        ary: ArrayOrContainerT) -> "DeviceArray":
     """Perform a map-reduce over array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of *ary*
@@ -455,7 +455,7 @@ def rec_map_reduce_array_container(
 def rec_multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[..., Any],
-        *args: Any) -> Any:
+        *args: Any) -> "DeviceArray":
     r"""Perform a map-reduce over multiple array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of any
