@@ -79,6 +79,5 @@ def _normalize_pt_expr(expr: DictOfNamedArrays) -> Tuple[DictOfNamedArrays,
     equivalent graphs.
     """
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
-    # type-ignore reason: Mapper.__call__ takes Array, passed DictOfNamedArrays
-    normalized_expr = normalize_mapper(expr)  # type: ignore
+    normalized_expr = normalize_mapper(expr)
     return normalized_expr, normalize_mapper.bound_arguments
