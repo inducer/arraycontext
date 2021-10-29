@@ -173,9 +173,7 @@ def is_array_container_type(cls: type) -> bool:
         function will say that :class:`numpy.ndarray` is an array container
         type, only object arrays *actually are* array containers.
     """
-    assert isinstance(cls, type), \
-            f"must pass a type, not an instance: '{cls!r}'"
-    assert hasattr(cls, "__mro__"), "'cls' has no attribute '__mro__': "
+    assert isinstance(cls, type), f"must pass a {type!r}, not a '{cls!r}'"
 
     return (
             cls is ArrayContainer
