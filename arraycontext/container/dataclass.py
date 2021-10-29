@@ -46,10 +46,10 @@ def dataclass_array_container(cls: type) -> type:
     whether an attribute is an array container, the declared attribute type
     is checked by the criteria from :func:`is_array_container_type`.
     """
-    from dataclasses import is_dataclass
+    from dataclasses import is_dataclass, Field
     assert is_dataclass(cls)
 
-    def is_array_field(f):
+    def is_array_field(f: Field) -> bool:
         if __debug__:
             if not f.init:
                 raise ValueError(
