@@ -42,6 +42,7 @@ THE SOFTWARE.
 """
 
 from arraycontext.context import ArrayContext, _ScalarLike
+from arraycontext.container.traversal import rec_map_array_container
 import numpy as np
 from typing import Any, Callable, Union, Sequence, TYPE_CHECKING
 from pytools.tag import Tag
@@ -207,7 +208,8 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return dag
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
-        return array.tagged(tags)
+        return rec_map_array_container(lambda x: x.tagged(tags),
+                                       array)
 
     def tag_axis(self, iaxis, tags: Union[Sequence[Tag], Tag], array):
         # TODO
