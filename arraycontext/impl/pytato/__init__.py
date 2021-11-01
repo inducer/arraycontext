@@ -206,11 +206,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         return array.tagged(tags)
 
     def tag_axis(self, iaxis, tags: Union[Sequence[Tag], Tag], array):
-        # TODO
-        from warnings import warn
-        warn("tagging PytatoPyOpenCLArrayContext's array axes: not yet implemented",
-             stacklevel=2)
-        return array
+        return array.with_tagged_axis(iaxis, tags)
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pyopencl.array as cla
