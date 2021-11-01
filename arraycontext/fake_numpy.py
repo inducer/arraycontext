@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import is_array_container, serialize_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
 from arraycontext.metadata import IsDOFArray
@@ -154,6 +154,10 @@ class BaseFakeNumpyNamespace:
     def __getattr__(self, name):
 
         def loopy_implemented_elwise_func(*args):
+            from numbers import Number
+            if all(isinstance(ary, Number) for ary in args):
+                return getattr(np, name)(*args)
+
             actx = self._array_context
             prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
@@ -179,20 +183,18 @@ class BaseFakeNumpyNamespace:
 
     def _new_like(self, ary, alloc_like):
         from numbers import Number
+        if isinstance(ary, Number):
+            # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
+            # is best implemented by concrete array contexts, if at all
+            raise NotImplementedError("operation not implemented for scalars")
 
         if isinstance(ary, np.ndarray) and ary.dtype.char == "O":
             # NOTE: we don't want to match numpy semantics on object arrays,
             # e.g. `np.zeros_like(x)` returns `array([0, 0, ...], dtype=object)`
             # FIXME: what about object arrays nested in an ArrayContainer?
             raise NotImplementedError("operation not implemented for object arrays")
-        elif is_array_container(ary):
-            return rec_map_array_container(alloc_like, ary)
-        elif isinstance(ary, Number):
-            # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
-            # is best implemented by concrete array contexts, if at all
-            raise NotImplementedError("operation not implemented for scalars")
-        else:
-            return alloc_like(ary)
+
+        return rec_map_array_container(alloc_like, ary)
 
     def empty_like(self, ary):
         return self._new_like(ary, self._array_context.empty_like)
@@ -213,17 +215,22 @@ class BaseFakeNumpyNamespace:
 
 # {{{ BaseFakeNumpyLinalgNamespace
 
-def _scalar_list_norm(ary, ord):
+def _reduce_norm(actx, arys, ord):
+    from numbers import Number
+    from functools import reduce
+
     if ord is None:
         ord = 2
 
-    from numbers import Number
-    if ord == np.inf:
-        return max(ary)
+    # NOTE: these are ordered by an expected usage frequency
+    if ord == 2:
+        return actx.np.sqrt(sum(subary*subary for subary in arys))
+    elif ord == np.inf:
+        return reduce(actx.np.maximum, arys)
     elif ord == -np.inf:
-        return min(ary)
+        return reduce(actx.np.minimum, arys)
     elif isinstance(ord, Number) and ord > 0:
-        return sum(iary**ord for iary in ary)**(1/ord)
+        return sum(subary**ord for subary in arys)**(1/ord)
     else:
         raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 
@@ -256,10 +263,13 @@ class BaseFakeNumpyLinalgNamespace:
 
                 return flat_norm(ary, ord=ord)
 
-        if is_array_container(ary):
-            return _scalar_list_norm([
-                self.norm(subary, ord=ord)
-                for _, subary in serialize_container(ary)
+        try:
+            iterable = serialize_container(ary)
+        except NotAnArrayContainerError:
+            pass
+        else:
+            return _reduce_norm(actx, [
+                self.norm(subary, ord=ord) for _, subary in iterable
                 ], ord=ord)
 
         if ord is None:
@@ -269,14 +279,16 @@ class BaseFakeNumpyLinalgNamespace:
             raise NotImplementedError("only vector norms are implemented")
 
         if ary.size == 0:
-            return 0
+            return ary.dtype.type(0)
 
+        if ord == 2:
+            return actx.np.sqrt(actx.np.sum(abs(ary)**2))
         if ord == np.inf:
-            return self._array_context.np.max(abs(ary))
+            return actx.np.max(abs(ary))
         elif ord == -np.inf:
-            return self._array_context.np.min(abs(ary))
+            return actx.np.min(abs(ary))
         elif isinstance(ord, Number) and ord > 0:
-            return self._array_context.np.sum(abs(ary)**ord)**(1/ord)
+            return actx.np.sum(abs(ary)**ord)**(1/ord)
         else:
             raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 # }}}

@@ -22,10 +22,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+import pytest
+
+import numpy as np
 
 import logging
 logger = logging.getLogger(__name__)
 
+
+# {{{ test_pt_actx_key_stringification_uniqueness
 
 def test_pt_actx_key_stringification_uniqueness():
     from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
@@ -36,13 +41,63 @@ def test_pt_actx_key_stringification_uniqueness():
     assert (_ary_container_key_stringifier(("tup", 3, "endtup"))
             != _ary_container_key_stringifier(((3,),)))
 
+# }}}
+
+
+# {{{ test_dataclass_array_container
+
+def test_dataclass_array_container():
+    from typing import Optional
+    from dataclasses import dataclass, field
+    from arraycontext import dataclass_array_container
+
+    # {{{ string fields
+
+    @dataclass
+    class ArrayContainerWithStringTypes:
+        x: np.ndarray
+        y: "np.ndarray"
+
+    with pytest.raises(TypeError):
+        # NOTE: cannot have string annotations in container
+        dataclass_array_container(ArrayContainerWithStringTypes)
+
+    # }}}
+
+    # {{{ optional fields
+
+    @dataclass
+    class ArrayContainerWithOptional:
+        x: np.ndarray
+        y: Optional[np.ndarray]
+
+    with pytest.raises(TypeError):
+        # NOTE: cannot have wrapped annotations (here by `Optional`)
+        dataclass_array_container(ArrayContainerWithOptional)
+
+    # }}}
+
+    # {{{ field(init=False)
+
+    @dataclass
+    class ArrayContainerWithInitFalse:
+        x: np.ndarray
+        y: np.ndarray = field(default=np.zeros(42), init=False, repr=False)
+
+    with pytest.raises(ValueError):
+        # NOTE: init=False fields are not allowed
+        dataclass_array_container(ArrayContainerWithInitFalse)
+
+    # }}}
+
+# }}}
+
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
         exec(sys.argv[1])
     else:
-        from pytest import main
-        main([__file__])
+        pytest.main([__file__])
 
 # vim: fdm=marker

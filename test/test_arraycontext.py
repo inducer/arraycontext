@@ -159,7 +159,7 @@ class DOFArray:
 
 @serialize_container.register(DOFArray)
 def _serialize_dof_container(ary: DOFArray):
-    return enumerate(ary.data)
+    return list(enumerate(ary.data))
 
 
 @deserialize_container.register(DOFArray)
@@ -203,16 +203,26 @@ def randn(shape, dtype):
     rng = np.random.default_rng()
     dtype = np.dtype(dtype)
 
+    if shape == 0:
+        ashape = 1
+    else:
+        ashape = shape
+
     if dtype.kind == "c":
         dtype = np.dtype(f"<f{dtype.itemsize // 2}")
-        return rng.standard_normal(shape, dtype) \
-            + 1j * rng.standard_normal(shape, dtype)
+        r = rng.standard_normal(ashape, dtype) \
+            + 1j * rng.standard_normal(ashape, dtype)
     elif dtype.kind == "f":
-        return rng.standard_normal(shape, dtype)
+        r = rng.standard_normal(ashape, dtype)
     elif dtype.kind == "i":
-        return rng.integers(0, 128, shape, dtype)
+        r = rng.integers(0, 512, ashape, dtype)
     else:
         raise TypeError(dtype.kind)
+
+    if shape == 0:
+        return np.array(r[0])
+
+    return r
 
 
 def assert_close_to_numpy(actx, op, args):
@@ -672,11 +682,14 @@ class MyContainerDOFBcast:
         return self.mass.array_context
 
 
-def _get_test_containers(actx, ambient_dim=2, size=50_000):
-    if size == 0:
-        x = DOFArray(actx, (actx.from_numpy(np.array(np.random.randn())),))
-    else:
-        x = DOFArray(actx, (actx.from_numpy(np.random.randn(size)),))
+def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
+    from numbers import Number
+    if isinstance(shapes, (Number, tuple)):
+        shapes = [shapes]
+
+    x = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes]))
 
     # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     dataclass_of_dofs = MyContainer(
@@ -705,7 +718,7 @@ def _get_test_containers(actx, ambient_dim=2, size=50_000):
 def test_container_scalar_map(actx_factory):
     actx = actx_factory()
 
-    arys = _get_test_containers(actx, size=0)
+    arys = _get_test_containers(actx, shapes=0)
     arys += (np.pi,)
 
     from arraycontext import (
@@ -877,16 +890,98 @@ def test_container_norm(actx_factory, ord):
 # }}}
 
 
+# {{{ test flatten and unflatten
+
+@pytest.mark.parametrize("shapes", [
+    0,                          # tests device scalars when flattening
+    512,
+    [(128, 67)],
+    [(127, 67), (18, 0)],       # tests 0-sized arrays
+    [(64, 7), (154, 12)]
+    ])
+def test_flatten_array_container(actx_factory, shapes):
+    if np.prod(shapes) == 0:
+        # https://github.com/inducer/loopy/pull/497
+        # NOTE: only fails for the pytato array context at the moment
+        pytest.xfail("strides do not match in subary")
+
+    actx = actx_factory()
+
+    from arraycontext import flatten, unflatten
+    arys = _get_test_containers(actx, shapes=shapes)
+
+    for ary in arys:
+        flat = flatten(ary, actx)
+        assert flat.ndim == 1
+
+        ary_roundtrip = unflatten(ary, flat, actx)
+
+        from arraycontext import rec_multimap_reduce_array_container
+        assert rec_multimap_reduce_array_container(
+                np.prod,
+                lambda x, y: x.shape == y.shape,
+                ary, ary_roundtrip)
+
+        assert actx.to_numpy(
+                actx.np.linalg.norm(ary - ary_roundtrip)
+                ) < 1.0e-15
+
+    # {{{ complex to real
+
+    if isinstance(shapes, (int, tuple)):
+        shapes = [shapes]
+
+    ary = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes]))
+
+    template = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.complex128))
+        for shape in shapes]))
+
+    flat = flatten(ary, actx)
+    ary_roundtrip = unflatten(template, flat, actx, strict=False)
+
+    assert actx.to_numpy(
+            actx.np.linalg.norm(ary - ary_roundtrip)
+            ) < 1.0e-15
+
+    # }}}
+
+
+def test_flatten_array_container_failure(actx_factory):
+    actx = actx_factory()
+
+    from arraycontext import flatten, unflatten
+    ary = _get_test_containers(actx, shapes=512)[0]
+    flat_ary = flatten(ary, actx)
+
+    with pytest.raises(TypeError):
+        # cannot unflatten from a numpy array
+        unflatten(ary, actx.to_numpy(flat_ary), actx)
+
+    with pytest.raises(ValueError):
+        # cannot unflatten non-flat arrays
+        unflatten(ary, flat_ary.reshape(2, -1), actx)
+
+    with pytest.raises(ValueError):
+        # cannot unflatten partially
+        unflatten(ary, flat_ary[:-1], actx)
+
+# }}}
+
+
 # {{{ test from_numpy and to_numpy
 
 def test_numpy_conversion(actx_factory):
     actx = actx_factory()
 
+    nelements = 42
     ac = MyContainer(
             name="test_numpy_conversion",
-            mass=np.random.rand(42),
-            momentum=make_obj_array([np.random.rand(42) for _ in range(3)]),
-            enthalpy=np.random.rand(42),
+            mass=np.random.rand(nelements, nelements),
+            momentum=make_obj_array([np.random.rand(nelements) for _ in range(3)]),
+            enthalpy=np.array(np.random.rand()),
             )
 
     from arraycontext import from_numpy, to_numpy
@@ -904,7 +999,7 @@ def test_numpy_conversion(actx_factory):
     with pytest.raises(TypeError):
         from_numpy(ac_actx, actx)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         to_numpy(ac, actx)
 
 # }}}
@@ -1089,6 +1184,108 @@ def test_leaf_array_type_broadcasting(actx_factory):
 
         np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
                                    actx.to_numpy(quuz.u[0]))
+
+# }}}
+
+
+# {{{ test outer product
+
+def test_outer(actx_factory):
+    actx = actx_factory()
+
+    a_dof, a_ary_of_dofs, _, _, a_bcast_dc_of_dofs = _get_test_containers(actx)
+
+    b_dof = a_dof + 1
+    b_ary_of_dofs = a_ary_of_dofs + 1
+    b_bcast_dc_of_dofs = a_bcast_dc_of_dofs + 1
+
+    from arraycontext import outer
+
+    def equal(a, b):
+        return actx.to_numpy(actx.np.array_equal(a, b))
+
+    # Two scalars
+    assert equal(outer(a_dof, b_dof), a_dof*b_dof)
+
+    # Scalar and vector
+    assert equal(outer(a_dof, b_ary_of_dofs), a_dof*b_ary_of_dofs)
+
+    # Vector and scalar
+    assert equal(outer(a_ary_of_dofs, b_dof), a_ary_of_dofs*b_dof)
+
+    # Two vectors
+    assert equal(
+        outer(a_ary_of_dofs, b_ary_of_dofs),
+        np.outer(a_ary_of_dofs, b_ary_of_dofs))
+
+    # Scalar and array container
+    assert equal(
+        outer(a_dof, b_bcast_dc_of_dofs),
+        a_dof*b_bcast_dc_of_dofs)
+
+    # Array container and scalar
+    assert equal(
+        outer(a_bcast_dc_of_dofs, b_dof),
+        a_bcast_dc_of_dofs*b_dof)
+
+    # Vector and array container
+    assert equal(
+        outer(a_ary_of_dofs, b_bcast_dc_of_dofs),
+        make_obj_array([a_i*b_bcast_dc_of_dofs for a_i in a_ary_of_dofs]))
+
+    # Array container and vector
+    assert equal(
+        outer(a_bcast_dc_of_dofs, b_ary_of_dofs),
+        MyContainerDOFBcast(
+            name="container",
+            mass=a_bcast_dc_of_dofs.mass*b_ary_of_dofs,
+            momentum=np.outer(a_bcast_dc_of_dofs.momentum, b_ary_of_dofs),
+            enthalpy=a_bcast_dc_of_dofs.enthalpy*b_ary_of_dofs))
+
+    # Two array containers
+    assert equal(
+        outer(a_bcast_dc_of_dofs, b_bcast_dc_of_dofs),
+        MyContainerDOFBcast(
+            name="container",
+            mass=a_bcast_dc_of_dofs.mass*b_bcast_dc_of_dofs.mass,
+            momentum=np.outer(
+                a_bcast_dc_of_dofs.momentum,
+                b_bcast_dc_of_dofs.momentum),
+            enthalpy=a_bcast_dc_of_dofs.enthalpy*b_bcast_dc_of_dofs.enthalpy))
+
+    # Non-object numpy arrays should be treated as scalars
+    ary_of_floats = np.ones(len(b_bcast_dc_of_dofs.mass))
+    assert equal(
+        outer(ary_of_floats, b_bcast_dc_of_dofs),
+        ary_of_floats*b_bcast_dc_of_dofs)
+    assert equal(
+        outer(a_bcast_dc_of_dofs, ary_of_floats),
+        a_bcast_dc_of_dofs*ary_of_floats)
+
+# }}}
+
+
+# {{{ test_array_container_with_numpy
+
+@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class ArrayContainerWithNumpy:
+    u: np.ndarray
+    v: DOFArray
+
+
+def test_array_container_with_numpy(actx_factory):
+    actx = actx_factory()
+
+    mystate = ArrayContainerWithNumpy(
+            u=np.zeros(10),
+            v=DOFArray(actx, (actx.from_numpy(np.zeros(42)),)),
+            )
+
+    from arraycontext import rec_map_array_container
+    rec_map_array_container(lambda x: x, mystate)
+
 
 # }}}
 

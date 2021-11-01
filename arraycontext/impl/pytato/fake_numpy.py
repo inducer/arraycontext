@@ -23,14 +23,15 @@ THE SOFTWARE.
 """
 from functools import partial, reduce
 
+import numpy as np
+
 from arraycontext.fake_numpy import (
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
         )
-from arraycontext.container import is_array_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
         rec_multimap_array_container,
-        multimap_reduce_array_container,
         rec_map_reduce_array_container,
         )
 import pytato as pt
@@ -64,8 +65,10 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return super().__getattr__(name)
 
-    def reshape(self, a, newshape):
-        return rec_multimap_array_container(pt.reshape, a, newshape)
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: pt.reshape(a, newshape, order=order),
+                a)
 
     def transpose(self, a, axes=None):
         return rec_multimap_array_container(pt.transpose, a, axes)
@@ -172,20 +175,28 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 lambda subary: pt.all(subary), a)
 
     def array_equal(self, a, b):
-        def as_device_scalar(bool_value):
-            import numpy as np
-            return self._array_context.from_numpy(
-                np.array(int(bool_value), dtype=np.int8))
+        actx = self._array_context
 
-        if type(a) != type(b):
-            return as_device_scalar(False)
-        elif not is_array_container(a):
-            if a.shape != b.shape:
-                return as_device_scalar(False)
+        # NOTE: not all backends support `bool` properly, so use `int8` instead
+        false = actx.from_numpy(np.int8(False))
+
+        def rec_equal(x, y):
+            if type(x) != type(y):
+                return false
+
+            try:
+                iterable = zip(serialize_container(x), serialize_container(y))
+            except NotAnArrayContainerError:
+                if x.shape != y.shape:
+                    return false
+                else:
+                    return pt.all(pt.equal(x, y))
             else:
-                return pt.all(pt.equal(a, b))
-        else:
-            return multimap_reduce_array_container(
-                partial(reduce, pt.logical_and), self.array_equal, a, b)
+                return reduce(
+                        pt.logical_and,
+                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable]
+                        )
+
+        return rec_equal(a, b)
 
     # }}}

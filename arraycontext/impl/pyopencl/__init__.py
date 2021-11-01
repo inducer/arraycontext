@@ -161,7 +161,7 @@ class PyOpenCLArrayContext(ArrayContext):
         return cl_array.to_device(self.queue, array, allocator=self.allocator)
 
     def to_numpy(self, array):
-        if not self._force_device_scalars and np.isscalar(array):
+        if np.isscalar(array):
             return array
 
         return array.get(queue=self.queue)
@@ -252,11 +252,17 @@ class PyOpenCLArrayContext(ArrayContext):
 
             if "idof" in all_inames:
                 inner_iname = "idof"
+
         elif "i0" in all_inames:
             outer_iname = "i0"
 
             if "i1" in all_inames:
                 inner_iname = "i1"
+
+        elif not all_inames:
+            # no loops, nothing to transform
+            return t_unit
+
         else:
             raise RuntimeError(
                 "Unable to reason what outer_iname and inner_iname "

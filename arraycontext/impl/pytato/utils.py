@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 from typing import Any, Dict, Set, Tuple, Mapping
-from pytato.array import SizeParam, Placeholder
+from pytato.array import SizeParam, Placeholder, make_placeholder
 from pytato.array import Array, DataWrapper, DictOfNamedArrays
 from pytato.transform import CopyMapper
 from pytools import UniqueNameGenerator
@@ -52,11 +52,12 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
         # Normalizing names so that we more arrays can have the normalized DAG.
         name = self.vng("_actx_dw")
         self.bound_arguments[name] = expr.data
-        return Placeholder(name=name,
-                           shape=tuple(self.rec(s) if isinstance(s, Array) else s
-                                       for s in expr.shape),
-                           dtype=expr.dtype,
-                           tags=expr.tags)
+        return make_placeholder(
+                    name=name,
+                    shape=tuple(self.rec(s) if isinstance(s, Array) else s
+                                for s in expr.shape),
+                    dtype=expr.dtype,
+                    tags=expr.tags)
 
     def map_size_param(self, expr: SizeParam) -> Array:
         raise NotImplementedError
@@ -78,6 +79,5 @@ def _normalize_pt_expr(expr: DictOfNamedArrays) -> Tuple[DictOfNamedArrays,
     equivalent graphs.
     """
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
-    # type-ignore reason: Mapper.__call__ takes Array, passed DictOfNamedArrays
-    normalized_expr = normalize_mapper(expr)  # type: ignore
+    normalized_expr = normalize_mapper(expr)
     return normalized_expr, normalize_mapper.bound_arguments
