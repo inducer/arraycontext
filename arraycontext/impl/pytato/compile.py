@@ -288,7 +288,7 @@ class CompiledFunction:
 
     .. attribute:: input_id_to_name_in_program
 
-        A mapping from input id to the placholder name in
+        A mapping from input id to the placeholder name in
         :attr:`CompiledFunction.pytato_program`. Input id is represented as the
         position of :attr:`~LazilyCompilingFunctionCaller.f`'s argument augmented
         with the leaf array's key if the argument is an array container.
