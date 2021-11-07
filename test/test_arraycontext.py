@@ -283,6 +283,8 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ("max", 1, np.float64),
             ("any", 1, np.float64),
             ("all", 1, np.float64),
+            ("arctan", 1, np.float64),
+            ("atan", 1, np.float64),
 
             # float + complex
             ("sin", 1, np.float64),

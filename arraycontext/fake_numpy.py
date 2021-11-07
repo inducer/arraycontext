@@ -148,7 +148,9 @@ class BaseFakeNumpyNamespace:
     def __getattr__(self, name):
         def loopy_implemented_elwise_func(*args):
             if all(np.isscalar(ary) for ary in args):
-                return getattr(np, name)(*args)
+                return getattr(
+                        np, self._c_to_numpy_arc_functions.get(name, name)
+                        )(*args)
 
             actx = self._array_context
             prg = _get_scalar_func_loopy_program(actx,
@@ -160,7 +162,7 @@ class BaseFakeNumpyNamespace:
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
             warn(f"'{name}' in ArrayContext.np is deprecated. "
-                    "Use '{c_to_numpy_arc_functions[name]}' as in numpy. "
+                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. "
                     "The old name will stop working in 2021.",
                     DeprecationWarning, stacklevel=3)
 
