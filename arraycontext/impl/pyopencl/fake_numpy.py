@@ -29,13 +29,17 @@ THE SOFTWARE.
 from functools import partial, reduce
 import operator
 
+import numpy as np
+
 from arraycontext.fake_numpy import \
         BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import \
         LoopyBasedFakeNumpyNamespace
 from arraycontext.container.traversal import (
-        rec_multimap_array_container, rec_map_array_container,
+        rec_map_array_container,
+        rec_multimap_array_container,
         rec_map_reduce_array_container,
+        rec_multimap_reduce_array_container,
         )
 
 try:
@@ -118,32 +122,57 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
-    def sum(self, a, dtype=None):
-        result = rec_map_reduce_array_container(
-                sum,
-                partial(cl_array.sum, dtype=dtype, queue=self._array_context.queue),
-                a)
+    def sum(self, a, axis=None, dtype=None):
+
+        if isinstance(axis, int):
+            axis = axis,
+
+        def _rec_sum(ary):
+            if axis not in [None, tuple(range(ary.ndim))]:
+                raise NotImplementedError(f"Sum over '{axis}' axes not supported.")
+
+            return cl_array.sum(ary, dtype=dtype, queue=self._array_context.queue)
+
+        result = rec_map_reduce_array_container(sum, _rec_sum, a)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
         return result
 
-    def min(self, a):
+    def min(self, a, axis=None):
         queue = self._array_context.queue
+
+        if isinstance(axis, int):
+            axis = axis,
+
+        def _rec_min(ary):
+            if axis not in [None, tuple(range(ary.ndim))]:
+                raise NotImplementedError(f"Min. over '{axis}' axes not supported.")
+            return cl_array.min(ary, queue=queue)
+
         result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
-                partial(cl_array.min, queue=queue),
+                _rec_min,
                 a)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
         return result
 
-    def max(self, a):
+    def max(self, a, axis=None):
         queue = self._array_context.queue
+
+        if isinstance(axis, int):
+            axis = axis,
+
+        def _rec_max(ary):
+            if axis not in [None, tuple(range(ary.ndim))]:
+                raise NotImplementedError(f"Max. over '{axis}' axes not supported.")
+            return cl_array.max(ary, queue=queue)
+
         result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
-                partial(cl_array.max, queue=queue),
+                _rec_max,
                 a)
 
         if not self._array_context._force_device_scalars:
@@ -156,8 +185,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                     queue=self._array_context.queue),
                 *arrays)
 
-    def reshape(self, a, newshape):
-        return cl_array.reshape(a, newshape)
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: ary.reshape(newshape, order=order),
+                a)
 
     def concatenate(self, arrays, axis=0):
         return cl_array.concatenate(
@@ -189,7 +220,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_map_array_container(_rec_ravel, a)
 
     def vdot(self, x, y, dtype=None):
-        from arraycontext import rec_multimap_reduce_array_container
         result = rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
@@ -219,6 +249,36 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
+        return result
+
+    def array_equal(self, a, b):
+        actx = self._array_context
+        queue = actx.queue
+
+        # NOTE: pyopencl doesn't like `bool` much, so use `int8` instead
+        false = actx.from_numpy(np.int8(False))
+
+        def rec_equal(x, y):
+            if type(x) != type(y):
+                return false
+
+            try:
+                iterable = zip(serialize_container(x), serialize_container(y))
+            except NotAnArrayContainerError:
+                if x.shape != y.shape:
+                    return false
+                else:
+                    return (x == y).all()
+            else:
+                return reduce(
+                        partial(cl_array.minimum, queue=queue),
+                        [rec_equal(ix, iy)for (_, ix), (_, iy) in iterable]
+                        )
+
+        result = rec_equal(a, b)
+        if not self._array_context._force_device_scalars:
+            result = result.get()[()]
+
         return result
 
 # }}}

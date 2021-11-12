@@ -28,7 +28,8 @@ from arraycontext.fake_numpy import \
 from arraycontext.loopy import \
         LoopyBasedFakeNumpyNamespace
 from arraycontext.container.traversal import (
-        rec_multimap_array_container, rec_map_array_container,
+        rec_map_array_container,
+        rec_multimap_array_container,
         rec_map_reduce_array_container,
         )
 import pytato as pt
@@ -62,8 +63,10 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return super().__getattr__(name)
 
-    def reshape(self, a, newshape):
-        return rec_multimap_array_container(pt.reshape, a, newshape)
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: pt.reshape(a, newshape, order=order),
+                a)
 
     def transpose(self, a, axes=None):
         return rec_multimap_array_container(pt.transpose, a, axes)
@@ -86,27 +89,30 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def where(self, criterion, then, else_):
         return rec_multimap_array_container(pt.where, criterion, then, else_)
 
-    def sum(self, a, dtype=None):
+    def sum(self, a, axis=None, dtype=None):
         def _pt_sum(ary):
             if dtype not in [ary.dtype, None]:
                 raise NotImplementedError
 
-            return pt.sum(ary)
+            return pt.sum(ary, axis=axis)
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
 
-    def min(self, a):
+    def min(self, a, axis=None):
         return rec_map_reduce_array_container(
-                partial(reduce, pt.minimum), pt.amin, a)
+                partial(reduce, pt.minimum), partial(pt.amin, axis=axis), a)
 
-    def max(self, a):
+    def max(self, a, axis=None):
         return rec_map_reduce_array_container(
-                partial(reduce, pt.maximum), pt.amax, a)
+                partial(reduce, pt.maximum), partial(pt.amax, axis=axis), a)
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(
                 lambda *args: pt.stack(arrays=args, axis=axis),
                 *arrays)
+
+    def broadcast_to(self, array, shape):
+        return rec_map_array_container(partial(pt.broadcast_to, shape=shape), array)
 
     # {{{ relational operators
 
@@ -155,5 +161,40 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                                  f"(got {order})")
 
         return rec_map_array_container(_rec_ravel, a)
+
+    def any(self, a):
+        return rec_map_reduce_array_container(
+                partial(reduce, pt.logical_or),
+                lambda subary: pt.any(subary), a)
+
+    def all(self, a):
+        return rec_map_reduce_array_container(
+                partial(reduce, pt.logical_and),
+                lambda subary: pt.all(subary), a)
+
+    def array_equal(self, a, b):
+        actx = self._array_context
+
+        # NOTE: not all backends support `bool` properly, so use `int8` instead
+        false = actx.from_numpy(np.int8(False))
+
+        def rec_equal(x, y):
+            if type(x) != type(y):
+                return false
+
+            try:
+                iterable = zip(serialize_container(x), serialize_container(y))
+            except NotAnArrayContainerError:
+                if x.shape != y.shape:
+                    return false
+                else:
+                    return pt.all(pt.equal(x, y))
+            else:
+                return reduce(
+                        pt.logical_and,
+                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable]
+                        )
+
+        return rec_equal(a, b)
 
     # }}}

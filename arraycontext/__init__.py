@@ -29,7 +29,7 @@ THE SOFTWARE.
 """
 
 import sys
-from .context import ArrayContext
+from .context import ArrayContext, DeviceArray, DeviceScalar
 
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
@@ -38,7 +38,7 @@ from .transform_metadata import (CommonSubexpressionTag,
 from .metadata import _FirstAxisIsElementsTag
 
 from .container import (
-        ArrayContainer,
+        ArrayContainer, NotAnArrayContainerError,
         is_array_container, is_array_container_type,
         get_container_context, get_container_context_recursively,
         serialize_container, deserialize_container,
@@ -58,7 +58,9 @@ from .container.traversal import (
         rec_map_reduce_array_container,
         rec_multimap_reduce_array_container,
         thaw, freeze,
-        from_numpy, to_numpy)
+        flatten, unflatten,
+        from_numpy, to_numpy,
+        outer)
 
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoPyOpenCLArrayContext
@@ -72,12 +74,12 @@ from .loopy import make_loopy_program
 
 
 __all__ = (
-        "ArrayContext",
+        "ArrayContext", "DeviceScalar", "DeviceArray",
 
         "CommonSubexpressionTag",
         "ElementwiseMapKernelTag",
 
-        "ArrayContainer",
+        "ArrayContainer", "NotAnArrayContainerError",
         "is_array_container", "is_array_container_type",
         "get_container_context", "get_container_context_recursively",
         "serialize_container", "deserialize_container",
@@ -92,7 +94,9 @@ __all__ = (
         "map_reduce_array_container", "multimap_reduce_array_container",
         "rec_map_reduce_array_container", "rec_multimap_reduce_array_container",
         "thaw", "freeze",
+        "flatten", "unflatten",
         "from_numpy", "to_numpy",
+        "outer",
 
         "PyOpenCLArrayContext", "PytatoPyOpenCLArrayContext",
 

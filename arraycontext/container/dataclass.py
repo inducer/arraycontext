@@ -37,22 +37,43 @@ from arraycontext.container import is_array_container_type
 # {{{ dataclass containers
 
 def dataclass_array_container(cls: type) -> type:
-    """A class decorator that makes the class to which it is applied a
+    """A class decorator that makes the class to which it is applied an
     :class:`ArrayContainer` by registering appropriate implementations of
     :func:`serialize_container` and :func:`deserialize_container`.
     *cls* must be a :func:`~dataclasses.dataclass`.
 
     Attributes that are not array containers are allowed. In order to decide
     whether an attribute is an array container, the declared attribute type
-    is checked by the criteria from :func:`is_array_container`.
+    is checked by the criteria from :func:`is_array_container_type`.
     """
-    from dataclasses import is_dataclass
+    from dataclasses import is_dataclass, Field
     assert is_dataclass(cls)
 
-    array_fields = [
-            f for f in fields(cls) if is_array_container_type(f.type)]
-    non_array_fields = [
-            f for f in fields(cls) if not is_array_container_type(f.type)]
+    def is_array_field(f: Field) -> bool:
+        if __debug__:
+            if not f.init:
+                raise ValueError(
+                        f"'init=False' field not allowed: '{f.name}'")
+
+            if isinstance(f.type, str):
+                raise TypeError(
+                        f"string annotation on field '{f.name}' not supported")
+
+            from typing import _SpecialForm
+            if isinstance(f.type, _SpecialForm):
+                raise TypeError(
+                        f"typing annotation not supported on field '{f.name}': "
+                        f"'{f.type!r}'")
+
+            if not isinstance(f.type, type):
+                raise TypeError(
+                        f"field '{f.name}' not an instance of 'type': "
+                        f"'{f.type!r}'")
+
+        return is_array_container_type(f.type)
+
+    from pytools import partition
+    array_fields, non_array_fields = partition(is_array_field, fields(cls))
 
     if not array_fields:
         raise ValueError(f"'{cls}' must have fields with array container type "

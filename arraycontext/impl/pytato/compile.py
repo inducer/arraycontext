@@ -2,6 +2,7 @@
 .. currentmodule:: arraycontext.impl.pytato.compile
 .. autoclass:: LazilyCompilingFunctionCaller
 .. autoclass:: CompiledFunction
+.. autoclass:: FromArrayContextCompile
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -27,10 +28,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext.container import ArrayContainer
+from arraycontext.container import ArrayContainer, is_array_container_type
 from arraycontext import PytatoPyOpenCLArrayContext
-from arraycontext.container.traversal import (rec_keyed_map_array_container,
-                                              is_array_container)
+from arraycontext.container.traversal import rec_keyed_map_array_container
 
 import numpy as np
 from typing import Any, Callable, Tuple, Dict, Mapping
@@ -40,6 +40,23 @@ from pyrsistent import pmap, PMap
 import pyopencl.array as cla
 import pytato as pt
 import itertools
+from pytools.tag import Tag
+
+from pytools import ProcessLogger
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+class FromArrayContextCompile(Tag):
+    """
+    Tagged to the entrypoint kernel of every translation unit that is generated
+    by :meth:`~arraycontext.PytatoPyOpenCLArrayContext.compile`.
+
+    Typically this tag serves as a branch condition in implementing a
+    specialized transform strategy for kernels compiled by
+    :meth:`~arraycontext.PytatoPyOpenCLArrayContext.compile`.
+    """
 
 
 # {{{ helper classes: AbstractInputDescriptor
@@ -114,7 +131,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
             arg_id = (kw,)
             arg_id_to_arg[arg_id] = arg
             arg_id_to_descr[arg_id] = ScalarInputDescriptor(np.dtype(type(arg)))
-        elif is_array_container(arg):
+        elif is_array_container_type(arg.__class__):
             def id_collector(keys, ary):
                 arg_id = (kw,) + keys
                 arg_id_to_arg[arg_id] = ary
@@ -140,12 +157,12 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name):
     if np.isscalar(arg):
         name = arg_id_to_name[(kw,)]
         return pt.make_placeholder(name, (), np.dtype(type(arg)))
-    elif is_array_container(arg):
+    elif is_array_container_type(arg.__class__):
         def _rec_to_placeholder(keys, ary):
             name = arg_id_to_name[(kw,) + keys]
             return pt.make_placeholder(name, ary.shape, ary.dtype)
-        return rec_keyed_map_array_container(_rec_to_placeholder,
-                                                arg)
+
+        return rec_keyed_map_array_container(_rec_to_placeholder, arg)
     else:
         raise NotImplementedError(type(arg))
 
@@ -207,7 +224,7 @@ class LazilyCompilingFunctionCaller:
                          **{kw: _get_f_placeholder_args(arg, kw, input_naming_map)
                             for kw, arg in kwargs.items()})
 
-        if not is_array_container(outputs):
+        if not is_array_container_type(outputs.__class__):
             # TODO: We could possibly just short-circuit this interface if the
             # returned type is a scalar. Not sure if it's worth it though.
             raise NotImplementedError(
@@ -227,20 +244,30 @@ class LazilyCompilingFunctionCaller:
 
         import loopy as lp
 
-        pt_dict_of_named_arrays = self.actx.transform_dag(
-            pt.make_dict_of_named_arrays(dict_of_named_arrays))
+        with ProcessLogger(logger, "transform_dag"):
+            pt_dict_of_named_arrays = self.actx.transform_dag(
+                pt.make_dict_of_named_arrays(dict_of_named_arrays))
 
-        pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
-                                           options=lp.Options(
-                                               return_dict=True,
-                                               no_numpy=True),
-                                           cl_device=self.actx.queue.device)
-        assert isinstance(pytato_program, BoundPyOpenCLProgram)
+        with ProcessLogger(logger, "generate_loopy"):
+            pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
+                                               options=lp.Options(
+                                                   return_dict=True,
+                                                   no_numpy=True),
+                                               cl_device=self.actx.queue.device)
+            assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
-        pytato_program = (pytato_program
-                          .with_transformed_program(self
-                                                    .actx
-                                                    .transform_loopy_program))
+        with ProcessLogger(logger, "transform_loopy_program"):
+
+            pytato_program = (pytato_program
+                              .with_transformed_program(
+                                  lambda x: x.with_kernel(
+                                      x.default_entrypoint
+                                      .tagged(FromArrayContextCompile()))))
+
+            pytato_program = (pytato_program
+                              .with_transformed_program(self
+                                                        .actx
+                                                        .transform_loopy_program))
 
         self.program_cache[arg_id_to_descr] = CompiledFunction(
                                                 self.actx, pytato_program,
@@ -261,7 +288,7 @@ class CompiledFunction:
 
     .. attribute:: input_id_to_name_in_program
 
-        A mapping from input id to the placholder name in
+        A mapping from input id to the placeholder name in
         :attr:`CompiledFunction.pytato_program`. Input id is represented as the
         position of :attr:`~LazilyCompilingFunctionCaller.f`'s argument augmented
         with the leaf array's key if the argument is an array container.
