@@ -31,7 +31,8 @@ THE SOFTWARE.
 import sys
 from .context import ArrayContext, DeviceArray, DeviceScalar
 
-from .metadata import ParameterValue, IsDOFArray, IsOpArray, _FirstAxisIsElementsTag
+from .metadata import (KernelDataTag, ParameterValue, IsDOFArray, 
+        IsOpArray, _FirstAxisIsElementsTag)
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
 
