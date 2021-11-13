@@ -31,10 +31,12 @@ import operator
 
 import numpy as np
 
-from arraycontext.fake_numpy import \
+from arraycontext.fake_numpy import (
         BaseFakeNumpyLinalgNamespace
-from arraycontext.loopy import \
+        )
+from arraycontext.loopy import (
         LoopyBasedFakeNumpyNamespace
+        )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
@@ -64,7 +66,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # i.e. more like "are you two equal", and not like numpy semantics.
     # These operations provide access to numpy-style comparisons in that
     # case.
-
 
     def equal(self, x, y):
         return rec_multimap_array_container(operator.eq, x, y)

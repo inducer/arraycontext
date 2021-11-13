@@ -27,10 +27,10 @@ import numpy as np
 
 from arraycontext.fake_numpy import (
         BaseFakeNumpyLinalgNamespace
-    )
+        )
 from arraycontext.loopy import (
         LoopyBasedFakeNumpyNamespace
-    )
+        )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
