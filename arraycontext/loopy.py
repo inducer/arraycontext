@@ -71,11 +71,6 @@ def get_default_entrypoint(t_unit):
                     "translation unit")
 
 
-# }}}
-
-
-# {{{ loopy-based implementation of scalar functions
-
 def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
     @memoize_in(actx, _get_scalar_func_loopy_program)
     def get(c_name, nargs, naxes):

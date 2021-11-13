@@ -24,8 +24,46 @@ THE SOFTWARE.
 
 
 import numpy as np
-from arraycontext.container import is_array_container, serialize_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import rec_map_array_container
+from pytools import memoize_in
+
+
+# {{{ _get_scalar_func_loopy_program
+
+def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
+    @memoize_in(actx, _get_scalar_func_loopy_program)
+    def get(c_name, nargs, naxes):
+        from pymbolic import var
+
+        var_names = ["i%d" % i for i in range(naxes)]
+        size_names = ["n%d" % i for i in range(naxes)]
+        subscript = tuple(var(vname) for vname in var_names)
+        from islpy import make_zero_and_vars
+        v = make_zero_and_vars(var_names, params=size_names)
+        domain = v[0].domain()
+        for vname, sname in zip(var_names, size_names):
+            domain = domain & v[0].le_set(v[vname]) & v[vname].lt_set(v[sname])
+
+        domain_bset, = domain.get_basic_sets()
+
+        import loopy as lp
+        from .loopy import make_loopy_program
+        from arraycontext.transform_metadata import ElementwiseMapKernelTag
+        return make_loopy_program(
+                [domain_bset],
+                [
+                    lp.Assignment(
+                        var("out")[subscript],
+                        var(c_name)(*[
+                            var("inp%d" % i)[subscript] for i in range(nargs)]))
+                    ],
+                name="actx_special_%s" % c_name,
+                tags=(ElementwiseMapKernelTag(),))
+
+    return get(c_name, nargs, naxes)
+
+# }}}
 
 
 # {{{ BaseFakeNumpyNamespace
@@ -89,23 +127,20 @@ class BaseFakeNumpyNamespace:
         # FIXME:
         # "interp",
         })
-    
+
     def _new_like(self, ary, alloc_like):
-        from numbers import Number
+        if np.isscalar(ary):
+            # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
+            # is best implemented by concrete array contexts, if at all
+            raise NotImplementedError("operation not implemented for scalars")
 
         if isinstance(ary, np.ndarray) and ary.dtype.char == "O":
             # NOTE: we don't want to match numpy semantics on object arrays,
             # e.g. `np.zeros_like(x)` returns `array([0, 0, ...], dtype=object)`
             # FIXME: what about object arrays nested in an ArrayContainer?
             raise NotImplementedError("operation not implemented for object arrays")
-        elif is_array_container_type(ary.__class__):
-            return rec_map_array_container(alloc_like, ary)
-        elif isinstance(ary, Number):
-            # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
-            # is best implemented by concrete array contexts, if at all
-            raise NotImplementedError("operation not implemented for scalars")
-        else:
-            return alloc_like(ary)
+
+        return rec_map_array_container(alloc_like, ary)
 
     def empty_like(self, ary):
         return self._new_like(ary, self._array_context.empty_like)
@@ -151,9 +186,7 @@ class BaseFakeNumpyLinalgNamespace:
         self._array_context = array_context
 
     def norm(self, ary, ord=None):
-        from numbers import Number
-
-        if isinstance(ary, Number):
+        if np.isscalar(ary):
             return abs(ary)
 
         actx = self._array_context
@@ -174,10 +207,13 @@ class BaseFakeNumpyLinalgNamespace:
 
                 return flat_norm(ary, ord=ord)
 
-        if is_array_container_type(ary.__class__):
+        try:
+            iterable = serialize_container(ary)
+        except NotAnArrayContainerError:
+            pass
+        else:
             return _reduce_norm(actx, [
-                self.norm(subary, ord=ord)
-                for _, subary in serialize_container(ary)
+                self.norm(subary, ord=ord) for _, subary in iterable
                 ], ord=ord)
 
         if ord is None:
@@ -189,6 +225,7 @@ class BaseFakeNumpyLinalgNamespace:
         if ary.size == 0:
             return ary.dtype.type(0)
 
+        from numbers import Number
         if ord == 2:
             return actx.np.sqrt(actx.np.sum(abs(ary)**2))
         if ord == np.inf:

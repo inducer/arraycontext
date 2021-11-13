@@ -283,6 +283,8 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ("max", 1, np.float64),
             ("any", 1, np.float64),
             ("all", 1, np.float64),
+            ("arctan", 1, np.float64),
+            ("atan", 1, np.float64),
 
             # float + complex
             ("sin", 1, np.float64),
@@ -306,8 +308,24 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
     ndofs = 512
     args = [randn(ndofs, dtype) for i in range(n_args)]
 
-    assert_close_to_numpy_in_containers(
-            actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
+    c_to_numpy_arc_functions = {
+            "atan": "arctan",
+            "atan2": "arctan2",
+            }
+
+    def evaluate(_np, *_args):
+        func = getattr(_np, sym_name,
+                getattr(_np, c_to_numpy_arc_functions.get(sym_name, sym_name)))
+
+        return func(*_args)
+
+    assert_close_to_numpy_in_containers(actx, evaluate, args)
+
+    if sym_name in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
+        pytest.skip(f"'{sym_name}' not supported on scalars")
+
+    args = [randn(0, dtype)[()] for i in range(n_args)]
+    assert_close_to_numpy(actx, evaluate, args)
 
 
 @pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
@@ -926,6 +944,28 @@ def test_flatten_array_container(actx_factory, shapes):
                 actx.np.linalg.norm(ary - ary_roundtrip)
                 ) < 1.0e-15
 
+    # {{{ complex to real
+
+    if isinstance(shapes, (int, tuple)):
+        shapes = [shapes]
+
+    ary = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes]))
+
+    template = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.complex128))
+        for shape in shapes]))
+
+    flat = flatten(ary, actx)
+    ary_roundtrip = unflatten(template, flat, actx, strict=False)
+
+    assert actx.to_numpy(
+            actx.np.linalg.norm(ary - ary_roundtrip)
+            ) < 1.0e-15
+
+    # }}}
+
 
 def test_flatten_array_container_failure(actx_factory):
     actx = actx_factory()
@@ -1239,6 +1279,31 @@ def test_outer(actx_factory):
     assert equal(
         outer(a_bcast_dc_of_dofs, ary_of_floats),
         a_bcast_dc_of_dofs*ary_of_floats)
+
+# }}}
+
+
+# {{{ test_array_container_with_numpy
+
+@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class ArrayContainerWithNumpy:
+    u: np.ndarray
+    v: DOFArray
+
+
+def test_array_container_with_numpy(actx_factory):
+    actx = actx_factory()
+
+    mystate = ArrayContainerWithNumpy(
+            u=np.zeros(10),
+            v=DOFArray(actx, (actx.from_numpy(np.zeros(42)),)),
+            )
+
+    from arraycontext import rec_map_array_container
+    rec_map_array_container(lambda x: x, mystate)
+
 
 # }}}
 

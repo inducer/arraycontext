@@ -28,16 +28,20 @@ THE SOFTWARE.
 
 from functools import partial, reduce
 import operator
-from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
-from arraycontext.container import is_array_container
+
+import numpy as np
+
+from arraycontext.fake_numpy import \
+        BaseFakeNumpyLinalgNamespace
+from arraycontext.loopy import \
+        LoopyBasedFakeNumpyNamespace
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
         rec_multimap_array_container,
-        multimap_reduce_array_container,
         rec_map_reduce_array_container,
         rec_multimap_reduce_array_container,
         )
-from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 try:
     import pyopencl as cl  # noqa: F401
@@ -60,6 +64,17 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # i.e. more like "are you two equal", and not like numpy semantics.
     # These operations provide access to numpy-style comparisons in that
     # case.
+
+    def __getattr__(self, name):
+        print(name)
+        cl_funcs = ["abs", "sin", "cos", "tan", "arcsin", "arccos", "arctan",
+                    "sinh", "cosh", "tanh", "exp", "log", "log10", "isnan",
+                    "sqrt", "exp"]
+        if name in cl_funcs:
+            from functools import partial
+            return partial(rec_map_array_container, getattr(cl, name))
+
+        return super().__getattr__(name)
 
     def equal(self, x, y):
         return rec_multimap_array_container(operator.eq, x, y)
@@ -238,32 +253,33 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return result
 
     def array_equal(self, a, b):
-        def as_device_scalar(bool_value):
-            import numpy as np
-            return self._array_context.from_numpy(
-                np.array(int(bool_value), dtype=np.int8))
+        actx = self._array_context
+        queue = actx.queue
 
-        # Do recursion separately from device-to-host conversion (below) so that
-        # we don't pass host booleans to cl_array.minimum
+        # NOTE: pyopencl doesn't like `bool` much, so use `int8` instead
+        false = actx.from_numpy(np.int8(False))
+
         def rec_equal(x, y):
             if type(x) != type(y):
-                return as_device_scalar(False)
-            elif not is_array_container_type(x.__class__):
+                return false
+
+            try:
+                iterable = zip(serialize_container(x), serialize_container(y))
+            except NotAnArrayContainerError:
                 if x.shape != y.shape:
-                    return as_device_scalar(False)
+                    return false
                 else:
                     return (x == y).all()
             else:
-                queue = self._array_context.queue
-                reduce_func = partial(reduce, partial(cl_array.minimum, queue=queue))
-                map_func = rec_equal
-                return multimap_reduce_array_container(
-                    reduce_func, map_func, x, y)
+                return reduce(
+                        partial(cl_array.minimum, queue=queue),
+                        [rec_equal(ix, iy)for (_, ix), (_, iy) in iterable]
+                        )
 
         result = rec_equal(a, b)
-
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
+
         return result
 
 # }}}
