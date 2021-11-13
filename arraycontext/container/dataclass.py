@@ -37,7 +37,7 @@ from arraycontext.container import is_array_container_type
 # {{{ dataclass containers
 
 def dataclass_array_container(cls: type) -> type:
-    """A class decorator that makes the class to which it is applied a
+    """A class decorator that makes the class to which it is applied an
     :class:`ArrayContainer` by registering appropriate implementations of
     :func:`serialize_container` and :func:`deserialize_container`.
     *cls* must be a :func:`~dataclasses.dataclass`.

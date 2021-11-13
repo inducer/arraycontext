@@ -283,6 +283,8 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ("max", 1, np.float64),
             ("any", 1, np.float64),
             ("all", 1, np.float64),
+            ("arctan", 1, np.float64),
+            ("atan", 1, np.float64),
 
             # float + complex
             ("sin", 1, np.float64),
@@ -306,8 +308,24 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
     ndofs = 512
     args = [randn(ndofs, dtype) for i in range(n_args)]
 
-    assert_close_to_numpy_in_containers(
-            actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
+    c_to_numpy_arc_functions = {
+            "atan": "arctan",
+            "atan2": "arctan2",
+            }
+
+    def evaluate(_np, *_args):
+        func = getattr(_np, sym_name,
+                getattr(_np, c_to_numpy_arc_functions.get(sym_name, sym_name)))
+
+        return func(*_args)
+
+    assert_close_to_numpy_in_containers(actx, evaluate, args)
+
+    if sym_name in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
+        pytest.skip(f"'{sym_name}' not supported on scalars")
+
+    args = [randn(0, dtype)[()] for i in range(n_args)]
+    assert_close_to_numpy(actx, evaluate, args)
 
 
 @pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
