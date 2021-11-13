@@ -65,16 +65,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # These operations provide access to numpy-style comparisons in that
     # case.
 
-    def __getattr__(self, name):
-        print(name)
-        cl_funcs = ["abs", "sin", "cos", "tan", "arcsin", "arccos", "arctan",
-                    "sinh", "cosh", "tanh", "exp", "log", "log10", "isnan",
-                    "sqrt", "exp"]
-        if name in cl_funcs:
-            from functools import partial
-            return partial(rec_map_array_container, getattr(cl, name))
-
-        return super().__getattr__(name)
 
     def equal(self, x, y):
         return rec_multimap_array_container(operator.eq, x, y)
