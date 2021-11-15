@@ -147,9 +147,10 @@ class BaseFakeNumpyNamespace:
 
     def __getattr__(self, name):
         def loopy_implemented_elwise_func(*args):
-            from numbers import Number
-            if all(isinstance(ary, Number) for ary in args):
-                return getattr(np, name)(*args)
+            if all(np.isscalar(ary) for ary in args):
+                return getattr(
+                        np, self._c_to_numpy_arc_functions.get(name, name)
+                        )(*args)
 
             actx = self._array_context
             prg = _get_scalar_func_loopy_program(actx,
@@ -161,7 +162,7 @@ class BaseFakeNumpyNamespace:
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
             warn(f"'{name}' in ArrayContext.np is deprecated. "
-                    "Use '{c_to_numpy_arc_functions[name]}' as in numpy. "
+                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. "
                     "The old name will stop working in 2021.",
                     DeprecationWarning, stacklevel=3)
 
@@ -169,14 +170,14 @@ class BaseFakeNumpyNamespace:
         c_name = self._numpy_to_c_arc_functions.get(name, name)
 
         # limit which functions we try to hand off to loopy
-        if name in self._numpy_math_functions:
+        if (name in self._numpy_math_functions
+                or name in self._c_to_numpy_arc_functions):
             return multimapped_over_array_containers(loopy_implemented_elwise_func)
         else:
             raise AttributeError(name)
 
     def _new_like(self, ary, alloc_like):
-        from numbers import Number
-        if isinstance(ary, Number):
+        if np.isscalar(ary):
             # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
             # is best implemented by concrete array contexts, if at all
             raise NotImplementedError("operation not implemented for scalars")
@@ -233,9 +234,7 @@ class BaseFakeNumpyLinalgNamespace:
         self._array_context = array_context
 
     def norm(self, ary, ord=None):
-        from numbers import Number
-
-        if isinstance(ary, Number):
+        if np.isscalar(ary):
             return abs(ary)
 
         actx = self._array_context
@@ -274,6 +273,7 @@ class BaseFakeNumpyLinalgNamespace:
         if ary.size == 0:
             return ary.dtype.type(0)
 
+        from numbers import Number
         if ord == 2:
             return actx.np.sqrt(actx.np.sum(abs(ary)**2))
         if ord == np.inf:
