@@ -136,6 +136,15 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def less_equal(self, x, y):
         return rec_multimap_array_container(pt.less_equal, x, y)
 
+    def logical_and(self, x, y):
+        return rec_multimap_array_container(pt.logical_and, x, y)
+
+    def logical_or(self, x, y):
+        return rec_multimap_array_container(pt.logical_or, x, y)
+
+    def logical_not(self, x, y):
+        return rec_multimap_array_container(pt.logical_not, x, y)
+
     def conj(self, x):
         return rec_multimap_array_container(pt.conj, x)
 
