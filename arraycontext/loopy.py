@@ -131,7 +131,7 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
             warn(f"'{name}' in ArrayContext.np is deprecated. "
-                    "Use '{c_to_numpy_arc_functions[name]}' as in numpy. "
+                    "Use '{self.c_to_numpy_arc_functions[name]}' as in numpy. "
                     "The old name will stop working in 2022.",
                     DeprecationWarning, stacklevel=3)
 
@@ -139,7 +139,8 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
         c_name = self._numpy_to_c_arc_functions.get(name, name)
 
         # limit which functions we try to hand off to loopy
-        if name in self._numpy_math_functions:
+        if name in self._numpy_math_functions
+            or name in self._c_to_numpy_arc_functions):
             return multimapped_over_array_containers(loopy_implemented_elwise_func)
         else:
             raise AttributeError(name)
