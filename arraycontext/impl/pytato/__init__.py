@@ -200,6 +200,10 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         :arg dag: An instance of :class:`pytato.DictOfNamedArrays`
         :returns: A transformed version of *dag*.
         """
+        import pytato as pt
+
+        dag = pt.transform.materialize_with_mpms(dag)
+
         return dag
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
