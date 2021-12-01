@@ -193,8 +193,7 @@ class LazilyCompilingFunctionCaller:
         import loopy as lp
 
         with ProcessLogger(logger, "transform_dag"):
-            pt_dict_of_named_arrays = self.actx.transform_dag(
-                pt.make_dict_of_named_arrays(dict_of_named_arrays))
+            pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
 
         with ProcessLogger(logger, "generate_loopy"):
             pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
@@ -280,9 +279,8 @@ class LazilyCompilingFunctionCaller:
         rec_keyed_map_array_container(_as_dict_of_named_arrays,
                                       output_template)
 
-        from pytato import DictOfNamedArrays
         compiled_func = self._dag_to_compiled_func(
-                DictOfNamedArrays(dict_of_named_arrays),
+                pt.make_dict_of_named_arrays(dict_of_named_arrays),
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_id_to_name_in_program=output_id_to_name_in_program,
                 output_template=output_template)
