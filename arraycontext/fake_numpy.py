@@ -281,8 +281,10 @@ class BaseFakeNumpyLinalgNamespace:
             return ary.dtype.type(0)
 
         from numbers import Number
-        if ord == 2:
-            return actx.np.sqrt(actx.np.sum(abs(ary)**2))
+        #if ord == 2:
+        #    inner_product = actx.np.sum(abs(ary)**2)
+        #    print(type(inner_product))
+        #    return actx.np.sqrt(inner_product)
         if ord == np.inf:
             return actx.np.max(abs(ary))
         elif ord == -np.inf:
