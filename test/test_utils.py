@@ -93,6 +93,40 @@ def test_dataclass_array_container():
 # }}}
 
 
+# {{{ test_dataclass_excluded_fields
+
+def test_dataclass_excluded_fields():
+    from dataclasses import dataclass
+    from arraycontext import dataclass_array_container, ExcludedField
+
+    try:
+        from typing import Annotated
+    except ImportError:
+        from typing_extensions import Annotated
+
+    @dataclass_array_container
+    @dataclass(frozen=True)
+    class ExcludedFoo:
+        x: np.ndarray
+        y: np.ndarray
+        excluded: Annotated[np.ndarray, ExcludedField]
+
+    ary = np.array([42], dtype=object)
+    c0 = ExcludedFoo(x=ary, y=ary, excluded=ary)
+
+    from arraycontext import serialize_container
+    iterable = serialize_container(c0)
+    assert len(iterable) == 2
+
+    from arraycontext import deserialize_container
+    c1 = deserialize_container(c0, iterable)
+    assert np.linalg.norm(c0.x - c1.x) < 1.0e-15
+    assert np.linalg.norm(c0.y - c1.y) < 1.0e-15
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
