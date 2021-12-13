@@ -256,7 +256,8 @@ def multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
 
 def rec_map_array_container(
         f: Callable[[Any], Any],
-        ary: ArrayOrContainerT) -> ArrayOrContainerT:
+        ary: ArrayOrContainerT,
+        leaf_class: Optional[type] = None) -> ArrayOrContainerT:
     r"""Applies *f* recursively to an :class:`ArrayContainer`.
 
     For a non-recursive version see :func:`map_array_container`.
@@ -264,18 +265,23 @@ def rec_map_array_container(
     :param ary: a (potentially nested) structure of :class:`ArrayContainer`\ s,
         or an instance of a base array type.
     """
-    return _map_array_container_impl(f, ary, recursive=True)
+    return _map_array_container_impl(f, ary, leaf_cls=leaf_class, recursive=True)
 
 
 def mapped_over_array_containers(
-        f: Callable[[Any], Any]) -> Callable[[ArrayOrContainerT], ArrayOrContainerT]:
+        f: Callable[[Any], Any],
+        leaf_class: Optional[type] = None) -> Callable[
+            [ArrayOrContainerT], ArrayOrContainerT]:
     """Decorator around :func:`rec_map_array_container`."""
-    wrapper = partial(rec_map_array_container, f)
+    wrapper = partial(rec_map_array_container, f, leaf_class=leaf_class)
     update_wrapper(wrapper, f)
     return wrapper
 
 
-def rec_multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
+def rec_multimap_array_container(
+        f: Callable[..., Any],
+        *args: Any,
+        leaf_class: Optional[type] = None) -> Any:
     r"""Applies *f* recursively to multiple :class:`ArrayContainer`\ s.
 
     For a non-recursive version see :func:`multimap_array_container`.
@@ -283,16 +289,18 @@ def rec_multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
     :param args: all :class:`ArrayContainer` arguments must be of the same
         type and with the same structure (same number of components, etc.).
     """
-    return _multimap_array_container_impl(f, *args, recursive=True)
+    return _multimap_array_container_impl(
+        f, *args, leaf_cls=leaf_class, recursive=True)
 
 
 def multimapped_over_array_containers(
-        f: Callable[..., Any]) -> Callable[..., Any]:
+        f: Callable[..., Any],
+        leaf_class: Optional[type] = None) -> Callable[..., Any]:
     """Decorator around :func:`rec_multimap_array_container`."""
     # can't use functools.partial, because its result is insufficiently
     # function-y to be used as a method definition.
     def wrapper(*args: Any) -> Any:
-        return rec_multimap_array_container(f, *args)
+        return rec_multimap_array_container(f, *args, leaf_class=leaf_class)
 
     update_wrapper(wrapper, f)
     return wrapper
@@ -401,7 +409,8 @@ def multimap_reduce_array_container(
 def rec_map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[[Any], Any],
-        ary: ArrayOrContainerT) -> "DeviceArray":
+        ary: ArrayOrContainerT,
+        leaf_class: Optional[type] = None) -> "DeviceArray":
     """Perform a map-reduce over array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of *ary*
@@ -440,14 +449,17 @@ def rec_map_reduce_array_container(
         or any other such traversal.
     """
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
-        try:
-            iterable = serialize_container(_ary)
-        except NotAnArrayContainerError:
+        if type(_ary) is leaf_class:
             return map_func(_ary)
         else:
-            return reduce_func([
-                rec(subary) for _, subary in iterable
-                ])
+            try:
+                iterable = serialize_container(_ary)
+            except NotAnArrayContainerError:
+                return map_func(_ary)
+            else:
+                return reduce_func([
+                    rec(subary) for _, subary in iterable
+                    ])
 
     return rec(ary)
 
@@ -455,7 +467,8 @@ def rec_map_reduce_array_container(
 def rec_multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[..., Any],
-        *args: Any) -> "DeviceArray":
+        *args: Any,
+        leaf_class: Optional[type] = None) -> "DeviceArray":
     r"""Perform a map-reduce over multiple array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of any
@@ -478,7 +491,7 @@ def rec_multimap_reduce_array_container(
 
     return _multimap_array_container_impl(
         map_func, *args,
-        reduce_func=_reduce_wrapper, leaf_cls=None, recursive=True)
+        reduce_func=_reduce_wrapper, leaf_cls=leaf_class, recursive=True)
 
 # }}}
 
