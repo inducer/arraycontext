@@ -269,11 +269,9 @@ def rec_map_array_container(
 
 
 def mapped_over_array_containers(
-        f: Callable[[Any], Any],
-        leaf_class: Optional[type] = None) -> Callable[
-            [ArrayOrContainerT], ArrayOrContainerT]:
+        f: Callable[[Any], Any]) -> Callable[[ArrayOrContainerT], ArrayOrContainerT]:
     """Decorator around :func:`rec_map_array_container`."""
-    wrapper = partial(rec_map_array_container, f, leaf_class=leaf_class)
+    wrapper = partial(rec_map_array_container, f)
     update_wrapper(wrapper, f)
     return wrapper
 
@@ -294,13 +292,12 @@ def rec_multimap_array_container(
 
 
 def multimapped_over_array_containers(
-        f: Callable[..., Any],
-        leaf_class: Optional[type] = None) -> Callable[..., Any]:
+        f: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator around :func:`rec_multimap_array_container`."""
     # can't use functools.partial, because its result is insufficiently
     # function-y to be used as a method definition.
     def wrapper(*args: Any) -> Any:
-        return rec_multimap_array_container(f, *args, leaf_class=leaf_class)
+        return rec_multimap_array_container(f, *args)
 
     update_wrapper(wrapper, f)
     return wrapper
