@@ -269,11 +269,22 @@ def rec_map_array_container(
 
 
 def mapped_over_array_containers(
-        f: Callable[[Any], Any]) -> Callable[[ArrayOrContainerT], ArrayOrContainerT]:
+        f: Optional[Callable[[Any], Any]] = None,
+        leaf_class: Optional[type] = None) -> Union[
+            Callable[[ArrayOrContainerT], ArrayOrContainerT],
+            Callable[
+                [Callable[[Any], Any]],
+                Callable[[ArrayOrContainerT], ArrayOrContainerT]]]:
     """Decorator around :func:`rec_map_array_container`."""
-    wrapper = partial(rec_map_array_container, f)
-    update_wrapper(wrapper, f)
-    return wrapper
+    def decorator(g: Callable[[Any], Any]) -> Callable[
+            [ArrayOrContainerT], ArrayOrContainerT]:
+        wrapper = partial(rec_map_array_container, g, leaf_class=leaf_class)
+        update_wrapper(wrapper, g)
+        return wrapper
+    if f is not None:
+        return decorator(f)
+    else:
+        return decorator
 
 
 def rec_multimap_array_container(
@@ -292,15 +303,23 @@ def rec_multimap_array_container(
 
 
 def multimapped_over_array_containers(
-        f: Callable[..., Any]) -> Callable[..., Any]:
+        f: Optional[Callable[..., Any]] = None,
+        leaf_class: Optional[type] = None) -> Union[
+            Callable[..., Any],
+            Callable[[Callable[..., Any]], Callable[..., Any]]]:
     """Decorator around :func:`rec_multimap_array_container`."""
-    # can't use functools.partial, because its result is insufficiently
-    # function-y to be used as a method definition.
-    def wrapper(*args: Any) -> Any:
-        return rec_multimap_array_container(f, *args)
+    def decorator(g: Callable[..., Any]) -> Callable[..., Any]:
+        # can't use functools.partial, because its result is insufficiently
+        # function-y to be used as a method definition.
+        def wrapper(*args: Any) -> Any:
+            return rec_multimap_array_container(g, *args, leaf_class=leaf_class)
+        update_wrapper(wrapper, g)
+        return wrapper
+    if f is not None:
+        return decorator(f)
+    else:
+        return decorator
 
-    update_wrapper(wrapper, f)
-    return wrapper
 
 # }}}
 
