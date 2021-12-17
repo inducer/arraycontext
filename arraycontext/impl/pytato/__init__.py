@@ -219,10 +219,7 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pyopencl.array as cla
         import pytato as pt
-        if arg_names is not None:
-            from warnings import warn
-            warn("'arg_names' don't bear any significance in "
-                 "PytatoPyOpenCLArrayContext.", stacklevel=2)
+        # N.B.: arg_names don't have any significance in PytatoPyOpenCLArrayContext
 
         def preprocess_arg(arg):
             if isinstance(arg, cla.Array):
