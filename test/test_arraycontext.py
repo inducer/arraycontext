@@ -1386,6 +1386,16 @@ def test_array_container_with_numpy(actx_factory):
 # }}}
 
 
+def test_actx_compile_on_pure_array_return(actx_factory):
+    def _twice(x):
+        return 2 * x
+
+    actx = actx_factory()
+    ones = actx.zeros(shape=(10, 4), dtype=np.float64) + 1
+    np.testing.assert_allclose(actx.to_numpy(_twice(ones)),
+                               actx.to_numpy(actx.compile(_twice)(ones)))
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
