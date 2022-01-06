@@ -96,13 +96,13 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(pt.where, criterion, then, else_)
 
     @staticmethod
-    def _reduce(container_binop, array_reduce,
+    def _map_reduce(reduce_func, map_func,
             ary, *,
             axis, dtype, initial):
-        def container_reduce(ctr):
+        def _reduce_func(partial_results):
             if initial is _NoValue:
                 try:
-                    return reduce(container_binop, ctr)
+                    return reduce(reduce_func, partial_results)
                 except TypeError as exc:
                     if "empty sequence" in str(exc):
                         raise ValueError("zero-size reduction operation "
@@ -110,40 +110,40 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                     else:
                         raise
             else:
-                return reduce(container_binop, ctr, initial)
+                return reduce(reduce_func, partial_results, initial)
 
-        def actual_array_reduce(ary):
-            if dtype not in [ary.dtype, None]:
+        def _map_func(ary):
+            if dtype not in [None, ary.dtype]:
                 raise NotImplementedError
 
             if initial is _NoValue:
-                return array_reduce(ary, axis=axis)
+                return map_func(ary, axis=axis)
             else:
-                return array_reduce(ary, axis=axis, initial=initial)
+                return map_func(ary, axis=axis, initial=initial)
 
         return rec_map_reduce_array_container(
-                container_reduce,
-                actual_array_reduce,
+                _reduce_func,
+                _map_func,
                 ary)
 
     # * appears where positional signature starts diverging from numpy
     def sum(self, a, axis=None, dtype=None, *, initial=0):
         import operator
-        return self._reduce(operator.add, pt.sum, a,
+        return self._map_reduce(operator.add, pt.sum, a,
                 axis=axis, dtype=dtype, initial=initial)
 
     # * appears where positional signature starts diverging from numpy
     # Use _NoValue to indicate a lack of neutral element so that the caller can
     # use None as a neutral element
     def min(self, a, axis=None, *, initial=_NoValue):
-        return self._reduce(pt.minimum, pt.amin, a,
+        return self._map_reduce(pt.minimum, pt.amin, a,
                 axis=axis, dtype=None, initial=initial)
 
     # * appears where positional signature starts diverging from numpy
     # Use _NoValue to indicate a lack of neutral element so that the caller can
     # use None as a neutral element
     def max(self, a, axis=None, *, initial=_NoValue):
-        return self._reduce(pt.maximum, pt.amax, a,
+        return self._map_reduce(pt.maximum, pt.amax, a,
                 axis=axis, dtype=None, initial=initial)
 
     def stack(self, arrays, axis=0):
