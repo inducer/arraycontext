@@ -50,6 +50,10 @@ except ImportError:
 
 # {{{ fake numpy
 
+class _NoValue:
+    pass
+
+
 class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def _get_fake_numpy_linalg_namespace(self):
         return _PyOpenCLFakeNumpyLinalgNamespace(self._array_context)
@@ -110,58 +114,81 @@ class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
-    def sum(self, a, axis=None, dtype=None):
-
+    @staticmethod
+    def _map_reduce(reduce_func, map_func,
+            ary, *,
+            axis, dtype, initial):
         if isinstance(axis, int):
             axis = axis,
 
-        def _rec_sum(ary):
+        def _reduce_func(partial_results):
+            if initial is _NoValue:
+                try:
+                    return reduce(reduce_func, partial_results)
+                except TypeError as exc:
+                    if "empty sequence" in str(exc):
+                        raise ValueError("zero-size reduction operation "
+                                "without supplied 'initial' value")
+                    else:
+                        raise
+            else:
+                return reduce(reduce_func, partial_results, initial)
+
+        def _map_func(ary):
+            if dtype not in [None, ary.dtype]:
+                raise NotImplementedError
             if axis not in [None, tuple(range(ary.ndim))]:
-                raise NotImplementedError(f"Sum over '{axis}' axes not supported.")
+                raise NotImplementedError(
+                    f"Mapping over '{axis}' axes not supported.")
+            if initial is _NoValue:
+                return map_func(ary)
+            else:
+                return map_func(ary, initial=initial)
 
-            return cl_array.sum(ary, dtype=dtype, queue=self._array_context.queue)
+        return rec_map_reduce_array_container(
+                _reduce_func,
+                _map_func,
+                ary)
 
-        result = rec_map_reduce_array_container(sum, _rec_sum, a)
+    # * appears where positional signature starts diverging from numpy
+    def sum(self, a, axis=None, dtype=None, *, initial=0):
+        queue = self._array_context.queue
+        import operator
+        result = self._map_reduce(
+            operator.add,
+            partial(cl_array.sum, queue=queue),
+            a,
+            axis=axis, dtype=dtype, initial=initial)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
         return result
 
-    def min(self, a, axis=None):
+    # * appears where positional signature starts diverging from numpy
+    # Use _NoValue to indicate a lack of neutral element so that the caller can
+    # use None as a neutral element
+    def min(self, a, axis=None, *, initial=_NoValue):
         queue = self._array_context.queue
-
-        if isinstance(axis, int):
-            axis = axis,
-
-        def _rec_min(ary):
-            if axis not in [None, tuple(range(ary.ndim))]:
-                raise NotImplementedError(f"Min. over '{axis}' axes not supported.")
-            return cl_array.min(ary, queue=queue)
-
-        result = rec_map_reduce_array_container(
-                partial(reduce, partial(cl_array.minimum, queue=queue)),
-                _rec_min,
-                a)
+        result = self._map_reduce(
+            partial(cl_array.minimum, queue=queue),
+            partial(cl_array.min, queue=queue),
+            a,
+            axis=axis, dtype=None, initial=initial)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
         return result
 
-    def max(self, a, axis=None):
+    # * appears where positional signature starts diverging from numpy
+    # Use _NoValue to indicate a lack of neutral element so that the caller can
+    # use None as a neutral element
+    def max(self, a, axis=None, *, initial=_NoValue):
         queue = self._array_context.queue
-
-        if isinstance(axis, int):
-            axis = axis,
-
-        def _rec_max(ary):
-            if axis not in [None, tuple(range(ary.ndim))]:
-                raise NotImplementedError(f"Max. over '{axis}' axes not supported.")
-            return cl_array.max(ary, queue=queue)
-
-        result = rec_map_reduce_array_container(
-                partial(reduce, partial(cl_array.maximum, queue=queue)),
-                _rec_max,
-                a)
+        result = self._map_reduce(
+            partial(cl_array.maximum, queue=queue),
+            partial(cl_array.max, queue=queue),
+            a,
+            axis=axis, dtype=None, initial=initial)
 
         if not self._array_context._force_device_scalars:
             result = result.get()[()]
