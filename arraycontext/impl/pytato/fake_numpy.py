@@ -108,7 +108,7 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                         raise ValueError("zero-size reduction operation "
                                 "without supplied 'initial' value")
                     else:
-                        raise        
+                        raise
             else:
                 return reduce(container_binop, ctr, initial)
 
