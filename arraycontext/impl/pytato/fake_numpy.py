@@ -104,9 +104,11 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 try:
                     return reduce(container_binop, ctr)
                 except TypeError as exc:
-                    assert "empty sequence" in str(exc)
-                    raise ValueError("zero-size reduction operation "
-                            "without supplied 'initial' value")
+                    if "empty sequence" in str(exc):
+                        raise ValueError("zero-size reduction operation "
+                                "without supplied 'initial' value")
+                    else:
+                        raise        
             else:
                 return reduce(container_binop, ctr, initial)
 
