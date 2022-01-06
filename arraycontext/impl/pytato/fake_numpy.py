@@ -133,11 +133,15 @@ class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 axis=axis, dtype=dtype, initial=initial)
 
     # * appears where positional signature starts diverging from numpy
+    # Use _NoValue to indicate a lack of neutral element so that the caller can
+    # use None as a neutral element
     def min(self, a, axis=None, *, initial=_NoValue):
         return self._reduce(pt.minimum, pt.amin, a,
                 axis=axis, dtype=None, initial=initial)
 
     # * appears where positional signature starts diverging from numpy
+    # Use _NoValue to indicate a lack of neutral element so that the caller can
+    # use None as a neutral element
     def max(self, a, axis=None, *, initial=_NoValue):
         return self._reduce(pt.maximum, pt.amax, a,
                 axis=axis, dtype=None, initial=initial)
