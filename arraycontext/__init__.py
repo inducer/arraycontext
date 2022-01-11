@@ -35,8 +35,8 @@ from .context import ArrayContext, DeviceArray, DeviceScalar
 from .metadata import _FirstAxisIsElementsTag
 
 from .transform_metadata import (CommonSubexpressionTag,  # noqa: F401
-        ElementwiseMapKernelTag, KernelDataTag, ParameterValue,
-        IsDOFArray, IsOpArray)
+        ElementwiseMapKernelTag, ParameterValue,
+        IsDOFArray)
 
 from .container import (
         ArrayContainer, NotAnArrayContainerError,

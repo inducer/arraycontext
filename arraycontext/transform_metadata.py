@@ -55,23 +55,21 @@ class ElementwiseMapKernelTag(Tag):
 
 
 class ParameterValue(UniqueTag):
+    """A tag that applies to :class:`loopy.ValueArg`. Instances of this tag
+    are initialized with the value of the parameter and may be later used
+    to fix value of the parameter.
+    """
 
     def __init__(self, value):
         self.value = value
 
 
 class IsDOFArray(Tag):
+    """A tag that is applicable to arrays indicating the content of the
+    array comprises element DOFs.
+    """
     pass
 
-
-class IsOpArray(Tag):
-    pass
-
-
-class KernelDataTag(Tag):
-
-    def __init__(self, kernel_data):
-        self.kernel_data = kernel_data
 
 # }}}
 

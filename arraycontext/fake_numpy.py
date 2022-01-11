@@ -283,7 +283,9 @@ class BaseFakeNumpyLinalgNamespace:
         from numbers import Number
         if ord == 2:
             inner_product = actx.np.sum(ary**2)
-            return actx.np.sqrt(inner_product)
+            # Complains it is unable to cast Python instance to C++ type
+            #return actx.np.sqrt(inner_product)
+            return inner_product**(.5)
         elif ord == np.inf:
             return actx.np.max(abs(ary))
         elif ord == -np.inf:
