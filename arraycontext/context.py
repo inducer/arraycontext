@@ -125,6 +125,7 @@ from pytools.tag import Tag
 
 DeviceArray = Any
 DeviceScalar = Any
+_ScalarLike = Union[int, float, complex, np.generic]
 
 
 # {{{ ArrayContext
@@ -197,7 +198,7 @@ class ArrayContext(ABC):
         return self.zeros(shape=ary.shape, dtype=ary.dtype)
 
     @abstractmethod
-    def from_numpy(self, array: np.ndarray):
+    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
         r"""
         :returns: the :class:`numpy.ndarray` *array* converted to the
             array context's array type. The returned array will be
