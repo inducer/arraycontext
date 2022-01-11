@@ -65,6 +65,8 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
         for arg in prg.default_entrypoint.args:
             if isinstance(arg, lp.ArrayArg):
                 arg.tags = [IsDOFArray()]
+            if arg.name =="out":
+                arg.is_output_only = True
 
         return prg
 
