@@ -122,7 +122,7 @@ class NotAnArrayContainerError(TypeError):
 
 
 @singledispatch
-def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
+def serialize_container(ary: Any) -> Iterable[Tuple[Any, Any]]:
     r"""Serialize the array container into an iterable over its components.
 
     The order of the components and their identifiers are entirely under
