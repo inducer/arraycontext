@@ -62,6 +62,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from numbers import Number
 from typing import Any, Callable, Iterable, List, Optional, Union, Tuple
 from functools import update_wrapper, partial, singledispatch
 
@@ -732,13 +733,16 @@ def unflatten(
 
 # {{{ numpy conversion
 
-def from_numpy(ary: Any, actx: ArrayContext) -> Any:
+def from_numpy(
+        ary: Union[np.ndarray, np.generic, Number],
+        actx: ArrayContext) -> ArrayOrContainerT:
     """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
     to the base array type of :class:`~arraycontext.ArrayContext`.
 
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
-    def _from_numpy_with_check(subary: Any) -> Any:
+    def _from_numpy_with_check(subary: Union[np.ndarray, np.generic, Number]) \
+            -> ArrayOrContainerT:
         if isinstance(subary, np.ndarray) or np.isscalar(subary):
             return actx.from_numpy(subary)
         else:
@@ -747,7 +751,7 @@ def from_numpy(ary: Any, actx: ArrayContext) -> Any:
     return rec_map_array_container(_from_numpy_with_check, ary)
 
 
-def to_numpy(ary: Any, actx: ArrayContext) -> Any:
+def to_numpy(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
     :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
 
