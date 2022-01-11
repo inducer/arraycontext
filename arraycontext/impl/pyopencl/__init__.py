@@ -35,7 +35,7 @@ import numpy as np
 from pytools.tag import Tag
 
 from arraycontext.context import ArrayContext
-from arraycontext.metadata import ParameterValue
+from arraycontext.transform_metadata import ParameterValue
 
 if TYPE_CHECKING:
     import pyopencl
