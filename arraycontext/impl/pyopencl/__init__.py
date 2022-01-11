@@ -214,7 +214,7 @@ class PyOpenCLArrayContext(ArrayContext):
         # accommodate loopy with and without kernel callables
 
         import loopy as lp
-        
+
         for arg in t_unit.default_entrypoint.args:
             if isinstance(arg.tags, ParameterValue):
                 t_unit = lp.fix_parameters(t_unit, **{arg.name: arg.tags.value})

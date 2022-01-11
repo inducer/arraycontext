@@ -27,7 +27,6 @@ import sys
 from warnings import warn
 
 
-
 # {{{ program metadata
 
 class CommonSubexpressionTag(Tag):
@@ -44,7 +43,8 @@ class FirstAxisIsElementsTag(Tag):
     loop extent.
     """
 
- # {{{ deprecation handling
+# {{{ deprecation handling
+
 
 try:
     from meshmode.transform_metadata import FirstAxisIsElementsTag \
@@ -74,11 +74,14 @@ class ParameterValue(UniqueTag):
     def __init__(self, value):
         self.value = value
 
+
 class IsDOFArray(Tag):
     pass
 
+
 class IsOpArray(Tag):
     pass
+
 
 class KernelDataTag(Tag):
 

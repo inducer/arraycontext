@@ -225,7 +225,7 @@ class ArrayContext(ABC):
         :return: a :class:`dict` of outputs from the program, each an
             array understood by the context.
         """
-    
+
     @memoize_method
     def _get_scalar_func_loopy_program(self, c_name, nargs, naxes):
         from pymbolic import var
@@ -364,7 +364,6 @@ class ArrayContext(ABC):
             prg, **{arg_names[i]: arg for i, arg in enumerate(args)}
         )
         return result["out"]
-        
 
     @abstractmethod
     def clone(self):
