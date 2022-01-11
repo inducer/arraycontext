@@ -32,7 +32,11 @@ import sys
 from .context import ArrayContext, DeviceArray, DeviceScalar
 
 from .metadata import (KernelDataTag, ParameterValue, IsDOFArray,  # noqa: F401
-        IsOpArray, _FirstAxisIsElementsTag)
+        IsOpArray)
+
+# deprecated, remove in 2022
+from .metadata import _FirstAxisIsElementsTag
+
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
 
