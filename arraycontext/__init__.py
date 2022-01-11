@@ -31,14 +31,15 @@ THE SOFTWARE.
 import sys
 from .context import ArrayContext, DeviceArray, DeviceScalar
 
-from .metadata import (KernelDataTag, ParameterValue, IsDOFArray,  # noqa: F401
-        IsOpArray)
+#from .metadata import (KernelDataTag, ParameterValue, IsDOFArray,  # noqa: F401
+#        IsOpArray)
 
 # deprecated, remove in 2022
 from .metadata import _FirstAxisIsElementsTag
 
-from .transform_metadata import (CommonSubexpressionTag,
-        ElementwiseMapKernelTag)
+from .transform_metadata import (CommonSubexpressionTag,  # noqa: F401
+        ElementwiseMapKernelTag, KernelDataTag, ParameterValue,
+        IsDOFArray, IsOpArray)
 
 from .container import (
         ArrayContainer, NotAnArrayContainerError,

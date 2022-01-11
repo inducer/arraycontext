@@ -121,7 +121,7 @@ from abc import ABC, abstractmethod, abstractproperty
 import numpy as np
 from pytools import memoize_method
 from pytools.tag import Tag
-from arraycontext.metadata import IsDOFArray
+from arraycontext.transform_metadata import IsDOFArray
 
 DeviceArray = Any
 DeviceScalar = Any

@@ -27,7 +27,7 @@ import numpy as np
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container, multimapped_over_array_containers)
-from arraycontext.metadata import IsDOFArray
+from arraycontext.transform_metadata import IsDOFArray
 from pytools import memoize_in
 
 

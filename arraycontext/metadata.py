@@ -22,26 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pytools.tag import Tag, UniqueTag
+from pytools.tag import Tag
 import sys
 from warnings import warn
 
 
 # {{{ program metadata
 
-class CommonSubexpressionTag(Tag):
-    """A tag that is applicable to arrays indicating that this same array
-    may be evaluated multiple times, and that the implementation should
-    eliminate those redundant evaluations if possible.
-    """
-
-
-class FirstAxisIsElementsTag(Tag):
-    """A tag that is applicable to array outputs indicating that the
-    first index corresponds to element indices. This suggests that
-    the implementation should set element indices as the outermost
-    loop extent.
-    """
 
 # {{{ deprecation handling
 
@@ -67,26 +54,6 @@ if sys.version_info >= (3, 7):
             raise AttributeError(name)
 else:
     FirstAxisIsElementsTag = _FirstAxisIsElementsTag
-
-
-class ParameterValue(UniqueTag):
-
-    def __init__(self, value):
-        self.value = value
-
-
-class IsDOFArray(Tag):
-    pass
-
-
-class IsOpArray(Tag):
-    pass
-
-
-class KernelDataTag(Tag):
-
-    def __init__(self, kernel_data):
-        self.kernel_data = kernel_data
 
 # }}}
 

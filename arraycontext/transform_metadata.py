@@ -29,7 +29,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pytools.tag import Tag
+from pytools.tag import Tag, UniqueTag
 
 
 # {{{ program metadata
@@ -52,6 +52,26 @@ class ElementwiseMapKernelTag(Tag):
         "Element" here refers to a scalar element of an array, not an element
         in a finite-element discretization.
     """
+
+
+class ParameterValue(UniqueTag):
+
+    def __init__(self, value):
+        self.value = value
+
+
+class IsDOFArray(Tag):
+    pass
+
+
+class IsOpArray(Tag):
+    pass
+
+
+class KernelDataTag(Tag):
+
+    def __init__(self, kernel_data):
+        self.kernel_data = kernel_data
 
 # }}}
 
