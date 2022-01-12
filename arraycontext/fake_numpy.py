@@ -52,21 +52,25 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
         import loopy as lp
         from .loopy import make_loopy_program
         from arraycontext.transform_metadata import ElementwiseMapKernelTag
+
+        var_names = ["inp%d" % i for i in range(nargs)]
+        kernel_data = [lp.GlobalArg(var_name, lp.auto, shape=tuple(size_names),
+            tags=[IsDOFArray()]) for var_name in var_names]
+        kernel_data.append(lp.GlobalArg("out", lp.auto, shape=tuple(size_names),
+            is_output=True, tags=[IsDOFArray()]))
+        kernel_data.append("...")
+
         prg = make_loopy_program(
                 [domain_bset],
                 [
                     lp.Assignment(
                         var("out")[subscript],
                         var(c_name)(*[
-                            var("inp%d" % i)[subscript] for i in range(nargs)]))
+                            var(var_name)[subscript] for var_name in var_names]))
                     ],
+                kernel_data=kernel_data,
                 name="actx_special_%s" % c_name,
                 tags=(ElementwiseMapKernelTag(),))
-        for arg in prg.default_entrypoint.args:
-            if isinstance(arg, lp.ArrayArg):
-                arg.tags = [IsDOFArray()]
-            if arg.name =="out":
-                arg.is_output_only = True
 
         return prg
 
