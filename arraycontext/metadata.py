@@ -22,12 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pytools.tag import Tag
 import sys
+from pytools.tag import Tag
 from warnings import warn
-
-
-# {{{ program metadata
 
 
 # {{{ deprecation handling
