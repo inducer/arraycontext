@@ -32,7 +32,6 @@ from warnings import warn
 
 # {{{ deprecation handling
 
-
 try:
     from meshmode.transform_metadata import FirstAxisIsElementsTag \
             as _FirstAxisIsElementsTag
