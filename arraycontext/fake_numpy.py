@@ -286,18 +286,12 @@ class BaseFakeNumpyLinalgNamespace:
 
         from numbers import Number
         if ord == 2:
-            from pyopencl.array import Array as clArray
-            inner_product = actx.np.sum(ary**2)
-            if isinstance(inner_product, clArray):
-                # Workaround for force_device_scalars.
-                # Otherwise actx complains it is unable to cast
-                # Python instance to C++ type
-                from pyopencl.clmath import sqrt as clsqrt
-                result = clsqrt(inner_product)
-            else:
-                result = actx.np.sqrt(inner_product)
-            return result
+            inner_product = actx.np.sum(abs(ary**2))
+            # actx.np.sqrt doesn't work with force_device_scalars,
+            # possibly because the array has shape ()
+            #return = actx.np.sqrt(inner_product)
 
+            return inner_product**(.5)
         elif ord == np.inf:
             return actx.np.max(abs(ary))
         elif ord == -np.inf:
