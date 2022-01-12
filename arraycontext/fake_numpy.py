@@ -287,9 +287,14 @@ class BaseFakeNumpyLinalgNamespace:
         from numbers import Number
         if ord == 2:
             inner_product = actx.np.sum(ary**2)
+            # Workaround for force_device_scalars.
             # Complains it is unable to cast Python instance to C++ type
-            #return actx.np.sqrt(inner_product)
-            return inner_product**(.5)
+            try:
+                result = actx.np.sqrt(inner_product)
+            except RuntimeError:
+                result = inner_product**(0.5)
+            return result
+
         elif ord == np.inf:
             return actx.np.max(abs(ary))
         elif ord == -np.inf:
