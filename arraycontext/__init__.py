@@ -31,12 +31,12 @@ THE SOFTWARE.
 import sys
 from .context import ArrayContext, DeviceArray, DeviceScalar
 
-# deprecated, remove in 2022.
-from .metadata import _FirstAxisIsElementsTag
-
 from .transform_metadata import (CommonSubexpressionTag,  # noqa: F401
         ElementwiseMapKernelTag,
         ParameterValue, IsDOFArray)
+
+# deprecated, remove in 2022.
+from .metadata import _FirstAxisIsElementsTag
 
 from .container import (
         ArrayContainer, NotAnArrayContainerError,
