@@ -65,7 +65,7 @@ class ParameterValue(UniqueTag):
 
 
 class IsDOFArray(Tag):
-    """A tag that is applicable to arrays indicating the content of the
+    """A tag that is applicable to :class:`loopy.ArrayArg` indicating the content of the
     array comprises element DOFs.
     """
     pass
