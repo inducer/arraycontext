@@ -60,7 +60,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
             is_output=True, tags=[IsDOFArray()]))
         kernel_data.append("...")
 
-        prg = make_loopy_program(
+        return make_loopy_program(
                 [domain_bset],
                 [
                     lp.Assignment(
@@ -71,8 +71,6 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                 kernel_data=kernel_data,
                 name="actx_special_%s" % c_name,
                 tags=(ElementwiseMapKernelTag(),))
-
-        return prg
 
     return get(c_name, nargs, naxes)
 
