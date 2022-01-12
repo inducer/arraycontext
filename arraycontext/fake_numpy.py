@@ -286,13 +286,16 @@ class BaseFakeNumpyLinalgNamespace:
 
         from numbers import Number
         if ord == 2:
+            from pyopencl.array import Array as clArray
             inner_product = actx.np.sum(ary**2)
-            # Workaround for force_device_scalars.
-            # Complains it is unable to cast Python instance to C++ type
-            try:
+            if isinstance(inner_product, clArray):
+                # Workaround for force_device_scalars.
+                # Otherwise actx complains it is unable to cast
+                # Python instance to C++ type
+                from pyopencl.clmath import sqrt as clsqrt
+                result = clsqrt(inner_product)
+            else:
                 result = actx.np.sqrt(inner_product)
-            except RuntimeError:
-                result = inner_product**(0.5)
             return result
 
         elif ord == np.inf:
