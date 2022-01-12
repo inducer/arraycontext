@@ -187,9 +187,6 @@ class PyOpenCLArrayContext(ArrayContext):
             if len(wait_event_queue) > self._wait_event_queue_length:
                 wait_event_queue.pop(0).wait()
 
-        # Add the returned event to the dictionary
-        result["evt"] = evt
-
         return result
 
     def freeze(self, array):
