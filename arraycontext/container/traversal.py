@@ -70,7 +70,7 @@ import numpy as np
 
 from arraycontext.context import ArrayContext, DeviceArray
 from arraycontext.container import (
-        ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
+        ArrayT, ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
         serialize_container, deserialize_container)
 
 
@@ -327,8 +327,11 @@ def multimapped_over_array_containers(
 
 # {{{ keyed array container traversal
 
-def keyed_map_array_container(f: Callable[[Any, Any], Any],
-                              ary: ArrayOrContainerT) -> ArrayOrContainerT:
+def keyed_map_array_container(
+        f: Callable[
+            [Any, ArrayOrContainerT],
+            ArrayOrContainerT],
+        ary: ArrayOrContainerT) -> ArrayOrContainerT:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
 
     Works similarly to :func:`map_array_container`, but *f* also takes an
@@ -350,8 +353,9 @@ def keyed_map_array_container(f: Callable[[Any, Any], Any],
             ])
 
 
-def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
-                                  ary: ArrayOrContainerT) -> ArrayOrContainerT:
+def rec_keyed_map_array_container(
+        f: Callable[[Tuple[Any, ...], ArrayT], ArrayT],
+        ary: ArrayOrContainerT) -> ArrayOrContainerT:
     """
     Works similarly to :func:`rec_map_array_container`, except that *f* also
     takes in a traversal path to the leaf array. The traversal path argument is
