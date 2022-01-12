@@ -62,13 +62,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from numbers import Number
 from typing import Any, Callable, Iterable, List, Optional, Union, Tuple
 from functools import update_wrapper, partial, singledispatch
 
 import numpy as np
 
-from arraycontext.context import ArrayContext, DeviceArray
+from arraycontext.context import ArrayContext, DeviceArray, _ScalarLike
 from arraycontext.container import (
         ArrayT, ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
         serialize_container, deserialize_container)
@@ -738,14 +737,14 @@ def unflatten(
 # {{{ numpy conversion
 
 def from_numpy(
-        ary: Union[np.ndarray, np.generic, Number],
+        ary: Union[np.ndarray, _ScalarLike],
         actx: ArrayContext) -> ArrayOrContainerT:
     """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
     to the base array type of :class:`~arraycontext.ArrayContext`.
 
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
-    def _from_numpy_with_check(subary: Union[np.ndarray, np.generic, Number]) \
+    def _from_numpy_with_check(subary: Union[np.ndarray, _ScalarLike]) \
             -> ArrayOrContainerT:
         if isinstance(subary, np.ndarray) or np.isscalar(subary):
             return actx.from_numpy(subary)
