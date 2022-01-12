@@ -325,10 +325,9 @@ class ArrayContext(ABC):
             arg_names = tuple("arg%d" % i for i in range(len(args)))
 
         prg = self._get_einsum_prg(spec, arg_names, tagged)
-        result = self.call_loopy(
+        return self.call_loopy(
             prg, **{arg_names[i]: arg for i, arg in enumerate(args)}
-        )
-        return result["out"]
+        )["out"]
 
     @abstractmethod
     def clone(self):
