@@ -31,7 +31,7 @@ THE SOFTWARE.
 import sys
 from .context import ArrayContext, DeviceArray, DeviceScalar
 
-# deprecated, remove in 2022
+# deprecated, remove in 2022.
 from .metadata import _FirstAxisIsElementsTag
 
 from .transform_metadata import (CommonSubexpressionTag,  # noqa: F401
