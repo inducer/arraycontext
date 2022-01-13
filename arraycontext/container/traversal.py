@@ -631,7 +631,10 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
 
     _flatten(ary)
 
-    return actx.np.concatenate(result)
+    if len(result) == 1:
+        return result[0]
+    else:
+        return actx.np.concatenate(result)
 
 
 def unflatten(
