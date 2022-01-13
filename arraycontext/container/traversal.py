@@ -583,7 +583,10 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
 
 # {{{ flatten / unflatten
 
-def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
+def flatten(
+        ary: ArrayOrContainerT, actx: ArrayContext, *,
+        leaf_class: Optional[type] = None,
+        ) -> Any:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer`
     into single flat array of a type :attr:`arraycontext.ArrayContext.array_types`.
 
@@ -593,9 +596,8 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
     given by :func:`~arraycontext.serialize_container`.
     """
     common_dtype = None
-    result: List[Any] = []
 
-    def _flatten(subary: ArrayOrContainerT) -> None:
+    def _flatten(subary: ArrayOrContainerT) -> List[Any]:
         nonlocal common_dtype
 
         try:
@@ -624,17 +626,40 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
                         "This functionality needs to be implemented by the "
                         "array context.") from exc
 
-            result.append(flat_subary)
+            result = [flat_subary]
         else:
+            result = []
             for _, isubary in iterable:
-                _flatten(isubary)
+                result.extend(_flatten(isubary))
 
-    _flatten(ary)
+        return result
 
-    if len(result) == 1:
-        return result[0]
+    def _flatten_without_leaf_class(subary: ArrayOrContainerT) -> Any:
+        result = _flatten(subary)
+
+        if len(result) == 1:
+            return result[0]
+        else:
+            return actx.np.concatenate(result)
+
+    def _flatten_with_leaf_class(subary: ArrayOrContainerT) -> Any:
+        if type(subary) is leaf_class:
+            return _flatten_without_leaf_class(subary)
+
+        try:
+            iterable = serialize_container(subary)
+        except NotAnArrayContainerError:
+            return subary
+        else:
+            return deserialize_container(subary, [
+                (key, _flatten_with_leaf_class(isubary))
+                for key, isubary in iterable
+                ])
+
+    if leaf_class is None:
+        return _flatten_without_leaf_class(ary)
     else:
-        return actx.np.concatenate(result)
+        return _flatten_with_leaf_class(ary)
 
 
 def unflatten(
