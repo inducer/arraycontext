@@ -583,7 +583,10 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
 
 # {{{ flatten / unflatten
 
-def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
+def flatten(
+        ary: ArrayOrContainerT, actx: ArrayContext, *,
+        leaf_class: Optional[type] = None,
+        ) -> Any:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer`
     into single flat array of a type :attr:`arraycontext.ArrayContext.array_types`.
 
@@ -591,11 +594,20 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
     ``ravel`` and ``concatenate`` methods implemented. The order in which the
     individual leaf arrays appear in the final array is dependent on the order
     given by :func:`~arraycontext.serialize_container`.
+
+    If *leaf_class* is given, then :func:`unflatten` will not be able to recover
+    the original *ary*.
+
+    :arg leaf_class: an :class:`~arraycontext.ArrayContainer` class on which
+        the recursion is stopped (subclasses are not considered). If given, only
+        the entries of this type are flattened and the rest of the tree
+        structure is left as is. By default, the recursion is stopped when
+        a non-:class:`~arraycontext.ArrayContainer` is found, which results in
+        the whole input container *ary* being flattened.
     """
     common_dtype = None
-    result: List[Any] = []
 
-    def _flatten(subary: ArrayOrContainerT) -> None:
+    def _flatten(subary: ArrayOrContainerT) -> List[Any]:
         nonlocal common_dtype
 
         try:
@@ -624,17 +636,40 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
                         "This functionality needs to be implemented by the "
                         "array context.") from exc
 
-            result.append(flat_subary)
+            result = [flat_subary]
         else:
+            result = []
             for _, isubary in iterable:
-                _flatten(isubary)
+                result.extend(_flatten(isubary))
 
-    _flatten(ary)
+        return result
 
-    if len(result) == 1:
-        return result[0]
+    def _flatten_without_leaf_class(subary: ArrayOrContainerT) -> Any:
+        result = _flatten(subary)
+
+        if len(result) == 1:
+            return result[0]
+        else:
+            return actx.np.concatenate(result)
+
+    def _flatten_with_leaf_class(subary: ArrayOrContainerT) -> Any:
+        if type(subary) is leaf_class:
+            return _flatten_without_leaf_class(subary)
+
+        try:
+            iterable = serialize_container(subary)
+        except NotAnArrayContainerError:
+            return subary
+        else:
+            return deserialize_container(subary, [
+                (key, _flatten_with_leaf_class(isubary))
+                for key, isubary in iterable
+                ])
+
+    if leaf_class is None:
+        return _flatten_without_leaf_class(ary)
     else:
-        return actx.np.concatenate(result)
+        return _flatten_with_leaf_class(ary)
 
 
 def unflatten(
@@ -647,6 +682,8 @@ def unflatten(
     The order and sizes of each slice into *ary* are determined by the
     array container *template*.
 
+    :arg ary: a flat one-dimensional array with a size that matches the
+        number of entries in *template*.
     :arg strict: if *True* additional :class:`~numpy.dtype` and stride
         checking is performed on the unflattened array. Otherwise, these
         checks are skipped.
