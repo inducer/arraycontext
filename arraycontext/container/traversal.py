@@ -594,6 +594,16 @@ def flatten(
     ``ravel`` and ``concatenate`` methods implemented. The order in which the
     individual leaf arrays appear in the final array is dependent on the order
     given by :func:`~arraycontext.serialize_container`.
+
+    If *leaf_class* is given, then :func:`unflatten` will not be able to recover
+    the original *ary*.
+
+    :arg leaf_class: an :class:`~arraycontext.ArrayContainer` class on which
+        the recursion is stopped (subclasses are not considered). If given, only
+        the entries of this type are flattened and the rest of the tree
+        structure is left as is. By default, the recursion is stopped when
+        a non-:class:`~arraycontext.ArrayContainer` is found, which results in
+        the whole input container *ary* being flattened.
     """
     common_dtype = None
 
@@ -672,6 +682,8 @@ def unflatten(
     The order and sizes of each slice into *ary* are determined by the
     array container *template*.
 
+    :arg ary: a flat one-dimensional array with a size that matches the
+        number of entries in *template*.
     :arg strict: if *True* additional :class:`~numpy.dtype` and stride
         checking is performed on the unflattened array. Otherwise, these
         checks are skipped.
