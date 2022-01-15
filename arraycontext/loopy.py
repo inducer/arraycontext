@@ -148,7 +148,9 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 or name in self._c_to_numpy_arc_functions):
             return multimapped_over_array_containers(loopy_implemented_elwise_func)
         else:
-            raise AttributeError(name)
+            raise AttributeError(
+                    f"'{type(self._array_context).__name__}.np' object "
+                    f"has no attribute '{name}'")
 
 # }}}
 
