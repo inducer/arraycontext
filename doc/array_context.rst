@@ -18,3 +18,16 @@ Lazy/Deferred evaluation array context based on :mod:`pytato`
 -------------------------------------------------------------
 
 .. automodule:: arraycontext.impl.pytato
+
+.. _numpy-coverage:
+
+:mod:`numpy` coverage
+---------------------
+
+This is a list of functionality implemented by :attr:`arraycontext.ArrayContext.np`.
+
+.. note::
+
+   Only functions and methods that have at least one implementation are listed.
+
+.. include:: numpy_coverage.rst
