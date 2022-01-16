@@ -27,6 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import numpy as np
 import loopy as lp
 from loopy.version import MOST_RECENT_LANGUAGE_VERSION
 from arraycontext.fake_numpy import BaseFakeNumpyNamespace
@@ -121,6 +122,10 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def __getattr__(self, name):
         def loopy_implemented_elwise_func(*args):
+            if all(np.isscalar(ary) for ary in args):
+                return getattr(
+                         np, self._c_to_numpy_arc_functions.get(name, name)
+                         )(*args)
             actx = self._array_context
             prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
@@ -131,7 +136,7 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
         if name in self._c_to_numpy_arc_functions:
             from warnings import warn
             warn(f"'{name}' in ArrayContext.np is deprecated. "
-                    "Use '{self.c_to_numpy_arc_functions[name]}' as in numpy. "
+                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. "
                     "The old name will stop working in 2022.",
                     DeprecationWarning, stacklevel=3)
 
