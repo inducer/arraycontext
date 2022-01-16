@@ -151,13 +151,15 @@ class ArrayContext(ABC):
     .. attribute:: np
 
          Provides access to a namespace that serves as a work-alike to
-         :mod:`numpy`.  The actual level of functionality provided is up to the
+         :mod:`numpy`. The actual level of functionality provided is up to the
          individual array context implementation, however the functions and
          objects available under this namespace must not behave differently
          from :mod:`numpy`.
 
          As a baseline, special functions available through :mod:`loopy`
          (e.g. ``sin``, ``exp``) are accessible through this interface.
+         A full list of implemented functionality is given in
+         :ref:`numpy-coverage`.
 
          Callables accessible through this namespace vectorize over object
          arrays, including :class:`arraycontext.ArrayContainer`\ s.
