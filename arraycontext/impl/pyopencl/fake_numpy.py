@@ -31,8 +31,12 @@ import operator
 
 import numpy as np
 
-from arraycontext.fake_numpy import \
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace
+from arraycontext.fake_numpy import (
+        BaseFakeNumpyLinalgNamespace
+        )
+from arraycontext.loopy import (
+        LoopyBasedFakeNumpyNamespace
+        )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
         rec_map_array_container,
@@ -50,7 +54,7 @@ except ImportError:
 
 # {{{ fake numpy
 
-class PyOpenCLFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def _get_fake_numpy_linalg_namespace(self):
         return _PyOpenCLFakeNumpyLinalgNamespace(self._array_context)
 

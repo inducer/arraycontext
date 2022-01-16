@@ -26,7 +26,10 @@ from functools import partial, reduce
 import numpy as np
 
 from arraycontext.fake_numpy import (
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
+        BaseFakeNumpyLinalgNamespace
+        )
+from arraycontext.loopy import (
+        LoopyBasedFakeNumpyNamespace
         )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
@@ -42,7 +45,7 @@ class PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     pass
 
 
-class PytatoFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     """
     A :mod:`numpy` mimic for :class:`PytatoPyOpenCLArrayContext`.
 
