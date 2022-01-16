@@ -7,7 +7,7 @@ arraycontext: Choose your favorite ``numpy``-workalike
 .. image:: https://github.com/inducer/arraycontext/workflows/CI/badge.svg
     :alt: Github Build Status
     :target: https://github.com/inducer/arraycontext/actions?query=branch%3Amain+workflow%3ACI
-.. image:: https://badge.fury.io/py/arraycontext.png
+.. image:: https://badge.fury.io/py/arraycontext.svg
     :alt: Python Package Index Release Page
     :target: https://pypi.org/project/arraycontext/
 
