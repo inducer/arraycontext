@@ -34,7 +34,7 @@ import numpy as np
 
 from pytools.tag import Tag
 
-from arraycontext.context import ArrayContext
+from arraycontext.context import ArrayContext, _ScalarLike
 
 
 if TYPE_CHECKING:
@@ -156,7 +156,7 @@ class PyOpenCLArrayContext(ArrayContext):
         return cl_array.zeros(self.queue, shape=shape, dtype=dtype,
                 allocator=self.allocator)
 
-    def from_numpy(self, array: np.ndarray):
+    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
         import pyopencl.array as cl_array
         return cl_array.to_device(self.queue, array, allocator=self.allocator)
 

@@ -149,6 +149,10 @@ class DOFArray:
         return (f"{template_instance_name}.array_context, tuple([{arg}])")
 
     @property
+    def size(self):
+        return sum(ary.size for ary in self.data)
+
+    @property
     def real(self):
         return DOFArray(self.array_context, tuple([subary.real for subary in self]))
 
@@ -1063,6 +1067,30 @@ def test_flatten_array_container_failure(actx_factory):
     with pytest.raises(ValueError):
         # cannot unflatten partially
         unflatten(ary, flat_ary[:-1], actx)
+
+
+def test_flatten_with_leaf_class(actx_factory):
+    actx = actx_factory()
+
+    from arraycontext import flatten
+    arys = _get_test_containers(actx, shapes=512)
+
+    flat = flatten(arys[0], actx, leaf_class=DOFArray)
+    assert isinstance(flat, actx.array_types)
+    assert flat.shape == (arys[0].size,)
+
+    flat = flatten(arys[1], actx, leaf_class=DOFArray)
+    assert isinstance(flat, np.ndarray) and flat.dtype == object
+    assert all(isinstance(entry, actx.array_types) for entry in flat)
+    assert all(entry.shape == (arys[0].size,) for entry in flat)
+
+    flat = flatten(arys[3], actx, leaf_class=DOFArray)
+    assert isinstance(flat, MyContainer)
+    assert isinstance(flat.mass, actx.array_types)
+    assert flat.mass.shape == (arys[3].mass.size,)
+    assert isinstance(flat.enthalpy, actx.array_types)
+    assert flat.enthalpy.shape == (arys[3].enthalpy.size,)
+    assert all(isinstance(entry, actx.array_types) for entry in flat.momentum)
 
 # }}}
 

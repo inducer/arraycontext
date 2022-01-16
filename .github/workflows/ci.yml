@@ -120,6 +120,8 @@ jobs:
             matrix:
                 #downstream_project: [meshmode, grudge, pytential, mirgecom]
                 downstream_project: [meshmode, grudge, mirgecom]
+            fail-fast: false
+
         name: Tests for downstream project ${{ matrix.downstream_project }}
         runs-on: ubuntu-latest
         steps:

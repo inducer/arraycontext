@@ -41,7 +41,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext.context import ArrayContext
+from arraycontext.context import ArrayContext, _ScalarLike
 import numpy as np
 from typing import Any, Callable, Union, Sequence, TYPE_CHECKING
 from pytools.tag import Tag
@@ -98,10 +98,10 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         import pytato as pt
         return pt.zeros(shape, dtype)
 
-    def from_numpy(self, np_array: np.ndarray):
+    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
         import pytato as pt
         import pyopencl.array as cla
-        cl_array = cla.to_device(self.queue, np_array)
+        cl_array = cla.to_device(self.queue, array)
         return pt.make_data_wrapper(cl_array)
 
     def to_numpy(self, array):
