@@ -1,6 +1,7 @@
 """
-.. currentmodule:: arraycontext.impl.pytato.compile
-.. autoclass:: LazilyCompilingFunctionCaller
+.. autoclass:: BaseLazilyCompilingFunctionCaller
+.. autoclass:: LazilyPyOpenCLCompilingFunctionCaller
+.. autoclass:: LazilyJAXCompilingFunctionCaller
 .. autoclass:: CompiledFunction
 .. autoclass:: FromArrayContextCompile
 """
@@ -30,16 +31,17 @@ THE SOFTWARE.
 
 from arraycontext.container import (ArrayContainer, is_array_container_type,
                                     ArrayT)
-from arraycontext import PytatoPyOpenCLArrayContext
+from arraycontext.impl.pytato import (_BasePytatoArrayContext,
+                                      PytatoJAXArrayContext,
+                                      PytatoPyOpenCLArrayContext)
 from arraycontext.container.traversal import rec_keyed_map_array_container
 
 import abc
 import numpy as np
-from typing import Any, Callable, Tuple, Dict, Mapping, FrozenSet
+from typing import Any, Callable, Tuple, Dict, Mapping, FrozenSet, Type
 from dataclasses import dataclass, field
 from pyrsistent import pmap, PMap
 
-import pyopencl.array as cla
 import pytato as pt
 import itertools
 from pytools.tag import Tag
@@ -65,7 +67,7 @@ class FromArrayContextCompile(Tag):
 
 class AbstractInputDescriptor:
     """
-    Used internally in :class:`LazilyCompilingFunctionCaller` to characterize
+    Used internally in :class:`BaseLazilyCompilingFunctionCaller` to characterize
     an input.
     """
     def __eq__(self, other):
@@ -90,7 +92,7 @@ class LeafArrayDescriptor(AbstractInputDescriptor):
 
 def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     """
-    Helper for :meth:`LazilyCompilingFunctionCaller.__call__`. Stringifies an
+    Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
     array-container's component's key. Goals of this routine:
 
     * No two different keys should have the same stringification
@@ -118,7 +120,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
                                                             AbstractInputDescriptor]\
                                                        ]":
     """
-    Helper for :meth:`LazilyCompilingFunctionCaller.__call__`. Extracts
+    Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Extracts
     mappings from argument id to argument values and from argument id to
     :class:`AbstractInputDescriptor`. See
     :attr:`CompiledFunction.input_id_to_name_in_program` for argument-id's
@@ -190,9 +192,9 @@ def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
 
 def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
     """
-    Helper for :class:`LazilyCompilingFunctionCaller.__call__`. Returns the
+    Helper for :class:`BaseLazilyCompilingFunctionCaller.__call__`. Returns the
     placeholder version of an argument to
-    :attr:`LazilyCompilingFunctionCaller.f`.
+    :attr:`BaseLazilyCompilingFunctionCaller.f`.
     """
     if np.isscalar(arg):
         name = arg_id_to_name[(kw,)]
@@ -221,12 +223,10 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
 
 
 @dataclass
-class LazilyCompilingFunctionCaller:
+class BaseLazilyCompilingFunctionCaller:
     """
-    Records a side-effect-free callable
-    :attr:`LazilyCompilingFunctionCaller.f` that can be specialized for the
-    input types with which :meth:`LazilyCompilingFunctionCaller.__call__` is
-    invoked.
+    Records a side-effect-free callable :attr:`f` that can be specialized for
+    the input types with which :meth:`__call__` is invoked.
 
     .. attribute:: f
 
@@ -235,48 +235,26 @@ class LazilyCompilingFunctionCaller:
     .. automethod:: __call__
     """
 
-    actx: PytatoPyOpenCLArrayContext
+    actx: _BasePytatoArrayContext
     f: Callable[..., Any]
     program_cache: Dict["PMap[Tuple[Any, ...], AbstractInputDescriptor]",
                         "CompiledFunction"] = field(default_factory=lambda: {})
 
-    def _dag_to_transformed_loopy_prg(self, dict_of_named_arrays):
-        from pytato.target.loopy import BoundPyOpenCLProgram
+    # {{{ abstract interface
 
-        import loopy as lp
+    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays):
+        raise NotImplementedError
 
-        with ProcessLogger(logger, "transform_dag"):
-            pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
+    @property
+    def compiled_function_returning_array_container_class(
+            self) -> Type["CompiledFunction"]:
+        raise NotImplementedError
 
-        name_in_program_to_tags = {
-            name: out.tags
-            for name, out in pt_dict_of_named_arrays._data.items()}
-        name_in_program_to_axes = {
-            name: out.axes
-            for name, out in pt_dict_of_named_arrays._data.items()}
+    @property
+    def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
+        raise NotImplementedError
 
-        with ProcessLogger(logger, "generate_loopy"):
-            pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
-                                               options=lp.Options(
-                                                   return_dict=True,
-                                                   no_numpy=True),
-                                               cl_device=self.actx.queue.device)
-            assert isinstance(pytato_program, BoundPyOpenCLProgram)
-
-        with ProcessLogger(logger, "transform_loopy_program"):
-
-            pytato_program = (pytato_program
-                              .with_transformed_program(
-                                  lambda x: x.with_kernel(
-                                      x.default_entrypoint
-                                      .tagged(FromArrayContextCompile()))))
-
-            pytato_program = (pytato_program
-                              .with_transformed_program(self
-                                                        .actx
-                                                        .transform_loopy_program))
-
-        return pytato_program, name_in_program_to_tags, name_in_program_to_axes
+    # }}}
 
     def _dag_to_compiled_func(self, ary_or_dict_of_named_arrays,
             input_id_to_name_in_program, output_id_to_name_in_program,
@@ -286,8 +264,8 @@ class LazilyCompilingFunctionCaller:
             dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 {output_id: ary_or_dict_of_named_arrays})
             pytato_program, name_in_program_to_tags, name_in_program_to_axes = (
-                self._dag_to_transformed_loopy_prg(dict_of_named_arrays))
-            return CompiledFunctionReturningArray(
+                self._dag_to_transformed_pytato_prg(dict_of_named_arrays))
+            return self.compiled_function_returning_array_class(
                 self.actx, pytato_program,
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_tags=name_in_program_to_tags[output_id],
@@ -295,8 +273,8 @@ class LazilyCompilingFunctionCaller:
                 output_name=output_id)
         elif isinstance(ary_or_dict_of_named_arrays, pt.DictOfNamedArrays):
             pytato_program, name_in_program_to_tags, name_in_program_to_axes = (
-                self._dag_to_transformed_loopy_prg(ary_or_dict_of_named_arrays))
-            return CompiledFunctionReturningArrayContainer(
+                self._dag_to_transformed_pytato_prg(ary_or_dict_of_named_arrays))
+            return self.compiled_function_returning_array_container_class(
                     self.actx, pytato_program,
                     input_id_to_name_in_program=input_id_to_name_in_program,
                     output_id_to_name_in_program=output_id_to_name_in_program,
@@ -308,12 +286,12 @@ class LazilyCompilingFunctionCaller:
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
-        Returns the result of :attr:`~LazilyCompilingFunctionCaller.f`'s
+        Returns the result of :attr:`~BaseLazilyCompilingFunctionCaller.f`'s
         function application on *args*.
 
-        Before applying :attr:`~LazilyCompilingFunctionCaller.f`, it is compiled
+        Before applying :attr:`~BaseLazilyCompilingFunctionCaller.f`, it is compiled
         to a :mod:`pytato` DAG that would apply
-        :attr:`~LazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
+        :attr:`~BaseLazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
         The intermediary pytato DAG for *args* is memoized in *self*.
         """
         arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
@@ -370,23 +348,127 @@ class LazilyCompilingFunctionCaller:
         return compiled_func(arg_id_to_arg)
 
 
-def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
-    from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
+class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
+    @property
+    def compiled_function_returning_array_container_class(
+            self) -> Type["CompiledFunction"]:
+        return CompiledPyOpenCLFunctionReturningArrayContainer
 
+    @property
+    def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
+        return CompiledPyOpenCLFunctionReturningArray
+
+    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays):
+        from pytato.target.loopy import BoundPyOpenCLProgram
+
+        import loopy as lp
+
+        with ProcessLogger(logger, "transform_dag"):
+            pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
+
+        name_in_program_to_tags = {
+            name: out.tags
+            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_axes = {
+            name: out.axes
+            for name, out in pt_dict_of_named_arrays._data.items()}
+
+        with ProcessLogger(logger, "generate_loopy"):
+            pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
+                                               options=lp.Options(
+                                                   return_dict=True,
+                                                   no_numpy=True),
+                                               # pylint: disable=no-member
+                                               cl_device=self.actx.queue.device)
+            assert isinstance(pytato_program, BoundPyOpenCLProgram)
+
+        with ProcessLogger(logger, "transform_loopy_program"):
+
+            pytato_program = (pytato_program
+                              .with_transformed_program(
+                                  lambda x: x.with_kernel(
+                                      x.default_entrypoint
+                                      .tagged(FromArrayContextCompile()))))
+
+            pytato_program = (pytato_program
+                              .with_transformed_program(self
+                                                        .actx
+                                                        .transform_loopy_program))
+
+        return pytato_program, name_in_program_to_tags, name_in_program_to_axes
+
+
+# {{{ preserve back compat
+
+class LazilyCompilingFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller):
+    def __new__(cls, *args, **kwargs):
+        from warnings import warn
+        warn("LazilyCompilingFunctionCaller has been renamed to"
+             " LazilyPyOpenCLCompilingFunctionCaller. This will be"
+             " an error in 2023.", DeprecationWarning, stacklevel=2)
+        return super(LazilyCompilingFunctionCaller, cls).__new__(cls)
+
+    def _dag_to_transformed_loopy_prg(self, dict_of_named_arrays):
+        from warnings import warn
+        warn("_dag_to_transformed_loopy_prg has been renamed to"
+             " _dag_to_transformed_pytato_prg. This will be"
+             " an error in 2023.", DeprecationWarning, stacklevel=2)
+        return super()._dag_to_transformed_pytato_prg(dict_of_named_arrays)
+
+# }}}
+
+
+class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
+    @property
+    def compiled_function_returning_array_container_class(
+            self) -> Type["CompiledFunction"]:
+        return CompiledJAXFunctionReturningArrayContainer
+
+    @property
+    def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
+        return CompiledJAXFunctionReturningArray
+
+    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays):
+
+        with ProcessLogger(logger, "transform_dag"):
+            pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
+
+        name_in_program_to_tags = {
+            name: out.tags
+            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_axes = {
+            name: out.axes
+            for name, out in pt_dict_of_named_arrays._data.items()}
+
+        with ProcessLogger(logger, "generate_jax"):
+            pytato_program = pt.generate_jax(pt_dict_of_named_arrays, jit=True)
+
+        return pytato_program, name_in_program_to_tags, name_in_program_to_axes
+
+
+def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
     input_kwargs_for_loopy = {}
 
     for arg_id, arg in arg_id_to_arg.items():
         if np.isscalar(arg):
-            arg = cla.to_device(actx.queue, np.array(arg))
+            if isinstance(actx, PytatoPyOpenCLArrayContext):
+                import pyopencl.array as cla
+                arg = cla.to_device(actx.queue, np.array(arg))
+            elif isinstance(actx, PytatoJAXArrayContext):
+                import jax
+                arg = jax.device_put(arg)
+            else:
+                raise NotImplementedError(type(actx))
+
         elif isinstance(arg, pt.array.DataWrapper):
-            # got a Datwwrapper => simply gets its data
+            # got a Datawrapper => simply gets its data
             arg = arg.data
-        elif isinstance(arg, TaggableCLArray):
+        elif isinstance(arg, actx.frozen_array_types):
             # got a frozen array  => do nothing
             pass
         elif isinstance(arg, pt.Array):
             # got an array expression => evaluate it
-            arg = actx.freeze(arg).with_queue(actx.queue)
+            arg = actx.freeze(arg)
         else:
             raise NotImplementedError(type(arg))
 
@@ -395,10 +477,19 @@ def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
     return input_kwargs_for_loopy
 
 
+def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
+    from warnings import warn
+    warn("_args_to_cl_buffer has been renamed to"
+         " _args_to_device_buffers. This will be"
+         " an error in 2023.", DeprecationWarning, stacklevel=2)
+    return _args_to_device_buffers(actx, input_id_to_name_in_program,
+                                   arg_id_to_arg)
+
+
 class CompiledFunction(abc.ABC):
     """
     A callable which captures the :class:`pytato.target.BoundProgram`  resulting
-    from calling :attr:`~LazilyCompilingFunctionCaller.f` with a given set of
+    from calling :attr:`~BaseLazilyCompilingFunctionCaller.f` with a given set of
     input types, and generating :mod:`loopy` IR from it.
 
     .. attribute:: pytato_program
@@ -407,7 +498,7 @@ class CompiledFunction(abc.ABC):
 
         A mapping from input id to the placeholder name in
         :attr:`CompiledFunction.pytato_program`. Input id is represented as the
-        position of :attr:`~LazilyCompilingFunctionCaller.f`'s argument augmented
+        position of :attr:`~BaseLazilyCompilingFunctionCaller.f`'s argument augmented
         with the leaf array's key if the argument is an array container.
 
 
@@ -425,7 +516,7 @@ class CompiledFunction(abc.ABC):
 
 
 @dataclass(frozen=True)
-class CompiledFunctionReturningArrayContainer(CompiledFunction):
+class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
     """
     .. attribute:: output_id_to_name_in_program
 
@@ -452,7 +543,7 @@ class CompiledFunctionReturningArrayContainer(CompiledFunction):
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
         from .utils import get_cl_axes_from_pt_axes
 
-        input_kwargs_for_loopy = _args_to_cl_buffers(
+        input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
@@ -477,7 +568,7 @@ class CompiledFunctionReturningArrayContainer(CompiledFunction):
 
 
 @dataclass(frozen=True)
-class CompiledFunctionReturningArray(CompiledFunction):
+class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
     """
     .. attribute:: output_name_in_program
 
@@ -494,7 +585,7 @@ class CompiledFunctionReturningArray(CompiledFunction):
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
         from .utils import get_cl_axes_from_pt_axes
 
-        input_kwargs_for_loopy = _args_to_cl_buffers(
+        input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
@@ -510,3 +601,66 @@ class CompiledFunctionReturningArray(CompiledFunction):
                                                  axes=get_cl_axes_from_pt_axes(
                                                      self.output_axes),
                                                  tags=self.output_tags))
+
+
+@dataclass(frozen=True)
+class CompiledJAXFunctionReturningArrayContainer(CompiledFunction):
+    """
+    .. attribute:: output_id_to_name_in_program
+
+        A mapping from output id to the name of
+        :class:`pytato.array.NamedArray` in
+        :attr:`CompiledFunction.pytato_program`. Output id is represented by
+        the key of a leaf array in the array container
+        :attr:`CompiledFunction.output_template`.
+
+    .. attribute:: output_template
+
+       An instance of :class:`arraycontext.ArrayContainer` that is the return
+       type of the callable.
+    """
+    actx: PytatoJAXArrayContext
+    pytato_program: pt.target.BoundProgram
+    input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
+    output_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
+    name_in_program_to_tags: Mapping[str, FrozenSet[Tag]]
+    name_in_program_to_axes: Mapping[str, Tuple[pt.Axis, ...]]
+    output_template: ArrayContainer
+
+    def __call__(self, arg_id_to_arg) -> ArrayContainer:
+        input_kwargs_for_loopy = _args_to_device_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
+
+        out_dict = self.pytato_program(**input_kwargs_for_loopy)
+
+        def to_output_template(keys, _):
+            return self.actx.thaw(
+                out_dict[self.output_id_to_name_in_program[keys]]
+                .block_until_ready()
+            )
+
+        return rec_keyed_map_array_container(to_output_template,
+                                             self.output_template)
+
+
+@dataclass(frozen=True)
+class CompiledJAXFunctionReturningArray(CompiledFunction):
+    """
+    .. attribute:: output_name_in_program
+
+        Name of the output array in the program.
+    """
+    actx: PytatoJAXArrayContext
+    pytato_program: pt.target.BoundProgram
+    input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
+    output_tags: FrozenSet[Tag]
+    output_axes: Tuple[pt.Axis, ...]
+    output_name: str
+
+    def __call__(self, arg_id_to_arg) -> ArrayContainer:
+        input_kwargs_for_loopy = _args_to_device_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
+
+        evt, out_dict = self.pytato_program(**input_kwargs_for_loopy)
+
+        return self.actx.thaw(out_dict[self.output_name])
