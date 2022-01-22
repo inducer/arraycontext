@@ -216,7 +216,7 @@ def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
 def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
     if ary.dtype.char != "O":
         raise NotAnArrayContainerError(
-                f"cannot seriealize '{type(ary).__name__}' with dtype '{ary.dtype}'")
+                f"cannot serialize '{type(ary).__name__}' with dtype '{ary.dtype}'")
 
     # special-cased for speed
     if ary.ndim == 1:
