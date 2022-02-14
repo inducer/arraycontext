@@ -151,6 +151,10 @@ class DOFArray:
         return (f"{template_instance_name}.array_context, tuple([{arg}])")
 
     @property
+    def size(self):
+        return sum(ary.size for ary in self.data)
+
+    @property
     def real(self):
         return DOFArray(self.array_context, tuple([subary.real for subary in self]))
 
@@ -758,6 +762,59 @@ def test_container_scalar_map(actx_factory):
         assert result is not None
 
 
+def test_container_map(actx_factory):
+    actx = actx_factory()
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+            _get_test_containers(actx)
+
+    # {{{ check
+
+    def _check_allclose(f, arg1, arg2, atol=2.0e-14):
+        from arraycontext import NotAnArrayContainerError
+        try:
+            arg1_iterable = serialize_container(arg1)
+            arg2_iterable = serialize_container(arg2)
+        except NotAnArrayContainerError:
+            assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
+        else:
+            arg1_subarrays = [
+                subarray for _, subarray in arg1_iterable]
+            arg2_subarrays = [
+                subarray for _, subarray in arg2_iterable]
+            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+                _check_allclose(f, subarray1, subarray2)
+
+    def func(x):
+        return x + 1
+
+    from arraycontext import rec_map_array_container
+    result = rec_map_array_container(func, 1)
+    assert result == 2
+
+    for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
+        result = rec_map_array_container(func, ary)
+        _check_allclose(func, ary, result)
+
+    from arraycontext import mapped_over_array_containers
+
+    @mapped_over_array_containers
+    def mapped_func(x):
+        return func(x)
+
+    for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
+        result = mapped_func(ary)
+        _check_allclose(func, ary, result)
+
+    @mapped_over_array_containers(leaf_class=DOFArray)
+    def check_leaf(x):
+        assert isinstance(x, DOFArray)
+
+    for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
+        check_leaf(ary)
+
+    # }}}
+
+
 def test_container_multimap(actx_factory):
     actx = actx_factory()
     ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
@@ -766,7 +823,19 @@ def test_container_multimap(actx_factory):
     # {{{ check
 
     def _check_allclose(f, arg1, arg2, atol=2.0e-14):
-        assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
+        from arraycontext import NotAnArrayContainerError
+        try:
+            arg1_iterable = serialize_container(arg1)
+            arg2_iterable = serialize_container(arg2)
+        except NotAnArrayContainerError:
+            assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
+        else:
+            arg1_subarrays = [
+                subarray for _, subarray in arg1_iterable]
+            arg2_subarrays = [
+                subarray for _, subarray in arg2_iterable]
+            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+                _check_allclose(f, subarray1, subarray2)
 
     def func_all_scalar(x, y):
         return x + y
@@ -781,17 +850,30 @@ def test_container_multimap(actx_factory):
     result = rec_multimap_array_container(func_all_scalar, 1, 2)
     assert result == 3
 
-    from functools import partial
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
         result = rec_multimap_array_container(func_first_scalar, 1, ary)
-        rec_multimap_array_container(
-                partial(_check_allclose, lambda x: 1 + x),
-                ary, result)
+        _check_allclose(lambda x: 1 + x, ary, result)
 
         result = rec_multimap_array_container(func_multiple_scalar, 2, ary, 2, ary)
-        rec_multimap_array_container(
-                partial(_check_allclose, lambda x: 4 * x),
-                ary, result)
+        _check_allclose(lambda x: 4 * x, ary, result)
+
+    from arraycontext import multimapped_over_array_containers
+
+    @multimapped_over_array_containers
+    def mapped_func(a, subary1, b, subary2):
+        return func_multiple_scalar(a, subary1, b, subary2)
+
+    for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
+        result = mapped_func(2, ary, 2, ary)
+        _check_allclose(lambda x: 4 * x, ary, result)
+
+    @multimapped_over_array_containers(leaf_class=DOFArray)
+    def check_leaf(a, subary1, b, subary2):
+        assert isinstance(subary1, DOFArray)
+        assert isinstance(subary2, DOFArray)
+
+    for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
+        check_leaf(2, ary, 2, ary)
 
     with pytest.raises(AssertionError):
         rec_multimap_array_container(func_multiple_scalar, 2, ary_dof, 2, dc_of_dofs)
@@ -987,6 +1069,30 @@ def test_flatten_array_container_failure(actx_factory):
     with pytest.raises(ValueError):
         # cannot unflatten partially
         unflatten(ary, flat_ary[:-1], actx)
+
+
+def test_flatten_with_leaf_class(actx_factory):
+    actx = actx_factory()
+
+    from arraycontext import flatten
+    arys = _get_test_containers(actx, shapes=512)
+
+    flat = flatten(arys[0], actx, leaf_class=DOFArray)
+    assert isinstance(flat, actx.array_types)
+    assert flat.shape == (arys[0].size,)
+
+    flat = flatten(arys[1], actx, leaf_class=DOFArray)
+    assert isinstance(flat, np.ndarray) and flat.dtype == object
+    assert all(isinstance(entry, actx.array_types) for entry in flat)
+    assert all(entry.shape == (arys[0].size,) for entry in flat)
+
+    flat = flatten(arys[3], actx, leaf_class=DOFArray)
+    assert isinstance(flat, MyContainer)
+    assert isinstance(flat.mass, actx.array_types)
+    assert flat.mass.shape == (arys[3].mass.size,)
+    assert isinstance(flat.enthalpy, actx.array_types)
+    assert flat.enthalpy.shape == (arys[3].enthalpy.size,)
+    assert all(isinstance(entry, actx.array_types) for entry in flat.momentum)
 
 # }}}
 
@@ -1314,6 +1420,16 @@ def test_array_container_with_numpy(actx_factory):
 
 
 # }}}
+
+
+def test_actx_compile_on_pure_array_return(actx_factory):
+    def _twice(x):
+        return 2 * x
+
+    actx = actx_factory()
+    ones = actx.zeros(shape=(10, 4), dtype=np.float64) + 1
+    np.testing.assert_allclose(actx.to_numpy(_twice(ones)),
+                               actx.to_numpy(actx.compile(_twice)(ones)))
 
 
 if __name__ == "__main__":

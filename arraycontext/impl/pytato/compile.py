@@ -32,6 +32,7 @@ from arraycontext.container import ArrayContainer, is_array_container_type
 from arraycontext import PytatoPyOpenCLArrayContext
 from arraycontext.container.traversal import rec_keyed_map_array_container
 
+import abc
 import numpy as np
 from typing import Any, Callable, Tuple, Dict, Mapping
 from dataclasses import dataclass, field
@@ -81,7 +82,7 @@ class ScalarInputDescriptor(AbstractInputDescriptor):
 @dataclass(frozen=True, eq=True)
 class LeafArrayDescriptor(AbstractInputDescriptor):
     dtype: np.dtype
-    shape: Tuple[int, ...]
+    shape: pt.array.ShapeType
 
 # }}}
 
@@ -140,9 +141,14 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
                 return ary
 
             rec_keyed_map_array_container(id_collector, arg)
+        elif isinstance(arg, pt.Array):
+            arg_id = (kw,)
+            arg_id_to_arg[arg_id] = arg
+            arg_id_to_descr[arg_id] = LeafArrayDescriptor(np.dtype(arg.dtype),
+                                                          arg.shape)
         else:
             raise ValueError("Argument to a compiled operator should be"
-                             " either a scalar or an array container. Got"
+                             " either a scalar, pt.Array or an array container. Got"
                              f" '{arg}'.")
 
     return pmap(arg_id_to_arg), pmap(arg_id_to_descr)
@@ -157,6 +163,9 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name):
     if np.isscalar(arg):
         name = arg_id_to_name[(kw,)]
         return pt.make_placeholder(name, (), np.dtype(type(arg)))
+    elif isinstance(arg, pt.Array):
+        name = arg_id_to_name[(kw,)]
+        return pt.make_placeholder(name, arg.shape, arg.dtype)
     elif is_array_container_type(arg.__class__):
         def _rec_to_placeholder(keys, ary):
             name = arg_id_to_name[(kw,) + keys]
@@ -187,66 +196,13 @@ class LazilyCompilingFunctionCaller:
     program_cache: Dict["PMap[Tuple[Any, ...], AbstractInputDescriptor]",
                         "CompiledFunction"] = field(default_factory=lambda: {})
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Returns the result of :attr:`~LazilyCompilingFunctionCaller.f`'s
-        function application on *args*.
-
-        Before applying :attr:`~LazilyCompilingFunctionCaller.f`, it is compiled
-        to a :mod:`pytato` DAG that would apply
-        :attr:`~LazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
-        The intermediary pytato DAG for *args* is memoized in *self*.
-        """
+    def _dag_to_transformed_loopy_prg(self, dict_of_named_arrays):
         from pytato.target.loopy import BoundPyOpenCLProgram
-
-        arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
-            args, kwargs)
-
-        try:
-            compiled_f = self.program_cache[arg_id_to_descr]
-        except KeyError:
-            pass
-        else:
-            return compiled_f(arg_id_to_arg)
-
-        dict_of_named_arrays = {}
-        # output_naming_map: result id to name of the named array in the
-        # generated pytato DAG.
-        output_naming_map = {}
-        # input_naming_map: argument id to placeholder name in the generated
-        # pytato DAG.
-        input_naming_map = {
-            arg_id: f"_actx_in_{_ary_container_key_stringifier(arg_id)}"
-            for arg_id in arg_id_to_arg}
-
-        outputs = self.f(*[_get_f_placeholder_args(arg, iarg, input_naming_map)
-                           for iarg, arg in enumerate(args)],
-                         **{kw: _get_f_placeholder_args(arg, kw, input_naming_map)
-                            for kw, arg in kwargs.items()})
-
-        if not is_array_container_type(outputs.__class__):
-            # TODO: We could possibly just short-circuit this interface if the
-            # returned type is a scalar. Not sure if it's worth it though.
-            raise NotImplementedError(
-                f"Function '{self.f.__name__}' to be compiled "
-                "did not return an array container, but an instance of "
-                f"'{outputs.__class__}' instead.")
-
-        def _as_dict_of_named_arrays(keys, ary):
-            name = "_pt_out_" + "_".join(str(key)
-                                         for key in keys)
-            output_naming_map[keys] = name
-            dict_of_named_arrays[name] = ary
-            return ary
-
-        rec_keyed_map_array_container(_as_dict_of_named_arrays,
-                                      outputs)
 
         import loopy as lp
 
         with ProcessLogger(logger, "transform_dag"):
-            pt_dict_of_named_arrays = self.actx.transform_dag(
-                pt.make_dict_of_named_arrays(dict_of_named_arrays))
+            pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
 
         with ProcessLogger(logger, "generate_loopy"):
             pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
@@ -269,16 +225,116 @@ class LazilyCompilingFunctionCaller:
                                                         .actx
                                                         .transform_loopy_program))
 
-        self.program_cache[arg_id_to_descr] = CompiledFunction(
-                                                self.actx, pytato_program,
-                                                input_naming_map, output_naming_map,
-                                                output_template=outputs)
+        return pytato_program
 
-        return self.program_cache[arg_id_to_descr](arg_id_to_arg)
+    def _dag_to_compiled_func(self, ary_or_dict_of_named_arrays,
+            input_id_to_name_in_program, output_id_to_name_in_program,
+            output_template):
+        if isinstance(ary_or_dict_of_named_arrays, pt.Array):
+            output_id = "_pt_out"
+            dict_of_named_arrays = pt.make_dict_of_named_arrays(
+                {output_id: ary_or_dict_of_named_arrays})
+            pytato_program = self._dag_to_transformed_loopy_prg(dict_of_named_arrays)
+            return CompiledFunctionReturningArray(
+                self.actx, pytato_program,
+                input_id_to_name_in_program=input_id_to_name_in_program,
+                output_name_in_program=output_id)
+        elif isinstance(ary_or_dict_of_named_arrays, pt.DictOfNamedArrays):
+            pytato_program = self._dag_to_transformed_loopy_prg(
+                ary_or_dict_of_named_arrays)
+            return CompiledFunctionReturningArrayContainer(
+                    self.actx, pytato_program,
+                    input_id_to_name_in_program=input_id_to_name_in_program,
+                    output_id_to_name_in_program=output_id_to_name_in_program,
+                    output_template=output_template)
+        else:
+            raise NotImplementedError(type(ary_or_dict_of_named_arrays))
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Returns the result of :attr:`~LazilyCompilingFunctionCaller.f`'s
+        function application on *args*.
+
+        Before applying :attr:`~LazilyCompilingFunctionCaller.f`, it is compiled
+        to a :mod:`pytato` DAG that would apply
+        :attr:`~LazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
+        The intermediary pytato DAG for *args* is memoized in *self*.
+        """
+        arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
+            args, kwargs)
+
+        try:
+            compiled_f = self.program_cache[arg_id_to_descr]
+        except KeyError:
+            pass
+        else:
+            return compiled_f(arg_id_to_arg)
+
+        dict_of_named_arrays = {}
+        output_id_to_name_in_program = {}
+        input_id_to_name_in_program = {
+            arg_id: f"_actx_in_{_ary_container_key_stringifier(arg_id)}"
+            for arg_id in arg_id_to_arg}
+
+        output_template = self.f(
+                *[_get_f_placeholder_args(arg, iarg, input_id_to_name_in_program)
+                    for iarg, arg in enumerate(args)],
+                **{kw: _get_f_placeholder_args(arg, kw, input_id_to_name_in_program)
+                    for kw, arg in kwargs.items()})
+
+        if (not (is_array_container_type(output_template.__class__)
+                 or isinstance(output_template, pt.Array))):
+            # TODO: We could possibly just short-circuit this interface if the
+            # returned type is a scalar. Not sure if it's worth it though.
+            raise NotImplementedError(
+                f"Function '{self.f.__name__}' to be compiled "
+                "did not return an array container or pt.Array,"
+                f" but an instance of '{output_template.__class__}' instead.")
+
+        def _as_dict_of_named_arrays(keys, ary):
+            name = "_pt_out_" + "_".join(str(key)
+                                         for key in keys)
+            output_id_to_name_in_program[keys] = name
+            dict_of_named_arrays[name] = ary
+            return ary
+
+        rec_keyed_map_array_container(_as_dict_of_named_arrays,
+                                      output_template)
+
+        compiled_func = self._dag_to_compiled_func(
+                pt.make_dict_of_named_arrays(dict_of_named_arrays),
+                input_id_to_name_in_program=input_id_to_name_in_program,
+                output_id_to_name_in_program=output_id_to_name_in_program,
+                output_template=output_template)
+
+        self.program_cache[arg_id_to_descr] = compiled_func
+        return compiled_func(arg_id_to_arg)
 
 
-@dataclass
-class CompiledFunction:
+def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
+    input_kwargs_for_loopy = {}
+
+    for arg_id, arg in arg_id_to_arg.items():
+        if np.isscalar(arg):
+            arg = cla.to_device(actx.queue, np.array(arg))
+        elif isinstance(arg, pt.array.DataWrapper):
+            # got a Datwwrapper => simply gets its data
+            arg = arg.data
+        elif isinstance(arg, cla.Array):
+            # got a frozen array  => do nothing
+            pass
+        elif isinstance(arg, pt.Array):
+            # got an array expression => evaluate it
+            arg = actx.freeze(arg).with_queue(actx.queue)
+        else:
+            raise NotImplementedError(type(arg))
+
+        input_kwargs_for_loopy[input_id_to_name_in_program[arg_id]] = arg
+
+    return input_kwargs_for_loopy
+
+
+class CompiledFunction(abc.ABC):
     """
     A callable which captures the :class:`pytato.target.BoundProgram`  resulting
     from calling :attr:`~LazilyCompilingFunctionCaller.f` with a given set of
@@ -293,6 +349,23 @@ class CompiledFunction:
         position of :attr:`~LazilyCompilingFunctionCaller.f`'s argument augmented
         with the leaf array's key if the argument is an array container.
 
+
+    .. automethod:: __call__
+    """
+
+    @abc.abstractmethod
+    def __call__(self, arg_id_to_arg) -> Any:
+        """
+        :arg arg_id_to_arg: Mapping from input id to the passed argument. See
+            :attr:`CompiledFunction.input_id_to_name_in_program` for input id's
+            representation.
+        """
+        pass
+
+
+@dataclass(frozen=True)
+class CompiledFunctionReturningArrayContainer(CompiledFunction):
+    """
     .. attribute:: output_id_to_name_in_program
 
         A mapping from output id to the name of
@@ -306,7 +379,6 @@ class CompiledFunction:
        An instance of :class:`arraycontext.ArrayContainer` that is the return
        type of the callable.
     """
-
     actx: PytatoPyOpenCLArrayContext
     pytato_program: pt.target.BoundProgram
     input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
@@ -314,47 +386,48 @@ class CompiledFunction:
     output_template: ArrayContainer
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
-        """
-        :arg arg_id_to_arg: Mapping from input id to the passed argument. See
-            :attr:`CompiledFunction.input_id_to_name_in_program` for input id's
-            representation.
-        """
-        from arraycontext.container.traversal import rec_keyed_map_array_container
-
-        input_kwargs_to_loopy = {}
-
-        # {{{ preprocess args to get arguments (CL buffers) to be fed to the
-        # loopy program
-
-        for arg_id, arg in arg_id_to_arg.items():
-            if np.isscalar(arg):
-                arg = cla.to_device(self.actx.queue, np.array(arg))
-            elif isinstance(arg, pt.array.DataWrapper):
-                # got a Datwwrapper => simply gets its data
-                arg = arg.data
-            elif isinstance(arg, cla.Array):
-                # got a frozen array  => do nothing
-                pass
-            elif isinstance(arg, pt.Array):
-                # got an array expression => evaluate it
-                arg = self.actx.freeze(arg).with_queue(self.actx.queue)
-            else:
-                raise NotImplementedError(type(arg))
-
-            input_kwargs_to_loopy[self.input_id_to_name_in_program[arg_id]] = arg
+        input_kwargs_for_loopy = _args_to_cl_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
-                                            **input_kwargs_to_loopy)
+                                            **input_kwargs_for_loopy)
+
         # FIXME Kernels (for now) allocate tons of memory in temporaries. If we
         # race too far ahead with enqueuing, there is a distinct risk of
         # running out of memory. This mitigates that risk a bit, for now.
         evt.wait()
-
-        # }}}
 
         def to_output_template(keys, _):
             return self.actx.thaw(out_dict[self.output_id_to_name_in_program[keys]])
 
         return rec_keyed_map_array_container(to_output_template,
                                              self.output_template)
+
+
+@dataclass(frozen=True)
+class CompiledFunctionReturningArray(CompiledFunction):
+    """
+    .. attribute:: output_name_in_program
+
+        Name of the output array in the program.
+    """
+    actx: PytatoPyOpenCLArrayContext
+    pytato_program: pt.target.BoundProgram
+    input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
+    output_name: str
+
+    def __call__(self, arg_id_to_arg) -> ArrayContainer:
+        input_kwargs_for_loopy = _args_to_cl_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
+
+        evt, out_dict = self.pytato_program(queue=self.actx.queue,
+                                            allocator=self.actx.allocator,
+                                            **input_kwargs_for_loopy)
+
+        # FIXME Kernels (for now) allocate tons of memory in temporaries. If we
+        # race too far ahead with enqueuing, there is a distinct risk of
+        # running out of memory. This mitigates that risk a bit, for now.
+        evt.wait()
+
+        return self.actx.thaw(out_dict[self.output_name])

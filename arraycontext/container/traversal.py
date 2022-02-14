@@ -67,9 +67,9 @@ from functools import update_wrapper, partial, singledispatch
 
 import numpy as np
 
-from arraycontext.context import ArrayContext, DeviceArray
+from arraycontext.context import ArrayContext, DeviceArray, _ScalarLike
 from arraycontext.container import (
-        ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
+        ArrayT, ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
         serialize_container, deserialize_container)
 
 
@@ -256,7 +256,8 @@ def multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
 
 def rec_map_array_container(
         f: Callable[[Any], Any],
-        ary: ArrayOrContainerT) -> ArrayOrContainerT:
+        ary: ArrayOrContainerT,
+        leaf_class: Optional[type] = None) -> ArrayOrContainerT:
     r"""Applies *f* recursively to an :class:`ArrayContainer`.
 
     For a non-recursive version see :func:`map_array_container`.
@@ -264,18 +265,32 @@ def rec_map_array_container(
     :param ary: a (potentially nested) structure of :class:`ArrayContainer`\ s,
         or an instance of a base array type.
     """
-    return _map_array_container_impl(f, ary, recursive=True)
+    return _map_array_container_impl(f, ary, leaf_cls=leaf_class, recursive=True)
 
 
 def mapped_over_array_containers(
-        f: Callable[[Any], Any]) -> Callable[[ArrayOrContainerT], ArrayOrContainerT]:
+        f: Optional[Callable[[Any], Any]] = None,
+        leaf_class: Optional[type] = None) -> Union[
+            Callable[[ArrayOrContainerT], ArrayOrContainerT],
+            Callable[
+                [Callable[[Any], Any]],
+                Callable[[ArrayOrContainerT], ArrayOrContainerT]]]:
     """Decorator around :func:`rec_map_array_container`."""
-    wrapper = partial(rec_map_array_container, f)
-    update_wrapper(wrapper, f)
-    return wrapper
+    def decorator(g: Callable[[Any], Any]) -> Callable[
+            [ArrayOrContainerT], ArrayOrContainerT]:
+        wrapper = partial(rec_map_array_container, g, leaf_class=leaf_class)
+        update_wrapper(wrapper, g)
+        return wrapper
+    if f is not None:
+        return decorator(f)
+    else:
+        return decorator
 
 
-def rec_multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
+def rec_multimap_array_container(
+        f: Callable[..., Any],
+        *args: Any,
+        leaf_class: Optional[type] = None) -> Any:
     r"""Applies *f* recursively to multiple :class:`ArrayContainer`\ s.
 
     For a non-recursive version see :func:`multimap_array_container`.
@@ -283,27 +298,39 @@ def rec_multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
     :param args: all :class:`ArrayContainer` arguments must be of the same
         type and with the same structure (same number of components, etc.).
     """
-    return _multimap_array_container_impl(f, *args, recursive=True)
+    return _multimap_array_container_impl(
+        f, *args, leaf_cls=leaf_class, recursive=True)
 
 
 def multimapped_over_array_containers(
-        f: Callable[..., Any]) -> Callable[..., Any]:
+        f: Optional[Callable[..., Any]] = None,
+        leaf_class: Optional[type] = None) -> Union[
+            Callable[..., Any],
+            Callable[[Callable[..., Any]], Callable[..., Any]]]:
     """Decorator around :func:`rec_multimap_array_container`."""
-    # can't use functools.partial, because its result is insufficiently
-    # function-y to be used as a method definition.
-    def wrapper(*args: Any) -> Any:
-        return rec_multimap_array_container(f, *args)
+    def decorator(g: Callable[..., Any]) -> Callable[..., Any]:
+        # can't use functools.partial, because its result is insufficiently
+        # function-y to be used as a method definition.
+        def wrapper(*args: Any) -> Any:
+            return rec_multimap_array_container(g, *args, leaf_class=leaf_class)
+        update_wrapper(wrapper, g)
+        return wrapper
+    if f is not None:
+        return decorator(f)
+    else:
+        return decorator
 
-    update_wrapper(wrapper, f)
-    return wrapper
 
 # }}}
 
 
 # {{{ keyed array container traversal
 
-def keyed_map_array_container(f: Callable[[Any, Any], Any],
-                              ary: ArrayOrContainerT) -> ArrayOrContainerT:
+def keyed_map_array_container(
+        f: Callable[
+            [Any, ArrayOrContainerT],
+            ArrayOrContainerT],
+        ary: ArrayOrContainerT) -> ArrayOrContainerT:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
 
     Works similarly to :func:`map_array_container`, but *f* also takes an
@@ -325,8 +352,9 @@ def keyed_map_array_container(f: Callable[[Any, Any], Any],
             ])
 
 
-def rec_keyed_map_array_container(f: Callable[[Tuple[Any, ...], Any], Any],
-                                  ary: ArrayOrContainerT) -> ArrayOrContainerT:
+def rec_keyed_map_array_container(
+        f: Callable[[Tuple[Any, ...], ArrayT], ArrayT],
+        ary: ArrayOrContainerT) -> ArrayOrContainerT:
     """
     Works similarly to :func:`rec_map_array_container`, except that *f* also
     takes in a traversal path to the leaf array. The traversal path argument is
@@ -401,7 +429,8 @@ def multimap_reduce_array_container(
 def rec_map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[[Any], Any],
-        ary: ArrayOrContainerT) -> "DeviceArray":
+        ary: ArrayOrContainerT,
+        leaf_class: Optional[type] = None) -> "DeviceArray":
     """Perform a map-reduce over array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of *ary*
@@ -440,14 +469,17 @@ def rec_map_reduce_array_container(
         or any other such traversal.
     """
     def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
-        try:
-            iterable = serialize_container(_ary)
-        except NotAnArrayContainerError:
+        if type(_ary) is leaf_class:
             return map_func(_ary)
         else:
-            return reduce_func([
-                rec(subary) for _, subary in iterable
-                ])
+            try:
+                iterable = serialize_container(_ary)
+            except NotAnArrayContainerError:
+                return map_func(_ary)
+            else:
+                return reduce_func([
+                    rec(subary) for _, subary in iterable
+                    ])
 
     return rec(ary)
 
@@ -455,7 +487,8 @@ def rec_map_reduce_array_container(
 def rec_multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[..., Any],
-        *args: Any) -> "DeviceArray":
+        *args: Any,
+        leaf_class: Optional[type] = None) -> "DeviceArray":
     r"""Perform a map-reduce over multiple array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of any
@@ -478,7 +511,7 @@ def rec_multimap_reduce_array_container(
 
     return _multimap_array_container_impl(
         map_func, *args,
-        reduce_func=_reduce_wrapper, leaf_cls=None, recursive=True)
+        reduce_func=_reduce_wrapper, leaf_cls=leaf_class, recursive=True)
 
 # }}}
 
@@ -550,7 +583,10 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
 
 # {{{ flatten / unflatten
 
-def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
+def flatten(
+        ary: ArrayOrContainerT, actx: ArrayContext, *,
+        leaf_class: Optional[type] = None,
+        ) -> Any:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer`
     into single flat array of a type :attr:`arraycontext.ArrayContext.array_types`.
 
@@ -558,11 +594,20 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
     ``ravel`` and ``concatenate`` methods implemented. The order in which the
     individual leaf arrays appear in the final array is dependent on the order
     given by :func:`~arraycontext.serialize_container`.
+
+    If *leaf_class* is given, then :func:`unflatten` will not be able to recover
+    the original *ary*.
+
+    :arg leaf_class: an :class:`~arraycontext.ArrayContainer` class on which
+        the recursion is stopped (subclasses are not considered). If given, only
+        the entries of this type are flattened and the rest of the tree
+        structure is left as is. By default, the recursion is stopped when
+        a non-:class:`~arraycontext.ArrayContainer` is found, which results in
+        the whole input container *ary* being flattened.
     """
     common_dtype = None
-    result: List[Any] = []
 
-    def _flatten(subary: ArrayOrContainerT) -> None:
+    def _flatten(subary: ArrayOrContainerT) -> List[Any]:
         nonlocal common_dtype
 
         try:
@@ -591,14 +636,40 @@ def flatten(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
                         "This functionality needs to be implemented by the "
                         "array context.") from exc
 
-            result.append(flat_subary)
+            result = [flat_subary]
         else:
+            result = []
             for _, isubary in iterable:
-                _flatten(isubary)
+                result.extend(_flatten(isubary))
 
-    _flatten(ary)
+        return result
 
-    return actx.np.concatenate(result)
+    def _flatten_without_leaf_class(subary: ArrayOrContainerT) -> Any:
+        result = _flatten(subary)
+
+        if len(result) == 1:
+            return result[0]
+        else:
+            return actx.np.concatenate(result)
+
+    def _flatten_with_leaf_class(subary: ArrayOrContainerT) -> Any:
+        if type(subary) is leaf_class:
+            return _flatten_without_leaf_class(subary)
+
+        try:
+            iterable = serialize_container(subary)
+        except NotAnArrayContainerError:
+            return subary
+        else:
+            return deserialize_container(subary, [
+                (key, _flatten_with_leaf_class(isubary))
+                for key, isubary in iterable
+                ])
+
+    if leaf_class is None:
+        return _flatten_without_leaf_class(ary)
+    else:
+        return _flatten_with_leaf_class(ary)
 
 
 def unflatten(
@@ -611,6 +682,8 @@ def unflatten(
     The order and sizes of each slice into *ary* are determined by the
     array container *template*.
 
+    :arg ary: a flat one-dimensional array with a size that matches the
+        number of entries in *template*.
     :arg strict: if *True* additional :class:`~numpy.dtype` and stride
         checking is performed on the unflattened array. Otherwise, these
         checks are skipped.
@@ -703,13 +776,16 @@ def unflatten(
 
 # {{{ numpy conversion
 
-def from_numpy(ary: Any, actx: ArrayContext) -> Any:
+def from_numpy(
+        ary: Union[np.ndarray, _ScalarLike],
+        actx: ArrayContext) -> ArrayOrContainerT:
     """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
     to the base array type of :class:`~arraycontext.ArrayContext`.
 
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
-    def _from_numpy_with_check(subary: Any) -> Any:
+    def _from_numpy_with_check(subary: Union[np.ndarray, _ScalarLike]) \
+            -> ArrayOrContainerT:
         if isinstance(subary, np.ndarray) or np.isscalar(subary):
             return actx.from_numpy(subary)
         else:
@@ -718,7 +794,7 @@ def from_numpy(ary: Any, actx: ArrayContext) -> Any:
     return rec_map_array_container(_from_numpy_with_check, ary)
 
 
-def to_numpy(ary: Any, actx: ArrayContext) -> Any:
+def to_numpy(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
     :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
 

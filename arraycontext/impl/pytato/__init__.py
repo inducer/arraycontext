@@ -41,7 +41,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext.context import ArrayContext
+from arraycontext.context import ArrayContext, _ScalarLike
 import numpy as np
 from typing import Any, Callable, Union, Sequence, TYPE_CHECKING
 from pytools.tag import Tag
@@ -98,10 +98,10 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         import pytato as pt
         return pt.zeros(shape, dtype)
 
-    def from_numpy(self, np_array: np.ndarray):
+    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
         import pytato as pt
         import pyopencl.array as cla
-        cl_array = cla.to_device(self.queue, np_array)
+        cl_array = cla.to_device(self.queue, array)
         return pt.make_data_wrapper(cl_array)
 
     def to_numpy(self, array):
@@ -200,6 +200,10 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
         :arg dag: An instance of :class:`pytato.DictOfNamedArrays`
         :returns: A transformed version of *dag*.
         """
+        import pytato as pt
+
+        dag = pt.transform.materialize_with_mpms(dag)
+
         return dag
 
     def tag(self, tags: Union[Sequence[Tag], Tag], array):
@@ -215,19 +219,33 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pyopencl.array as cla
         import pytato as pt
-        if arg_names is not None:
-            from warnings import warn
-            warn("'arg_names' don't bear any significance in "
-                 "PytatoPyOpenCLArrayContext.", stacklevel=2)
+        if arg_names is None:
+            arg_names = (None,) * len(args)
 
-        def preprocess_arg(arg):
+        def preprocess_arg(name, arg):
             if isinstance(arg, cla.Array):
-                return self.thaw(arg)
+                ary = self.thaw(arg)
             else:
                 assert isinstance(arg, pt.Array)
-                return arg
+                ary = arg
 
-        return pt.einsum(spec, *(preprocess_arg(arg) for arg in args))
+            if name is not None:
+                from pytato.tags import PrefixNamed
+
+                # Tagging Placeholders with naming-related tags is pointless:
+                # They already have names. It's also counterproductive, as
+                # multiple placeholders with the same name that are not
+                # also the same object are not allowed, and this would produce
+                # a different Placeholder object of the same name.
+                if not isinstance(ary, pt.Placeholder):
+                    ary = ary.tagged(PrefixNamed(name))
+
+            return ary
+
+        return pt.einsum(spec, *[
+            preprocess_arg(name, arg)
+            for name, arg in zip(arg_names, args)
+            ])
 
     @property
     def permits_inplace_modification(self):

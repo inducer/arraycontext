@@ -122,7 +122,7 @@ class NotAnArrayContainerError(TypeError):
 
 
 @singledispatch
-def serialize_container(ary: ArrayContainer) -> Iterable[Tuple[Any, Any]]:
+def serialize_container(ary: Any) -> Iterable[Tuple[Any, Any]]:
     r"""Serialize the array container into an iterable over its components.
 
     The order of the components and their identifiers are entirely under
@@ -220,7 +220,7 @@ def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
 def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
     if ary.dtype.char != "O":
         raise NotAnArrayContainerError(
-                f"cannot seriealize '{type(ary).__name__}' with dtype '{ary.dtype}'")
+                f"cannot serialize '{type(ary).__name__}' with dtype '{ary.dtype}'")
 
     # special-cased for speed
     if ary.ndim == 1:
