@@ -1415,6 +1415,8 @@ def test_array_container_with_numpy(actx_factory):
 # }}}
 
 
+# {{{ test_actx_compile_on_pure_array_return
+
 def test_actx_compile_on_pure_array_return(actx_factory):
     def _twice(x):
         return 2 * x
@@ -1423,6 +1425,55 @@ def test_actx_compile_on_pure_array_return(actx_factory):
     ones = actx.zeros(shape=(10, 4), dtype=np.float64) + 1
     np.testing.assert_allclose(actx.to_numpy(_twice(ones)),
                                actx.to_numpy(actx.compile(_twice)(ones)))
+
+# }}}
+
+
+# {{{
+
+def test_taggable_cl_array_tags(actx_factory):
+    actx = actx_factory()
+    if not isinstance(actx, PyOpenCLArrayContext):
+        pytest.skip(f"not relevant for '{type(actx).__name__}'")
+
+    import pyopencl.array as cl_array
+    ary = cl_array.to_device(actx.queue, np.zeros((32, 7)))
+
+    # {{{ check tags are set
+
+    from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
+    tagged_ary = to_tagged_cl_array(ary, axes=None,
+                                    tags=frozenset((FirstAxisIsElementsTag(),)))
+
+    assert tagged_ary.base_data is ary.base_data
+    assert tagged_ary.tags == frozenset((FirstAxisIsElementsTag(),))
+
+    # }}}
+
+    # {{{ check tags are appended
+
+    from arraycontext import ElementwiseMapKernelTag
+    tagged_ary = to_tagged_cl_array(tagged_ary, axes=None,
+                                    tags=frozenset((ElementwiseMapKernelTag(),)))
+
+    assert tagged_ary.base_data is ary.base_data
+    assert tagged_ary.tags == frozenset(
+        (FirstAxisIsElementsTag(), ElementwiseMapKernelTag())
+    )
+
+    # }}}
+
+    # {{{ test copied tags
+
+    copy_tagged_ary = tagged_ary.copy()
+
+    assert copy_tagged_ary.tags == tagged_ary.tags
+    assert copy_tagged_ary.axes == tagged_ary.axes
+    assert copy_tagged_ary.base_data != tagged_ary.base_data
+
+    # }}}
+
+# }}}
 
 
 if __name__ == "__main__":
