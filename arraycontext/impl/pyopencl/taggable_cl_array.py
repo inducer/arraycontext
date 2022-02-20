@@ -6,8 +6,8 @@
 """
 
 import pyopencl.array as cla
-from typing import FrozenSet, Union, Sequence, Optional, Tuple
-from pytools.tag import Taggable, Tag
+from typing import Any, Dict, FrozenSet, Optional, Tuple
+from pytools.tag import Taggable, Tag, TagsType, TagOrIterableType
 from dataclasses import dataclass
 from pytools import memoize
 
@@ -27,6 +27,20 @@ class Axis(Taggable):
 @memoize
 def _construct_untagged_axes(ndim: int) -> Tuple[Axis, ...]:
     return tuple(Axis(frozenset()) for _ in range(ndim))
+
+
+def _unwrap_cl_array(ary: cla.Array) -> Dict[str, Any]:
+    return dict(shape=ary.shape, dtype=ary.dtype,
+                allocator=ary.allocator,
+                strides=ary.strides,
+                data=ary.base_data,
+                offset=ary.offset,
+                events=ary.events,
+                _context=ary.context,
+                _queue=ary.queue,
+                _size=ary.size,
+                _fast=True,
+                )
 
 
 class TaggableCLArray(cla.Array, Taggable):
@@ -60,58 +74,40 @@ class TaggableCLArray(cla.Array, Taggable):
                          _size=_size, _context=_context,
                          _queue=_queue)
 
+        if __debug__:
+            if not isinstance(tags, frozenset):
+                raise TypeError("tags are not a frozenset")
+
+            if axes is not None and len(axes) != self.ndim:
+                raise ValueError("axes length does not match array dimension: "
+                                 f"got {len(axes)} axes for {self.ndim}d array")
+
+        if axes is None:
+            axes = _construct_untagged_axes(self.ndim)
+
         self.tags = tags
-        axes = axes if axes is not None else _construct_untagged_axes(len(self
-                                                                          .shape))
         self.axes = axes
 
-    def copy(self, queue=cla._copy_queue, tags=None, axes=None, _new_class=None):
-        """
-        :arg _new_class: The class of the copy. :func:`to_tagged_cl_array` is
-            sets this to convert instances of :class:`pyopencl.array.Array` to
-            :class:`TaggableCLArray`. If not provided, defaults to
-            ``self.__class__``.
-        """
-        _new_class = self.__class__ if _new_class is None else _new_class
+    def copy(self, queue=cla._copy_queue):
+        ary = super().copy(queue=queue)
+        return type(self)(None, tags=self.tags, axes=self.axes,
+                          **_unwrap_cl_array(ary))
 
-        if queue is not cla._copy_queue:
-            # Copying command queue is an involved operation, use super-class'
-            # implementation.
-            base_instance = super().copy(queue=queue)
-        else:
-            base_instance = self
-
-        if tags is None and axes is None and _new_class is self.__class__:
-            # early exit
-            return base_instance
-
-        tags = getattr(base_instance, "tags", frozenset()) if tags is None else tags
-        axes = getattr(base_instance, "axes", None) if axes is None else axes
-
-        return _new_class(None,
-                          base_instance.shape,
-                          base_instance.dtype,
-                          allocator=base_instance.allocator,
-                          strides=base_instance.strides,
-                          data=base_instance.base_data,
-                          offset=base_instance.offset,
-                          events=base_instance.events, _fast=True,
-                          _context=base_instance.context,
-                          _queue=base_instance.queue,
-                          _size=base_instance.size,
-                          tags=tags,
-                          axes=axes,
-                          )
+    def _with_new_tags(self, tags: TagsType) -> "TaggableCLArray":
+        return type(self)(None, tags=tags, axes=self.axes,
+                          **_unwrap_cl_array(self))
 
     def with_tagged_axis(self, iaxis: int,
-                         tags: Union[Sequence[Tag], Tag]) -> "TaggableCLArray":
+                         tags: TagOrIterableType) -> "TaggableCLArray":
         """
         Returns a copy of *self* with *iaxis*-th axis tagged with *tags*.
         """
         new_axes = (self.axes[:iaxis]
                     + (self.axes[iaxis].tagged(tags),)
                     + self.axes[iaxis+1:])
-        return self.copy(axes=new_axes)
+
+        return type(self)(None, tags=self.tags, axes=new_axes,
+                          **_unwrap_cl_array(self))
 
 
 def to_tagged_cl_array(ary: cla.Array,
@@ -119,11 +115,32 @@ def to_tagged_cl_array(ary: cla.Array,
                        tags: FrozenSet[Tag]) -> TaggableCLArray:
     """
     Returns a :class:`TaggableCLArray` that is constructed from the data in
-    *ary* along with the metadata from *axes* and *tags*.
+    *ary* along with the metadata from *axes* and *tags*. If *ary* is already a
+    :class:`TaggableCLArray`, the new *tags* and *axes* are added to the
+    existing ones.
 
     :arg axes: An instance of :class:`Axis` for each dimension of the
         array. If passed *None*, then initialized to a :class:`pytato.Axis`
         with no tags attached for each dimension.
     """
-    return TaggableCLArray.copy(ary, axes=axes, tags=tags,
-                                _new_class=TaggableCLArray)
+    if axes and len(axes) != ary.ndim:
+        raise ValueError("axes length does not match array dimension: "
+                         f"got {len(axes)} axes for {ary.ndim}d array")
+
+    from pytools.tag import normalize_tags
+    tags = normalize_tags(tags)
+
+    if isinstance(ary, TaggableCLArray):
+        if axes:
+            for i, axis in enumerate(axes):
+                ary = ary.with_tagged_axis(i, axis.tags)
+
+        if tags:
+            ary = ary.tagged(tags)
+
+        return ary
+    elif isinstance(ary, cla.Array):
+        return TaggableCLArray(None, tags=tags, axes=axes,
+                               **_unwrap_cl_array(ary))
+    else:
+        raise TypeError(f"unsupported array type: '{type(ary).__name__}'")

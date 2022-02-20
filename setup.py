@@ -39,7 +39,10 @@ def main():
         python_requires="~=3.6",
         install_requires=[
             "numpy",
-            "pytools>=2020.4.1",
+
+            # https://github.com/inducer/arraycontext/pull/147
+            "pytools>=2022.1.1",
+
             "pytest>=2.3",
             "loopy>=2019.1",
             "dataclasses; python_version<'3.7'",
