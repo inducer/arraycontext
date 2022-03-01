@@ -30,8 +30,9 @@ Serialization/deserialization
 
 Context retrieval
 -----------------
-.. autofunction:: get_container_context
+.. autofunction:: get_container_context_opt
 .. autofunction:: get_container_context_recursively
+.. autofunction:: get_container_context_recursively_opt
 
 :class:`~pymbolic.geometric_algebra.MultiVector` support
 ---------------------------------------------------------
@@ -92,7 +93,7 @@ class ArrayContainer:
       of the array.
     * :func:`deserialize_container` for deserialization, which constructs a
       container from a set of components.
-    * :func:`get_container_context` retrieves the :class:`ArrayContext` from
+    * :func:`get_container_context_opt` retrieves the :class:`ArrayContext` from
       a container, if it has one.
 
     This allows enumeration of the component arrays in a container and the
@@ -198,7 +199,7 @@ def is_array_container(ary: Any) -> bool:
 
 
 @singledispatch
-def get_container_context(ary: ArrayContainer) -> Optional[ArrayContext]:
+def get_container_context_opt(ary: ArrayContainer) -> Optional[ArrayContext]:
     """Retrieves the :class:`ArrayContext` from the container, if any.
 
     This function is not recursive, so it will only search at the root level
@@ -249,15 +250,18 @@ def _deserialize_ndarray_container(
 
 # {{{ get_container_context_recursively
 
-def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
+def get_container_context_recursively_opt(
+        ary: ArrayContainer) -> Optional[ArrayContext]:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 
     If different components that have different array contexts are found at
     any level, an assertion error is raised.
+
+    Returns *None* if no array context was found.
     """
     # try getting the array context directly
-    actx = get_container_context(ary)
+    actx = get_container_context_opt(ary)
     if actx is not None:
         return actx
 
@@ -267,7 +271,7 @@ def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
         return actx
     else:
         for _, subary in iterable:
-            context = get_container_context_recursively(subary)
+            context = get_container_context_recursively_opt(subary)
             if context is None:
                 continue
 
@@ -279,6 +283,28 @@ def get_container_context_recursively(ary: Any) -> Optional[ArrayContext]:
                 assert actx is context
 
         return actx
+
+
+def get_container_context_recursively(ary: ArrayContainer) -> Optional[ArrayContext]:
+    """Walks the :class:`ArrayContainer` hierarchy to find an
+    :class:`ArrayContext` associated with it.
+
+    If different components that have different array contexts are found at
+    any level, an assertion error is raised.
+
+    Raises an error if no array container is found.
+    """
+    actx = get_container_context_recursively_opt(ary)
+    if actx is None:
+        # raise ValueError("no array context was found")
+        from warnings import warn
+        warn("No array context was found. This will be an error starting in "
+                "July of 2022. If you would like the function to return "
+                "None if no array context was found, use "
+                "get_container_context_recursively_opt.",
+                DeprecationWarning, stacklevel=2)
+
+    return actx
 
 # }}}
 
@@ -298,7 +324,7 @@ def _deserialize_multivec_as_container(template: "MultiVector",
     return MultiVector(dict(iterable), space=template.space)
 
 
-def _get_container_context_from_multivec(mv: "MultiVector") -> None:
+def _get_container_context_opt_from_multivec(mv: "MultiVector") -> None:
     return None
 
 
@@ -312,8 +338,8 @@ def register_multivector_as_array_container() -> None:
         serialize_container.register(MultiVector)(_serialize_multivec_as_container)
         deserialize_container.register(MultiVector)(
                 _deserialize_multivec_as_container)
-        get_container_context.register(MultiVector)(
-                _get_container_context_from_multivec)
+        get_container_context_opt.register(MultiVector)(
+                _get_container_context_opt_from_multivec)
         assert MultiVector in serialize_container.registry
 
 # }}}

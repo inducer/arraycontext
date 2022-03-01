@@ -941,24 +941,25 @@ def test_container_freeze_thaw(actx_factory):
 
     # {{{ check
 
-    from arraycontext import get_container_context
-    from arraycontext import get_container_context_recursively
+    from arraycontext import (
+            get_container_context_opt,
+            get_container_context_recursively_opt)
 
-    assert get_container_context(ary_of_dofs) is None
-    assert get_container_context(mat_of_dofs) is None
-    assert get_container_context(ary_dof) is actx
-    assert get_container_context(dc_of_dofs) is actx
+    assert get_container_context_opt(ary_of_dofs) is None
+    assert get_container_context_opt(mat_of_dofs) is None
+    assert get_container_context_opt(ary_dof) is actx
+    assert get_container_context_opt(dc_of_dofs) is actx
 
-    assert get_container_context_recursively(ary_of_dofs) is actx
-    assert get_container_context_recursively(mat_of_dofs) is actx
+    assert get_container_context_recursively_opt(ary_of_dofs) is actx
+    assert get_container_context_recursively_opt(mat_of_dofs) is actx
 
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
         frozen_ary = freeze(ary)
         thawed_ary = thaw(frozen_ary, actx)
         frozen_ary = freeze(thawed_ary)
 
-        assert get_container_context_recursively(frozen_ary) is None
-        assert get_container_context_recursively(thawed_ary) is actx
+        assert get_container_context_recursively_opt(frozen_ary) is None
+        assert get_container_context_recursively_opt(thawed_ary) is actx
 
     actx2 = actx.clone()
 
