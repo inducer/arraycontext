@@ -774,7 +774,7 @@ def unflatten(
 
 
 def flat_size_and_dtype(
-        ary: ArrayOrContainerT) -> Tuple[int, Optional[np.dtype[Any]]]:
+        ary: ArrayOrContainerT) -> "Tuple[int, Optional[np.dtype[Any]]]":
     """
     :returns: a tuple ``(size, dtype)`` that would be the length and
         :class:`numpy.dtype` of the one-dimensional array returned by
