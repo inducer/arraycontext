@@ -1050,12 +1050,24 @@ def test_flatten_array_container(actx_factory, shapes):
     # }}}
 
 
+def _checked_flatten(ary, actx, leaf_class=None):
+    from arraycontext import flatten, flat_size_and_dtype
+    result = flatten(ary, actx, leaf_class=leaf_class)
+
+    if leaf_class is None:
+        size, dtype = flat_size_and_dtype(ary)
+        assert result.shape == (size,)
+        assert result.dtype == dtype
+
+    return result
+
+
 def test_flatten_array_container_failure(actx_factory):
     actx = actx_factory()
 
-    from arraycontext import flatten, unflatten
+    from arraycontext import unflatten
     ary = _get_test_containers(actx, shapes=512)[0]
-    flat_ary = flatten(ary, actx)
+    flat_ary = _checked_flatten(ary, actx)
 
     with pytest.raises(TypeError):
         # cannot unflatten from a numpy array
@@ -1073,19 +1085,18 @@ def test_flatten_array_container_failure(actx_factory):
 def test_flatten_with_leaf_class(actx_factory):
     actx = actx_factory()
 
-    from arraycontext import flatten
     arys = _get_test_containers(actx, shapes=512)
 
-    flat = flatten(arys[0], actx, leaf_class=DOFArray)
+    flat = _checked_flatten(arys[0], actx, leaf_class=DOFArray)
     assert isinstance(flat, actx.array_types)
     assert flat.shape == (arys[0].size,)
 
-    flat = flatten(arys[1], actx, leaf_class=DOFArray)
+    flat = _checked_flatten(arys[1], actx, leaf_class=DOFArray)
     assert isinstance(flat, np.ndarray) and flat.dtype == object
     assert all(isinstance(entry, actx.array_types) for entry in flat)
     assert all(entry.shape == (arys[0].size,) for entry in flat)
 
-    flat = flatten(arys[3], actx, leaf_class=DOFArray)
+    flat = _checked_flatten(arys[3], actx, leaf_class=DOFArray)
     assert isinstance(flat, MyContainer)
     assert isinstance(flat.mass, actx.array_types)
     assert flat.mass.shape == (arys[3].mass.size,)
