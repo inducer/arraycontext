@@ -27,6 +27,7 @@ Flattening and unflattening
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: flatten
 .. autofunction:: unflatten
+.. autofunction:: flat_size_and_dtype
 
 Numpy conversion
 ~~~~~~~~~~~~~~~~
@@ -770,6 +771,36 @@ def unflatten(
             "'ary' is too large")
 
     return result
+
+
+def flat_size_and_dtype(
+        ary: ArrayOrContainerT) -> Tuple[int, Optional[np.dtype[Any]]]:
+    """
+    :returns: a tuple ``(size, dtype)`` that would be the length and
+        :class:`numpy.dtype` of the one-dimensional array returned by
+        :func:`flatten`.
+    """
+    common_dtype = None
+
+    def _flat_size(subary: ArrayOrContainerT) -> int:
+        nonlocal common_dtype
+
+        try:
+            iterable = serialize_container(subary)
+        except NotAnArrayContainerError:
+            if common_dtype is None:
+                common_dtype = subary.dtype
+
+            if subary.dtype != common_dtype:
+                raise ValueError("arrays in container have different dtypes: "
+                        f"got {subary.dtype}, expected {common_dtype}")
+
+            return subary.size
+        else:
+            return sum(_flat_size(isubary) for _, isubary in iterable)
+
+    size = _flat_size(ary)
+    return size, common_dtype
 
 # }}}
 
