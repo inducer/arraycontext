@@ -1,6 +1,7 @@
 """
 .. currentmodule:: arraycontext
 
+.. autoclass:: PytestArrayContextFactory
 .. autoclass:: PytestPyOpenCLArrayContextFactory
 
 .. autofunction:: pytest_generate_tests_for_array_contexts
@@ -35,11 +36,17 @@ from typing import Any, Callable, Dict, Sequence, Type, Union
 
 import pyopencl as cl
 from arraycontext.context import ArrayContext
+from arraycontext import NumpyArrayContext
 
 
 # {{{ array context factories
 
-class PytestPyOpenCLArrayContextFactory:
+
+class PytestArrayContextFactory:
+    pass
+
+
+class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     """
     .. automethod:: __init__
     .. automethod:: __call__
@@ -126,18 +133,39 @@ class _PytestPytatoPyOpenCLArrayContextFactory(
                     self.device.platform.name.strip()))
 
 
+# {{{ _PytestArrayContextFactory
+
+class _NumpyArrayContextForTests(NumpyArrayContext):
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
+class _PytestNumpyArrayContextFactory(PytestArrayContextFactory):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def __call__(self):
+        return _NumpyArrayContextForTests()
+
+    def __str__(self):
+        return "<NumpyArrayContext>"
+
+# }}}
+
+
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
-        Dict[str, Type[PytestPyOpenCLArrayContextFactory]] = {
+        Dict[str, Type[PytestArrayContextFactory]] = {
                 "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
                 "pyopencl-deprecated":
                 _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars,
                 "pytato-pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
+                "numpy": _PytestNumpyArrayContextFactory,
                 }
 
 
 def register_pytest_array_context_factory(
         name: str,
-        factory: Type[PytestPyOpenCLArrayContextFactory]) -> None:
+        factory: Type[PytestArrayContextFactory]) -> None:
     if name in _ARRAY_CONTEXT_FACTORY_REGISTRY:
         raise ValueError(f"factory '{name}' already exists")
 
@@ -149,7 +177,7 @@ def register_pytest_array_context_factory(
 # {{{ pytest integration
 
 def pytest_generate_tests_for_array_contexts(
-        factories: Sequence[Union[str, Type[PytestPyOpenCLArrayContextFactory]]], *,
+        factories: Sequence[Union[str, Type[PytestArrayContextFactory]]], *,
         factory_arg_name: str = "actx_factory",
         ) -> Callable[[Any], None]:
     """Parametrize tests for pytest to use an :class:`~arraycontext.ArrayContext`.

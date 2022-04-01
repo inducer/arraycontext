@@ -65,8 +65,10 @@ from .container.traversal import (
 
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoPyOpenCLArrayContext
+from .impl.numpy import NumpyArrayContext
 
 from .pytest import (
+        PytestArrayContextFactory,
         PytestPyOpenCLArrayContextFactory,
         pytest_generate_tests_for_array_contexts,
         pytest_generate_tests_for_pyopencl_array_context)
@@ -103,8 +105,11 @@ __all__ = (
 
         "PyOpenCLArrayContext", "PytatoPyOpenCLArrayContext",
 
+        "NumpyArrayContext",
+
         "make_loopy_program",
 
+        "PytestArrayContextFactory",
         "PytestPyOpenCLArrayContextFactory",
         "pytest_generate_tests_for_array_contexts",
         "pytest_generate_tests_for_pyopencl_array_context"
