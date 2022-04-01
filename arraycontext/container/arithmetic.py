@@ -206,6 +206,15 @@ def with_container_arithmetic(
     if rel_comparison is None:
         raise TypeError("rel_comparison must be specified")
 
+    if bcast_numpy_array:
+        from warnings import warn
+        warn("'bcast_numpy_array=True' is deprecated and will be unsupported"
+             " from December 2021", DeprecationWarning, stacklevel=2)
+
+        if _bcast_actx_array_type:
+            raise ValueError("'bcast_numpy_array' and '_bcast_actx_array_type'"
+                             " cannot be both set.")
+
     if rel_comparison and eq_comparison is None:
         eq_comparison = True
 
@@ -216,7 +225,7 @@ def with_container_arithmetic(
         raise TypeError("bcast_obj_array must be set if bcast_numpy_array is")
 
     if _bcast_actx_array_type is None:
-        if _cls_has_array_context_attr:
+        if _cls_has_array_context_attr and (not bcast_numpy_array):
             _bcast_actx_array_type = bcast_number
         else:
             _bcast_actx_array_type = False
