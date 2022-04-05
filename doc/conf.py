@@ -14,11 +14,6 @@ exec(compile(open("../arraycontext/version.py").read(), "../arraycontext/version
 version = ".".join(str(x) for x in ver_dic["VERSION"])
 release = ver_dic["VERSION_TEXT"]
 
-autodoc_type_aliases = {
-        "DeviceScalar": "arraycontext.DeviceScalar",
-        "DeviceArray": "arraycontext.DeviceArray",
-        }
-
 intersphinx_mapping = {
     "https://docs.python.org/3/": None,
     "https://numpy.org/doc/stable/": None,

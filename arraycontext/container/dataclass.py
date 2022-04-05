@@ -70,7 +70,8 @@ def dataclass_array_container(cls: type) -> type:
                         f"field '{f.name}' not an instance of 'type': "
                         f"'{f.type!r}'")
 
-        return is_array_container_type(f.type)
+        from arraycontext import Array
+        return f.type is Array or is_array_container_type(f.type)
 
     from pytools import partition
     array_fields, non_array_fields = partition(is_array_field, fields(cls))

@@ -75,18 +75,8 @@ The interface of an array context
 
 .. currentmodule:: arraycontext
 
-.. class:: DeviceArray
-
-    A (type alias for an) array type supported by the :class:`ArrayContext`
-    meant to aid in typing annotations. For a explicit list of supported types
-    see :attr:`ArrayContext.array_types`.
-
-.. class:: DeviceScalar
-
-    A (type alias for a) scalar type supported by the :class:`ArrayContext`
-    meant to aid in typing annotations, e.g. for reductions. In :mod:`numpy`
-    terminology, this is just an array with a shape of ``()``.
-
+.. autoclass:: Array
+.. autoclass:: Scalar
 .. autoclass:: ArrayContext
 """
 
@@ -123,9 +113,59 @@ from pytools import memoize_method
 from pytools.tag import Tag
 
 
-DeviceArray = Any
-DeviceScalar = Any
+# {{{ typing
+
 _ScalarLike = Union[int, float, complex, np.generic]
+
+try:
+    from typing import Protocol
+except ImportError:
+    from typing_extensions import Protocol                  # type: ignore[misc]
+
+
+class Array(Protocol):
+    """A :class:`~typing.Protocol` for the array type supported by
+    :class:`ArrayContext`.
+
+    This is meant to aid in typing annotations. For a explicit list of
+    supported types see :attr:`ArrayContext.array_types`.
+
+    .. attribute:: shape
+    .. attribute:: dtype
+    """
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        ...
+
+    @property
+    def dtype(self) -> "np.dtype[Any]":
+        ...
+
+
+class Scalar(Protocol):
+    """A :class:`~typing.Protocol` for the scalar type supported by
+    :class:`ArrayContext`.
+
+    In :mod:`numpy` terminology, this is just an array with a shape of ``()``.
+
+    This is meant to aid in typing annotations. For a explicit list of
+    supported types see :attr:`ArrayContext.array_types`.
+
+    .. attribute:: shape
+    .. attribute:: dtype
+    """
+
+    @property
+    def shape(self) -> Tuple[()]:
+        ...
+
+    @property
+    def dtype(self) -> "np.dtype[Any]":
+        ...
+
+
+# }}}
 
 
 # {{{ ArrayContext

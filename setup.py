@@ -46,6 +46,7 @@ def main():
             "pytest>=2.3",
             "loopy>=2019.1",
             "dataclasses; python_version<'3.7'",
+            "typing_extensions; python_version<'3.8'",
             "types-dataclasses",
         ],
         package_data={"arraycontext": ["py.typed"]},
