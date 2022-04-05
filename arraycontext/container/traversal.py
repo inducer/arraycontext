@@ -833,6 +833,9 @@ def to_numpy(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
     """
     def _to_numpy_with_check(subary: Any) -> Any:
         if isinstance(subary, actx.array_types) or np.isscalar(subary):
+            # NOTE: these are allowed by np.isscalar, but not here
+            assert not isinstance(subary, (str, bytes))
+
             return actx.to_numpy(subary)
         else:
             raise TypeError(
