@@ -29,7 +29,7 @@ THE SOFTWARE.
 """
 
 import sys
-from .context import ArrayContext, DeviceArray, DeviceScalar
+from .context import ArrayContext, Array, Scalar
 
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
@@ -75,7 +75,7 @@ from .loopy import make_loopy_program
 
 
 __all__ = (
-        "ArrayContext", "DeviceScalar", "DeviceArray",
+        "ArrayContext", "Scalar", "Array",
 
         "CommonSubexpressionTag",
         "ElementwiseMapKernelTag",
@@ -125,24 +125,26 @@ def _deprecated_acf():
 
 
 _depr_name_to_replacement_and_obj = {
-        "get_container_context": ("get_container_context_opt",
-            get_container_context_opt),
-        "FirstAxisIsElementsTag":
-        ("meshmode.transform_metadata.FirstAxisIsElementsTag",
-            _FirstAxisIsElementsTag),
-        "_acf":
-        ("<no replacement yet>", _deprecated_acf),
+        "get_container_context": (
+            "get_container_context_opt",
+            get_container_context_opt, 2022),
+        "FirstAxisIsElementsTag": (
+            "meshmode.transform_metadata.FirstAxisIsElementsTag",
+            _FirstAxisIsElementsTag, 2022),
+        "_acf": ("<no replacement yet>", _deprecated_acf, 2022),
+        "DeviceArray": ("Array", Array, 2023),
+        "DeviceScalar": ("Scalar", Scalar, 2023),
         }
 
 if sys.version_info >= (3, 7):
     def __getattr__(name):
         replacement_and_obj = _depr_name_to_replacement_and_obj.get(name, None)
         if replacement_and_obj is not None:
-            replacement, obj = replacement_and_obj
+            replacement, obj, year = replacement_and_obj
             from warnings import warn
             warn(f"'arraycontext.{name}' is deprecated. "
                     f"Use '{replacement}' instead. "
-                    f"'arraycontext.{name}' will continue to work until 2022.",
+                    f"'arraycontext.{name}' will continue to work until {year}.",
                     DeprecationWarning, stacklevel=2)
             return obj
         else:
@@ -151,6 +153,8 @@ else:
     FirstAxisIsElementsTag = _FirstAxisIsElementsTag
     _acf = _deprecated_acf
     get_container_context = get_container_context_opt
+    DeviceArray = Array
+    DeviceScalar = Scalar
 
 # }}}
 

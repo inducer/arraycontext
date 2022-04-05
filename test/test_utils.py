@@ -90,6 +90,19 @@ def test_dataclass_array_container():
 
     # }}}
 
+    # {{{ device arrays
+
+    from arraycontext import Array
+
+    @dataclass
+    class ArrayContainerWithArray:
+        x: Array
+        y: Array
+
+    dataclass_array_container(ArrayContainerWithArray)
+
+    # }}}
+
 # }}}
 
 
