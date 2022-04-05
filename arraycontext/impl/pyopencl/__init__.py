@@ -29,11 +29,11 @@ THE SOFTWARE.
 """
 
 from warnings import warn
-from typing import Dict, List, Sequence, Optional, Union, TYPE_CHECKING
+from typing import Dict, List, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 
-from pytools.tag import Tag
+from pytools.tag import ToTagSetConvertible
 
 from arraycontext.context import ArrayContext, _ScalarLike
 from arraycontext.container.traversal import rec_map_array_container
@@ -301,7 +301,7 @@ class PyOpenCLArrayContext(ArrayContext):
 
         return t_unit
 
-    def tag(self, tags: Union[Sequence[Tag], Tag], array):
+    def tag(self, tags: ToTagSetConvertible, array):
         import pyopencl.array as cl_array
         from arraycontext.impl.pyopencl.taggable_cl_array import (TaggableCLArray,
                                                                   to_tagged_cl_array)
@@ -317,7 +317,7 @@ class PyOpenCLArrayContext(ArrayContext):
 
         return rec_map_array_container(_rec_tagged, array)
 
-    def tag_axis(self, iaxis, tags: Union[Sequence[Tag], Tag], array):
+    def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
         import pyopencl.array as cl_array
         from arraycontext.impl.pyopencl.taggable_cl_array import (TaggableCLArray,
                                                                   to_tagged_cl_array)

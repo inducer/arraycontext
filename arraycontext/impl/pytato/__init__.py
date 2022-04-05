@@ -44,8 +44,8 @@ THE SOFTWARE.
 from arraycontext.context import ArrayContext, _ScalarLike
 from arraycontext.container.traversal import rec_map_array_container
 import numpy as np
-from typing import Any, Callable, Union, Sequence, TYPE_CHECKING
-from pytools.tag import Tag
+from typing import Any, Callable, Union, TYPE_CHECKING
+from pytools.tag import ToTagSetConvertible
 
 if TYPE_CHECKING:
     import pytato
@@ -262,14 +262,14 @@ class PytatoPyOpenCLArrayContext(ArrayContext):
 
         return dag
 
-    def tag(self, tags: Union[Sequence[Tag], Tag], array):
+    def tag(self, tags: ToTagSetConvertible, array):
         return rec_map_array_container(lambda x: x.tagged(tags),
                                        array)
 
-    def tag_axis(self, iaxis, tags: Union[Sequence[Tag], Tag], array):
-        return rec_map_array_container(lambda x: x.with_tagged_axis(iaxis,
-                                                                     tags),
-                                        array)
+    def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
+        return rec_map_array_container(
+            lambda x: x.with_tagged_axis(iaxis, tags),
+            array)
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pyopencl.array as cla

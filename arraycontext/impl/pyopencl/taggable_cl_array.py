@@ -7,7 +7,7 @@
 
 import pyopencl.array as cla
 from typing import Any, Dict, FrozenSet, Optional, Tuple
-from pytools.tag import Taggable, Tag, TagsType, TagOrIterableType
+from pytools.tag import Taggable, Tag, ToTagSetConvertible
 from dataclasses import dataclass
 from pytools import memoize
 
@@ -93,12 +93,12 @@ class TaggableCLArray(cla.Array, Taggable):
         return type(self)(None, tags=self.tags, axes=self.axes,
                           **_unwrap_cl_array(ary))
 
-    def _with_new_tags(self, tags: TagsType) -> "TaggableCLArray":
+    def _with_new_tags(self, tags: FrozenSet[Tag]) -> "TaggableCLArray":
         return type(self)(None, tags=tags, axes=self.axes,
                           **_unwrap_cl_array(self))
 
     def with_tagged_axis(self, iaxis: int,
-                         tags: TagOrIterableType) -> "TaggableCLArray":
+                         tags: ToTagSetConvertible) -> "TaggableCLArray":
         """
         Returns a copy of *self* with *iaxis*-th axis tagged with *tags*.
         """
