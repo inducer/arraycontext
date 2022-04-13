@@ -672,36 +672,44 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
 # {{{ array container classes for test
 
 @with_container_arithmetic(bcast_obj_array=False,
-        eq_comparison=False, rel_comparison=False)
+        eq_comparison=False, rel_comparison=False,
+        _cls_has_array_context_attr=True)
 @dataclass_array_container
 @dataclass(frozen=True)
 class MyContainer:
     name: str
-    mass: DOFArray
+    mass: DOFArray   # or np.ndarray
     momentum: np.ndarray
-    enthalpy: DOFArray
+    enthalpy: DOFArray   # or np.ndarray
 
     @property
     def array_context(self):
-        return self.mass.array_context
+        if isinstance(self.mass, np.ndarray):
+            return next(iter(self.mass)).array_context
+        else:
+            return self.mass.array_context
 
 
 @with_container_arithmetic(
         bcast_obj_array=False,
         bcast_container_types=(DOFArray, np.ndarray),
         matmul=True,
-        rel_comparison=True,)
+        rel_comparison=True,
+        _cls_has_array_context_attr=True)
 @dataclass_array_container
 @dataclass(frozen=True)
 class MyContainerDOFBcast:
     name: str
-    mass: DOFArray
+    mass: DOFArray  # or np.ndarray
     momentum: np.ndarray
-    enthalpy: DOFArray
+    enthalpy: DOFArray  # or np.ndarray
 
     @property
     def array_context(self):
-        return self.mass.array_context
+        if isinstance(self.mass, np.ndarray):
+            return next(iter(self.mass)).array_context
+        else:
+            return self.mass.array_context
 
 
 def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
