@@ -30,6 +30,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import Union, get_args
+try:
+    # NOTE: only available in python >= 3.8
+    from typing import get_origin
+except ImportError:
+    from typing_extensions import get_origin
+
 from dataclasses import fields
 from arraycontext.container import is_array_container_type
 
@@ -50,6 +57,19 @@ def dataclass_array_container(cls: type) -> type:
     assert is_dataclass(cls)
 
     def is_array_field(f: Field) -> bool:
+        from arraycontext import Array
+
+        origin = get_origin(f.type)
+        if origin is Union:
+            if not all(
+                    arg is Array or is_array_container_type(arg)
+                    for arg in get_args(f.type)):
+                raise TypeError(
+                        f"Field '{f.name}' union contains non-array container "
+                        "arguments. All arguments must be array containers.")
+            else:
+                return True
+
         if __debug__:
             if not f.init:
                 raise ValueError(
@@ -61,6 +81,7 @@ def dataclass_array_container(cls: type) -> type:
 
             from typing import _SpecialForm
             if isinstance(f.type, _SpecialForm):
+                # NOTE: anything except a Union is not allowed
                 raise TypeError(
                         f"typing annotation not supported on field '{f.name}': "
                         f"'{f.type!r}'")
@@ -70,7 +91,6 @@ def dataclass_array_container(cls: type) -> type:
                         f"field '{f.name}' not an instance of 'type': "
                         f"'{f.type!r}'")
 
-        from arraycontext import Array
         return f.type is Array or is_array_container_type(f.type)
 
     from pytools import partition
