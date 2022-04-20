@@ -21,6 +21,8 @@ THE SOFTWARE.
 """
 
 from dataclasses import dataclass
+from typing import Union
+
 import numpy as np
 import pytest
 
@@ -678,9 +680,9 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
 @dataclass(frozen=True)
 class MyContainer:
     name: str
-    mass: DOFArray   # or np.ndarray
+    mass: Union[DOFArray, np.ndarray]
     momentum: np.ndarray
-    enthalpy: DOFArray   # or np.ndarray
+    enthalpy: Union[DOFArray, np.ndarray]
 
     @property
     def array_context(self):
@@ -700,9 +702,9 @@ class MyContainer:
 @dataclass(frozen=True)
 class MyContainerDOFBcast:
     name: str
-    mass: DOFArray  # or np.ndarray
+    mass: Union[DOFArray, np.ndarray]
     momentum: np.ndarray
-    enthalpy: DOFArray  # or np.ndarray
+    enthalpy: Union[DOFArray, np.ndarray]
 
     @property
     def array_context(self):
