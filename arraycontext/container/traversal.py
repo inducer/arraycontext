@@ -880,7 +880,10 @@ def to_numpy(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
                     f"array of type '{type(subary).__name__}' not in "
                     f"supported types {actx.array_types}")
 
-    return rec_map_array_container(_to_numpy_with_check, ary)
+    return rec_map_array_container(_to_numpy_with_check,
+                                   # do a freeze first, if 'actx' supports
+                                   # container-wide freezes
+                                   thaw(freeze(ary, actx), actx))
 
 # }}}
 
