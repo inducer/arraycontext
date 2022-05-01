@@ -32,6 +32,8 @@ import numpy as np
 from typing import Union, Callable, Any
 from pytools.tag import ToTagSetConvertible
 from arraycontext.context import ArrayContext, _ScalarLike
+from arraycontext.container.traversal import (with_array_context,
+                                              rec_map_array_container)
 
 
 class EagerJAXArrayContext(ArrayContext):
@@ -84,10 +86,21 @@ class EagerJAXArrayContext(ArrayContext):
                                   " operations using ArrayContext.np.")
 
     def freeze(self, array):
-        return array.block_until_ready()
+        from jax.numpy import DeviceArray
+
+        def _rec_freeze(ary):
+            if isinstance(ary, DeviceArray):
+                pass
+            else:
+                raise TypeError(f"{type(self).__name__}.thaw expects "
+                                f"`jax.DeviceArray` got {type(ary)}.")
+            return ary.block_until_ready()
+
+        return with_array_context(rec_map_array_container(_rec_freeze, array),
+                                  actx=None)
 
     def thaw(self, array):
-        return array
+        return with_array_context(array, actx=self)
 
     # }}}
 

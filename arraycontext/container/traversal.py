@@ -65,13 +65,15 @@ THE SOFTWARE.
 
 from typing import Any, Callable, Iterable, List, Optional, Union, Tuple
 from functools import update_wrapper, partial, singledispatch
+from warnings import warn
 
 import numpy as np
 
 from arraycontext.context import ArrayContext, Array, _ScalarLike
 from arraycontext.container import (
         ArrayT, ContainerT, ArrayOrContainerT, NotAnArrayContainerError,
-        serialize_container, deserialize_container)
+        serialize_container, deserialize_container,
+        get_container_context_recursively_opt)
 
 
 # {{{ array container traversal helpers
@@ -519,7 +521,6 @@ def rec_multimap_reduce_array_container(
 
 # {{{ freeze/thaw
 
-@singledispatch
 def freeze(
         ary: ArrayOrContainerT,
         actx: Optional[ArrayContext] = None) -> ArrayOrContainerT:
@@ -533,23 +534,33 @@ def freeze(
 
     See :meth:`ArrayContext.thaw`.
     """
-    try:
-        iterable = serialize_container(ary)
-    except NotAnArrayContainerError:
-        if actx is None:
-            raise TypeError(
-                    f"cannot freeze arrays of type {type(ary).__name__} "
-                    "when actx is not supplied. Try calling actx.freeze "
-                    "directly or supplying an array context")
-        else:
-            return actx.freeze(ary)
+
+    if actx is None:
+        warn("Calling freeze(ary) without specifying actx is deprecated, explicitly"
+             " call actx.freeze(ary) instead. This will stop working in 2023.",
+             DeprecationWarning, stacklevel=2)
+
+        actx = get_container_context_recursively_opt(ary)
     else:
-        return deserialize_container(ary, [
-            (key, freeze(subary, actx=actx)) for key, subary in iterable
-            ])
+        warn("Calling freeze(ary, actx) is deprecated, call actx.freeze(ary)"
+             " instead. This will stop working in 2023.",
+             DeprecationWarning, stacklevel=2)
+
+        if __debug__:
+            rec_actx = get_container_context_recursively_opt(ary)
+            if (rec_actx is not None) and (rec_actx is not actx):
+                raise ValueError("Supplied array context does not agree with"
+                                 " the one obtained by traversing 'ary'.")
+
+    if actx is None:
+        raise TypeError(
+                f"cannot freeze arrays of type {type(ary).__name__} "
+                "when actx is not supplied. Try calling actx.freeze "
+                "directly or supplying an array context")
+
+    return actx.freeze(ary)
 
 
-@singledispatch
 def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
     r"""Thaws recursively by going through all components of the
     :class:`ArrayContainer` *ary*.
@@ -570,14 +581,41 @@ def thaw(ary: ArrayOrContainerT, actx: ArrayContext) -> ArrayOrContainerT:
         in :mod:`meshmode`. This was necessary because
         :func:`~functools.singledispatch` only dispatches on the first argument.
     """
+    warn("Calling thaw(ary, actx) is deprecated, call actx.thaw(ary) instead."
+         " This will stop working in 2023.",
+         DeprecationWarning, stacklevel=2)
+
+    if __debug__:
+        rec_actx = get_container_context_recursively_opt(ary)
+        if rec_actx is not None:
+            raise ValueError("cannot thaw a container that already has an array"
+                             " context.")
+
+    return actx.thaw(ary)
+
+# }}}
+
+
+# {{{ with_array_context
+
+@singledispatch
+def with_array_context(ary: ArrayOrContainerT,
+                       actx: Optional[ArrayContext]) -> ArrayOrContainerT:
+    """
+    Recursively associates *actx* to all the components of *ary*.
+
+    Array container types may use :func:`functools.singledispatch` ``.register``
+    to register container-specific implementations. See `this issue
+    <https://github.com/inducer/arraycontext/issues/162>`__ for discussion of
+    the future of this functionality.
+    """
     try:
         iterable = serialize_container(ary)
     except NotAnArrayContainerError:
-        return actx.thaw(ary)
+        return ary
     else:
-        return deserialize_container(ary, [
-            (key, thaw(subary, actx)) for key, subary in iterable
-            ])
+        return deserialize_container(ary, [(key, with_array_context(subary, actx))
+                                           for key, subary in iterable])
 
 # }}}
 
