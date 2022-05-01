@@ -213,8 +213,10 @@ class ArrayContext(ABC):
 
     .. attribute:: array_types
 
-        A :class:`tuple` of types that are the valid base array classes
-        the context can operate on.
+        A :class:`tuple` of types that are the valid array classes the
+        context can operate on. However, it is not necessary that *all* the
+        :class:`ArrayContext`\ 's operations would be legal for the types in
+        *array_types*.
 
     .. automethod:: freeze
     .. automethod:: thaw
