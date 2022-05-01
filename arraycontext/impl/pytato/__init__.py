@@ -43,11 +43,12 @@ THE SOFTWARE.
 """
 
 from arraycontext.context import ArrayContext, _ScalarLike
-from arraycontext.container.traversal import rec_map_array_container
+from arraycontext.container.traversal import (rec_map_array_container,
+                                              with_array_context)
 from arraycontext.metadata import NameHint
 
 import numpy as np
-from typing import Any, Callable, Union, TYPE_CHECKING, Tuple, Type, FrozenSet
+from typing import Any, Callable, Union, TYPE_CHECKING, Tuple, Type, FrozenSet, Dict
 from pytools.tag import ToTagSetConvertible, normalize_tags, Tag
 import abc
 
@@ -248,45 +249,69 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         import pytato as pt
         import pyopencl.array as cla
         import loopy as lp
+
+        from arraycontext.container import ArrayT
+        from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pytato.utils import (_normalize_pt_expr,
                                                     get_cl_axes_from_pt_axes)
         from arraycontext.impl.pyopencl.taggable_cl_array import (to_tagged_cl_array,
                                                                   TaggableCLArray)
+        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
 
-        if isinstance(array, TaggableCLArray):
-            return array.with_queue(None)
-        if isinstance(array, cla.Array):
-            from warnings import warn
-            warn("Freezing pyopencl.array.Array will be deprecated in 2023."
-                 " Use `to_tagged_cl_array` to convert the array to"
-                 " TaggableCLArray", DeprecationWarning, stacklevel=2)
-            return to_tagged_cl_array(array.with_queue(None),
-                                      axes=None,
-                                      tags=frozenset())
-        if isinstance(array, pt.DataWrapper):
-            # trivial freeze.
-            return to_tagged_cl_array(array.data.with_queue(None),
-                                      axes=get_cl_axes_from_pt_axes(array.axes),
-                                      tags=array.tags)
-        if not isinstance(array, pt.Array):
-            raise TypeError(f"{type(self).__name__}.freeze invoked "
-                            f"with non-pytato array of type '{type(array)}'")
+        array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray,
+                                       pt.Array]] = {}
+        key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
+        key_to_pt_arrays: Dict[str, pt.Array] = {}
 
-        # {{{ early exit for 0-sized arrays
+        def _record_leaf_ary_in_dict(key: Tuple[Any, ...],
+                                     ary: ArrayT):
+            key_str = "_actx" + _ary_container_key_stringifier(key)
+            array_as_dict[key_str] = ary
+            return ary
 
-        if array.size == 0:
-            return to_tagged_cl_array(
-                cla.empty(self.queue.context,
-                          shape=array.shape,
-                          dtype=array.dtype,
-                          allocator=self.allocator),
-                get_cl_axes_from_pt_axes(array.axes),
-                array.tags)
+        rec_keyed_map_array_container(_record_leaf_ary_in_dict, array)
+
+        # {{{ remove any non pytato arrays from array_as_dict
+
+        for key, subary in array_as_dict.items():
+            if isinstance(subary, TaggableCLArray):
+                key_to_frozen_subary[key] = subary.with_queue(None)
+            elif isinstance(subary, cla.Array):
+                from warnings import warn
+                warn("Freezing pyopencl.array.Array will be deprecated in 2023."
+                     " Use `to_tagged_cl_array` to convert the array to"
+                     " TaggableCLArray", DeprecationWarning, stacklevel=2)
+                key_to_frozen_subary[key] = to_tagged_cl_array(
+                    subary.with_queue(None),
+                    axes=None,
+                    tags=frozenset())
+            elif isinstance(subary, pt.DataWrapper):
+                # trivial freeze.
+                key_to_frozen_subary[key] = to_tagged_cl_array(
+                    subary.data,
+                    axes=get_cl_axes_from_pt_axes(subary.axes),
+                    tags=subary.tags)
+            else:
+                if not isinstance(subary, pt.Array):
+                    raise TypeError(f"{type(self).__name__}.freeze invoked "
+                                    f"with non-pytato array of type '{type(array)}'")
+
+                if subary.size == 0:
+                    # early exit for 0-sized arrays
+                    key_to_frozen_subary[key] = to_tagged_cl_array(
+                        cla.empty(self.queue.context,
+                                  shape=subary.shape,
+                                  dtype=subary.dtype,
+                                  allocator=self.allocator),
+                        get_cl_axes_from_pt_axes(subary.axes),
+                        subary.tags)
+                else:
+                    key_to_pt_arrays[key] = subary
 
         # }}}
 
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
-                {"_actx_out": array})
+            key_to_pt_arrays)
 
         normalized_expr, bound_arguments = _normalize_pt_expr(
                 pt_dict_of_named_arrays)
@@ -306,16 +331,31 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                                        cl_device=self.queue.device)
             pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
             self._freeze_prg_cache[normalized_expr] = pt_prg
+        else:
+            transformed_dag = self._dag_transform_cache[normalized_expr]
 
         assert len(pt_prg.bound_arguments) == 0
         evt, out_dict = pt_prg(self.queue, **bound_arguments)
         evt.wait()
+        assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
-        return to_tagged_cl_array(
-            out_dict["_actx_out"].with_queue(None),
-            get_cl_axes_from_pt_axes(
-                self._dag_transform_cache[normalized_expr]["_actx_out"].expr.axes),
-            array.tags)
+        key_to_frozen_subary = {
+            **key_to_frozen_subary,
+            **{k: to_tagged_cl_array(v.with_queue(None),
+                                     get_cl_axes_from_pt_axes(transformed_dag[k]
+                                                              .expr
+                                                              .axes),
+                                     transformed_dag[k].expr.tags)
+               for k, v in out_dict.items()}
+        }
+
+        def _to_frozen(key: Tuple[Any, ...], ary: ArrayT):
+            key_str = "_actx" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        return with_array_context(rec_keyed_map_array_container(_to_frozen,
+                                                                array),
+                                  actx=None)
 
     def thaw(self, array):
         import pytato as pt
@@ -324,18 +364,21 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                                                                   to_tagged_cl_array)
         import pyopencl.array as cl_array
 
-        if isinstance(array, TaggableCLArray):
-            pass
-        elif isinstance(array, cl_array.Array):
-            array = to_tagged_cl_array(array, axes=None, tags=frozenset())
-        else:
-            raise TypeError(f"{type(self).__name__}.thaw expects "
-                            "'TaggableCLArray' or 'cl.array.Array' got "
-                            f"{type(array)}.")
+        def _rec_thaw(ary):
+            if isinstance(ary, TaggableCLArray):
+                pass
+            elif isinstance(ary, cl_array.Array):
+                ary = to_tagged_cl_array(ary, axes=None, tags=frozenset())
+            else:
+                raise TypeError(f"{type(self).__name__}.thaw expects "
+                                "'TaggableCLArray' or 'cl.array.Array' got "
+                                f"{type(ary)}.")
+            return pt.make_data_wrapper(ary.with_queue(self.queue),
+                                        axes=get_pt_axes_from_cl_axes(ary.axes),
+                                        tags=ary.tags)
 
-        return pt.make_data_wrapper(array.with_queue(self.queue),
-                                    axes=get_pt_axes_from_cl_axes(array.axes),
-                                    tags=array.tags)
+        return with_array_context(rec_map_array_container(_rec_thaw, array),
+                                  actx=self)
 
     # }}}
 
@@ -443,41 +486,75 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
     def freeze(self, array):
         import pytato as pt
+
         from jax.numpy import DeviceArray
+        from arraycontext.container import ArrayT
+        from arraycontext.container.traversal import rec_keyed_map_array_container
+        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
 
-        if isinstance(array, DeviceArray):
-            return array.block_until_ready()
-        if not isinstance(array, pt.Array):
-            raise TypeError(f"{type(self)}.freeze invoked with "
-                            f"non-pytato array of type '{type(array)}'")
+        array_as_dict: Dict[str, Union[DeviceArray, pt.Array]] = {}
+        key_to_frozen_subary: Dict[str, DeviceArray] = {}
+        key_to_pt_arrays: Dict[str, pt.Array] = {}
 
-        from arraycontext.impl.pytato.utils import _normalize_pt_expr
-        pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
-                {"_actx_out": array})
+        def _record_leaf_ary_in_dict(key: Tuple[Any, ...],
+                                     ary: Union[DeviceArray, pt.Array]):
+            key_str = "_actx" + _ary_container_key_stringifier(key)
+            array_as_dict[key_str] = ary
+            return ary
 
-        normalized_expr, bound_arguments = _normalize_pt_expr(
-                pt_dict_of_named_arrays)
+        rec_keyed_map_array_container(_record_leaf_ary_in_dict, array)
 
-        try:
-            pt_prg = self._freeze_prg_cache[normalized_expr]
-        except KeyError:
-            pt_prg = pt.generate_jax(self.transform_dag(normalized_expr),
-                                     jit=True)
-            self._freeze_prg_cache[normalized_expr] = pt_prg
+        # {{{ remove any non pytato arrays from array_as_dict
 
-        assert len(pt_prg.bound_arguments) == 0
-        out_dict = pt_prg(**bound_arguments)
+        for key, subary in array_as_dict.items():
+            if isinstance(subary, DeviceArray):
+                key_to_frozen_subary[key] = subary.block_until_ready()
+            elif isinstance(subary, pt.DataWrapper):
+                # trivial freeze.
+                key_to_frozen_subary[key] = subary.data.block_until_ready()
+            else:
+                if not isinstance(subary, pt.Array):
+                    raise TypeError(f"{type(self).__name__}.freeze invoked "
+                                    f"with non-pytato array of type '{type(array)}'")
 
-        return out_dict["_actx_out"].block_until_ready()
+                key_to_pt_arrays[key] = subary
+
+        # }}}
+
+        pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(key_to_pt_arrays)
+        transformed_dag = self.transform_dag(pt_dict_of_named_arrays)
+        pt_prg = pt.generate_jax(transformed_dag, jit=True)
+        out_dict = pt_prg()
+        assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
+
+        key_to_frozen_subary = {
+            **key_to_frozen_subary,
+            **{k: v.block_until_ready()
+               for k, v in out_dict.items()}
+        }
+
+        def _to_frozen(key: Tuple[Any, ...], ary: ArrayT):
+            key_str = "_actx" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        return with_array_context(rec_keyed_map_array_container(_to_frozen,
+                                                                array),
+                                  actx=None)
 
     def thaw(self, array):
         import pytato as pt
+        from jax.numpy import DeviceArray
 
-        if not isinstance(array, self.frozen_array_types):
-            raise TypeError(f"{type(self)}.thaw expects jax device arrays, got "
-                            f"{type(array)}")
+        def _rec_thaw(ary):
+            if isinstance(ary, DeviceArray):
+                pass
+            else:
+                raise TypeError(f"{type(self).__name__}.thaw expects "
+                                f"'jax.DeviceArray' got {type(ary)}.")
+            return pt.make_data_wrapper(ary)
 
-        return pt.make_data_wrapper(array)
+        return with_array_context(rec_map_array_container(_rec_thaw, array),
+                                  actx=self)
 
     def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
         from .compile import LazilyJAXCompilingFunctionCaller

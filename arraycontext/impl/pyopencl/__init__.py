@@ -36,7 +36,8 @@ import numpy as np
 from pytools.tag import ToTagSetConvertible
 
 from arraycontext.context import ArrayContext, _ScalarLike
-from arraycontext.container.traversal import rec_map_array_container
+from arraycontext.container.traversal import (rec_map_array_container,
+                                              with_array_context)
 
 
 if TYPE_CHECKING:
@@ -207,27 +208,41 @@ class PyOpenCLArrayContext(ArrayContext):
                 for name, ary in result.items()}
 
     def freeze(self, array):
-        array.finish()
-        return array.with_queue(None)
+        import pyopencl.array as cl_array
+
+        def _rec_freeze(ary):
+            if isinstance(ary, cl_array.Array):
+                ary.finish()
+                return ary.with_queue(None)
+            else:
+                raise TypeError(f"{type(self).__name__} cannot freeze"
+                                f" arrays of type '{type(ary).__name__}'.")
+
+        return with_array_context(rec_map_array_container(_rec_freeze, array),
+                                  actx=None)
 
     def thaw(self, array):
         from arraycontext.impl.pyopencl.taggable_cl_array import (TaggableCLArray,
                                                                   to_tagged_cl_array)
         import pyopencl.array as cl_array
 
-        if isinstance(array, TaggableCLArray):
-            return array.with_queue(self.queue)
-        elif isinstance(array, cl_array.Array):
-            from warnings import warn
-            warn("Invoking PyOpenCLArrayContext.thaw with pyopencl.Array"
-                 " will be unsupported in 2023. Use `to_tagged_cl_array`"
-                 " to convert instances of pyopencl.Array to TaggableCLArray.",
-                 DeprecationWarning, stacklevel=2)
-            return (to_tagged_cl_array(array, axes=None, tags=frozenset())
-                    .with_queue(self.queue))
-        else:
-            raise ValueError("array should be a cl.array.Array,"
-                             f" got '{type(array)}'")
+        def _rec_thaw(ary):
+            if isinstance(ary, TaggableCLArray):
+                return ary.with_queue(self.queue)
+            elif isinstance(ary, cl_array.Array):
+                from warnings import warn
+                warn("Invoking PyOpenCLArrayContext.thaw with pyopencl.Array"
+                    " will be unsupported in 2023. Use `to_tagged_cl_array`"
+                    " to convert instances of pyopencl.Array to TaggableCLArray.",
+                    DeprecationWarning, stacklevel=2)
+                return (to_tagged_cl_array(ary, axes=None, tags=frozenset())
+                        .with_queue(self.queue))
+            else:
+                raise ValueError("array should be a cl.array.Array,"
+                                f" got '{type(ary)}'")
+
+        return with_array_context(rec_map_array_container(_rec_thaw, array),
+                                  actx=self)
 
     # }}}
 
