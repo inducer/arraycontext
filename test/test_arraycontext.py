@@ -36,7 +36,8 @@ from arraycontext import (
         FirstAxisIsElementsTag,
         PyOpenCLArrayContext,
         PytatoPyOpenCLArrayContext,
-        ArrayContainer,)
+        ArrayContainer,
+        to_numpy)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
         )
@@ -1495,6 +1496,14 @@ def test_taggable_cl_array_tags(actx_factory):
     # }}}
 
 # }}}
+
+
+def test_to_numpy_on_frozen_arrays(actx_factory):
+    # See https://github.com/inducer/arraycontext/issues/159
+    actx = actx_factory()
+    u = actx.freeze(actx.zeros(10, dtype="float64")+1)
+    np.testing.assert_allclose(actx.to_numpy(u), 1)
+    np.testing.assert_allclose(to_numpy(u, actx), 1)
 
 
 if __name__ == "__main__":
