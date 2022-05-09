@@ -32,7 +32,7 @@ from arraycontext import (
         ArrayContext,
         dataclass_array_container, with_container_arithmetic,
         serialize_container, deserialize_container,
-        freeze, thaw,
+        freeze, thaw, with_array_context,
         FirstAxisIsElementsTag,
         PyOpenCLArrayContext,
         PytatoPyOpenCLArrayContext,
@@ -188,22 +188,9 @@ def _deserialize_dof_container(
                 for i, (stream_i, v) in enumerate(iterable)))
 
 
-@freeze.register(DOFArray)
-def _freeze_dofarray(ary, actx=None):
-    assert actx is None
-    return type(ary)(
-        None,
-        tuple(ary.array_context.freeze(subary) for subary in ary.data))
-
-
-@thaw.register(DOFArray)
-def _thaw_dofarray(ary, actx):
-    if ary.array_context is not None:
-        raise ValueError("cannot thaw DOFArray that already has an array context")
-
-    return type(ary)(
-        actx,
-        tuple(actx.thaw(subary) for subary in ary.data))
+@with_array_context.register(DOFArray)
+def _with_actx_dofarray(ary, actx):
+    return type(ary)(actx, ary.data)
 
 # }}}
 
@@ -1193,6 +1180,11 @@ class Velocity2D:
     u: ArrayContainer
     v: ArrayContainer
     array_context: ArrayContext
+
+
+@with_array_context.register(Velocity2D)
+def _with_actx_velocity_2d(ary, actx):
+    return type(ary)(ary.u, ary.v, actx)
 
 
 def scale_and_orthogonalize(alpha, vel):
