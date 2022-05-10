@@ -2,8 +2,6 @@ Python 3 POCL:
   script: |
     export PY_EXE=python3
     export PYOPENCL_TEST=portable:pthread
-    # cython is here because pytential (for now, for TS) depends on it
-    export EXTRA_INSTALL="pybind11 cython numpy mako mpi4py oct2py"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
     . ./build-and-test-py-project.sh
   tags:
@@ -20,8 +18,6 @@ Python 3 Nvidia Titan V:
   script: |
     export PY_EXE=python3
     export PYOPENCL_TEST=nvi:titan
-    export EXTRA_INSTALL="pybind11 cython numpy mako oct2py"
-    # cython is here because pytential (for now, for TS) depends on it
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
     . ./build-and-test-py-project.sh
   tags:
@@ -38,7 +34,6 @@ Python 3 POCL Examples:
   - test -n "$SKIP_EXAMPLES" && exit
   - export PY_EXE=python3
   - export PYOPENCL_TEST=portable:pthread
-  - export EXTRA_INSTALL="pybind11 numpy mako"
   - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
   - ". ./build-py-project-and-run-examples.sh"
   tags:
@@ -61,7 +56,6 @@ Python 3 Conda:
 
 Documentation:
   script: |
-    EXTRA_INSTALL="pybind11 cython numpy"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-docs.sh
     CI_SUPPORT_SPHINX_VERSION_SPECIFIER=">=4.0"
     . ./build-docs.sh
@@ -80,7 +74,6 @@ Flake8:
 Pylint:
   script: |
     export PY_EXE=python3
-    EXTRA_INSTALL="pybind11 numpy mako"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
     . ./prepare-and-run-pylint.sh "$CI_PROJECT_NAME" examples/*.py test/test_*.py
   tags:
