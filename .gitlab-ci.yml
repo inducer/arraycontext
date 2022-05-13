@@ -16,10 +16,13 @@ Python 3 POCL:
 
 Python 3 Nvidia Titan V:
   script: |
+    curl -L -O https://tiker.net/ci-support-v0
+    . ./ci-support-v0
     export PYOPENCL_TEST=nvi:titan
-    export EXTRA_INSTALL="jax[cuda]"
-    curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
-    . ./build-and-test-py-project.sh
+    build_py_project_in_venv
+    pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html
+    test_py_project
+
   tags:
   - python3
   - nvidia-titan-v
@@ -82,6 +85,7 @@ Pylint:
 
 Mypy:
   script: |
+    EXTRA_INSTALL="jax[cpu]"
     curl -L -O https://tiker.net/ci-support-v0
     . ./ci-support-v0
     build_py_project_in_venv
