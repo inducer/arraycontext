@@ -1,6 +1,5 @@
 Python 3 POCL:
   script: |
-    export PY_EXE=python3
     export PYOPENCL_TEST=portable:pthread
     export EXTRA_INSTALL="jax[cpu]"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
@@ -17,7 +16,6 @@ Python 3 POCL:
 
 Python 3 Nvidia Titan V:
   script: |
-    export PY_EXE=python3
     export PYOPENCL_TEST=nvi:titan
     export EXTRA_INSTALL="jax[cuda]"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
@@ -34,7 +32,6 @@ Python 3 Nvidia Titan V:
 Python 3 POCL Examples:
   script:
   - test -n "$SKIP_EXAMPLES" && exit
-  - export PY_EXE=python3
   - export PYOPENCL_TEST=portable:pthread
   - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
   - ". ./build-py-project-and-run-examples.sh"
@@ -75,7 +72,6 @@ Flake8:
 
 Pylint:
   script: |
-    export PY_EXE=python3
     EXTRA_INSTALL="jax[cpu]"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
     . ./prepare-and-run-pylint.sh "$CI_PROJECT_NAME" examples/*.py test/test_*.py
