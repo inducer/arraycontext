@@ -327,6 +327,8 @@ class ArrayContext(ABC):
         metadata, return a version of *array* with the *tags* applied. *array*
         itself is not modified.
 
+        See :ref:`metadata` as well as application-specific metadata types.
+
         .. versionadded:: 2021.2
         """
 
@@ -337,6 +339,8 @@ class ArrayContext(ABC):
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* in which axis number *iaxis* has
         the *tags* applied. *array* itself is not modified.
+
+        See :ref:`metadata` as well as application-specific metadata types.
 
         .. versionadded:: 2021.2
         """

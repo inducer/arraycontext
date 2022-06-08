@@ -1,6 +1,13 @@
 Other functionality
 ===================
 
+.. _metadata:
+
+Metadata ("tags") for Arrays and Array Axes
+-------------------------------------------
+
+.. automodule:: arraycontext.metadata
+
 :class:`~arraycontext.ArrayContext`-generating fixture for :mod:`pytest`
 ------------------------------------------------------------------------
 
