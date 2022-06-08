@@ -53,6 +53,8 @@ if TYPE_CHECKING:
     import pytato
 
 
+# {{{ _BasePytatoArrayContext
+
 class _BasePytatoArrayContext(ArrayContext, abc.ABC):
     """
     An abstract :class:`ArrayContext` that uses :mod:`pytato` data types to
@@ -122,6 +124,10 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
     def permits_advanced_indexing(self):
         return True
 
+# }}}
+
+
+# {{{ PytatoPyOpenCLArrayContext
 
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
@@ -362,6 +368,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             for name, arg in zip(arg_names, args)
             ])
 
+# }}}
+
+
+# {{{ PytatoJAXArrayContext
 
 class PytatoJAXArrayContext(_BasePytatoArrayContext):
     """
@@ -498,3 +508,8 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             preprocess_arg(name, arg)
             for name, arg in zip(arg_names, args)
             ])
+
+# }}}
+
+
+# vim: foldmethod=marker
