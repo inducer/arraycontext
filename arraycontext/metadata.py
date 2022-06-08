@@ -1,3 +1,8 @@
+"""
+.. autoclass:: NameHint
+"""
+
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -23,8 +28,25 @@ THE SOFTWARE.
 """
 
 import sys
-from pytools.tag import Tag
+from dataclasses import dataclass
+from pytools.tag import Tag, UniqueTag
 from warnings import warn
+
+
+@dataclass(frozen=True)
+class NameHint(UniqueTag):
+    """A tag acting on arrays or array axes. Express that :attr:`name` is a
+    useful starting point in forming an identifier for the tagged object.
+
+    .. attribute:: name
+
+        A string. Must be a valid Python identifier. Not necessarily unique.
+    """
+    name: str
+
+    def __post_init__(self):
+        if not self.name.isidentifier():
+            raise ValueError("'name' must be an identifier")
 
 
 # {{{ deprecation handling
