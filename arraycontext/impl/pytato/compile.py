@@ -468,6 +468,14 @@ def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
             pass
         elif isinstance(arg, pt.Array):
             # got an array expression => evaluate it
+            from warnings import warn
+            warn(f"Argument array '{arg_id}' to a compiled function is "
+                    "unevaluated. Evaluating just-in-time, at "
+                    "considerable expense. This is deprecated and will stop "
+                    "working in 2023. To avoid this warning, force evaluation "
+                    "of all arguments via freeze/thaw.",
+                    DeprecationWarning, stacklevel=4)
+
             arg = actx.freeze(arg)
         else:
             raise NotImplementedError(type(arg))
