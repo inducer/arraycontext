@@ -363,7 +363,7 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
 
         import loopy as lp
 
-        with ProcessLogger(logger, "transform_dag"):
+        with ProcessLogger(logger, f"transform_dag for '{self.f}'"):
             pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
 
         name_in_program_to_tags = {
@@ -373,7 +373,7 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
             name: out.axes
             for name, out in pt_dict_of_named_arrays._data.items()}
 
-        with ProcessLogger(logger, "generate_loopy"):
+        with ProcessLogger(logger, f"generate_loopy for '{self.f}'"):
             pytato_program = pt.generate_loopy(pt_dict_of_named_arrays,
                                                options=lp.Options(
                                                    return_dict=True,
@@ -382,7 +382,7 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
                                                cl_device=self.actx.queue.device)
             assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
-        with ProcessLogger(logger, "transform_loopy_program"):
+        with ProcessLogger(logger, f"transform_loopy_program for '{self.f}'"):
 
             pytato_program = (pytato_program
                               .with_transformed_program(
