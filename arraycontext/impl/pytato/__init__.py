@@ -296,17 +296,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     raise TypeError(f"{type(self).__name__}.freeze invoked "
                                     f"with non-pytato array of type '{type(array)}'")
 
-                if subary.size == 0:
-                    # early exit for 0-sized arrays
-                    key_to_frozen_subary[key] = to_tagged_cl_array(
-                        cla.empty(self.queue.context,
-                                  shape=subary.shape,
-                                  dtype=subary.dtype,
-                                  allocator=self.allocator),
-                        get_cl_axes_from_pt_axes(subary.axes),
-                        subary.tags)
-                else:
-                    key_to_pt_arrays[key] = subary
+                key_to_pt_arrays[key] = subary
 
         # }}}
 
