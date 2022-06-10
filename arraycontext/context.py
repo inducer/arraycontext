@@ -80,6 +80,19 @@ The interface of an array context
 .. autoclass:: Array
 .. autoclass:: Scalar
 .. autoclass:: ArrayContext
+
+Internal typing helpers (do not import)
+---------------------------------------
+
+.. currentmodule:: arraycontext.context
+
+This is only here because the documentation tool wants it.
+
+.. class:: SelfType
+
+.. class:: ArrayT
+
+    A type variable, with a lower bound of :class:`Array`.
 """
 
 
@@ -110,7 +123,7 @@ THE SOFTWARE.
 from abc import ABC, abstractmethod
 from typing import (
         Any, Callable, Dict, Optional, Tuple, Union,
-        TYPE_CHECKING)
+        TYPE_CHECKING, TypeVar)
 
 import numpy as np
 from pytools import memoize_method
@@ -128,6 +141,8 @@ try:
     from typing import Protocol
 except ImportError:
     from typing_extensions import Protocol                  # type: ignore[misc]
+
+SelfType = TypeVar("SelfType")
 
 
 class Array(Protocol):
@@ -148,6 +163,9 @@ class Array(Protocol):
     @property
     def dtype(self) -> "np.dtype[Any]":
         ...
+
+
+ArrayT = TypeVar("ArrayT", bound=Array)
 
 
 class Scalar(Protocol):
@@ -322,7 +340,7 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag(self,
             tags: ToTagSetConvertible,
-            array: Array) -> Array:
+            array: ArrayT) -> ArrayT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* with the *tags* applied. *array*
         itself is not modified.
@@ -335,7 +353,7 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag_axis(self,
                  iaxis: int, tags: ToTagSetConvertible,
-                 array: Array) -> Array:
+                 array: ArrayT) -> ArrayT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* in which axis number *iaxis* has
         the *tags* applied. *array* itself is not modified.
@@ -406,7 +424,7 @@ class ArrayContext(ABC):
         return self.tag(tagged, out_ary)
 
     @abstractmethod
-    def clone(self) -> "ArrayContext":
+    def clone(self: SelfType) -> SelfType:
         """If possible, return a version of *self* that is semantically
         equivalent (i.e. implements all array operations in the same way)
         but is a separate object. May return *self* if that is not possible.
