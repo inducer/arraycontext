@@ -35,8 +35,9 @@ from arraycontext import (
         FirstAxisIsElementsTag,
         PyOpenCLArrayContext,
         PytatoPyOpenCLArrayContext,
+        EagerJAXArrayContext,
         ArrayContainer,
-        to_numpy)
+        to_numpy, tag_axes)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
         )
@@ -1442,7 +1443,7 @@ def test_actx_compile_on_pure_array_return(actx_factory):
 # }}}
 
 
-# {{{
+# {{{ test_taggable_cl_array_tags
 
 def test_taggable_cl_array_tags(actx_factory):
     actx = actx_factory()
@@ -1495,6 +1496,27 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
     u = actx.freeze(actx.zeros(10, dtype="float64")+1)
     np.testing.assert_allclose(actx.to_numpy(u), 1)
     np.testing.assert_allclose(to_numpy(u, actx), 1)
+
+
+def test_tagging(actx_factory):
+    actx = actx_factory()
+
+    if isinstance(actx, EagerJAXArrayContext):
+        pytest.skip("Eager JAX has no tagging support")
+
+    from pytools.tag import Tag
+
+    class ExampleTag(Tag):
+        pass
+
+    ary = tag_axes(actx, {0: ExampleTag()},
+            actx.tag(
+                ExampleTag(),
+                actx.zeros((20, 20), dtype=np.float64)))
+
+    assert ary.tags_of_type(ExampleTag)
+    assert ary.axes[0].tags_of_type(ExampleTag)
+    assert not ary.axes[1].tags_of_type(ExampleTag)
 
 
 if __name__ == "__main__":
