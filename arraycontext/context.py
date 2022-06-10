@@ -80,6 +80,7 @@ The interface of an array context
 .. autoclass:: Array
 .. autoclass:: Scalar
 .. autoclass:: ArrayContext
+.. autofunction:: tag_axes
 
 Internal typing helpers (do not import)
 ---------------------------------------
@@ -122,7 +123,7 @@ THE SOFTWARE.
 
 from abc import ABC, abstractmethod
 from typing import (
-        Any, Callable, Dict, Optional, Tuple, Union,
+        Any, Callable, Dict, Optional, Tuple, Union, Mapping,
         TYPE_CHECKING, TypeVar)
 
 import numpy as np
@@ -485,6 +486,25 @@ class ArrayContext(ABC):
         """
         *True* if the arrays support :mod:`numpy`'s advanced indexing semantics.
         """
+
+# }}}
+
+
+# {{{ tagging helpers
+
+def tag_axes(
+        actx: ArrayContext,
+        dim_to_tags: Mapping[int, ToTagSetConvertible],
+        ary: ArrayT) -> ArrayT:
+    """
+    Return a copy of *ary* with the axes in *dim_to_tags* tagged with their
+    corresponding tags. Equivalent to repeated application of
+    :meth:`ArrayContext.tag_axis`.
+    """
+    for iaxis, tags in dim_to_tags.items():
+        ary = actx.tag_axis(iaxis, tags, ary)
+
+    return ary
 
 # }}}
 
