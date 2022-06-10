@@ -296,6 +296,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     raise TypeError(f"{type(self).__name__}.freeze invoked "
                                     f"with non-pytato array of type '{type(array)}'")
 
+                # Don't be tempted to take shortcuts here, e.g. for empty
+                # arrays, as this will inhibit metadata propagation that
+                # may happen in transform_dag below. See
+                # https://github.com/inducer/arraycontext/pull/167#issuecomment-1151877480
                 key_to_pt_arrays[key] = subary
 
         # }}}
