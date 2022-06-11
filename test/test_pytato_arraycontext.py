@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext import (freeze, thaw, PytatoPyOpenCLArrayContext)
+from arraycontext import PytatoPyOpenCLArrayContext
 from arraycontext import pytest_generate_tests_for_array_contexts
 from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
 from pytools.tag import Tag
@@ -83,13 +83,13 @@ def test_tags_preserved_after_freeze(actx_factory):
     rng = default_rng()
 
     actx = actx_factory()
-    foo = thaw(freeze(actx
-                      .from_numpy(rng.random((10, 4)))
-                      .tagged(FooTag())
-                      .with_tagged_axis(0, BarTag())
-                      .with_tagged_axis(1, BazTag()),
-                      actx),
-               actx)
+    foo = actx.thaw(actx.freeze(
+        actx.from_numpy(rng.random((10, 4)))
+        .tagged(FooTag())
+        .with_tagged_axis(0, BarTag())
+        .with_tagged_axis(1, BazTag())
+        ))
+
     assert foo.tags_of_type(FooTag)
     assert foo.axes[0].tags_of_type(BarTag)
     assert foo.axes[1].tags_of_type(BazTag)

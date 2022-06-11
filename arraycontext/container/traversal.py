@@ -883,7 +883,7 @@ def to_numpy(ary: ArrayOrContainerT, actx: ArrayContext) -> Any:
     return rec_map_array_container(_to_numpy_with_check,
                                    # do a freeze first, if 'actx' supports
                                    # container-wide freezes
-                                   thaw(freeze(ary, actx), actx))
+                                   actx.thaw(actx.freeze(ary)))
 
 # }}}
 
