@@ -31,8 +31,7 @@ from pytools.obj_array import make_obj_array
 from arraycontext import (
         ArrayContext,
         dataclass_array_container, with_container_arithmetic,
-        serialize_container, deserialize_container,
-        freeze, thaw, with_array_context,
+        serialize_container, deserialize_container, with_array_context,
         FirstAxisIsElementsTag,
         PyOpenCLArrayContext,
         PytatoPyOpenCLArrayContext,
@@ -955,22 +954,22 @@ def test_container_freeze_thaw(actx_factory):
     assert get_container_context_recursively_opt(mat_of_dofs) is actx
 
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
-        frozen_ary = freeze(ary)
-        thawed_ary = thaw(frozen_ary, actx)
-        frozen_ary = freeze(thawed_ary)
+        frozen_ary = actx.freeze(ary)
+        thawed_ary = actx.thaw(frozen_ary)
+        frozen_ary = actx.freeze(thawed_ary)
 
         assert get_container_context_recursively_opt(frozen_ary) is None
         assert get_container_context_recursively_opt(thawed_ary) is actx
 
     actx2 = actx.clone()
 
-    ary_dof_frozen = freeze(ary_dof)
+    ary_dof_frozen = actx.freeze(ary_dof)
     with pytest.raises(ValueError) as exc_info:
         ary_dof + ary_dof_frozen
 
     assert "frozen" in str(exc_info.value)
 
-    ary_dof_2 = thaw(freeze(ary_dof), actx2)
+    ary_dof_2 = actx2.thaw(actx.freeze(ary_dof))
 
     with pytest.raises(ValueError):
         ary_dof + ary_dof_2
@@ -1434,7 +1433,9 @@ def test_actx_compile_on_pure_array_return(actx_factory):
         return 2 * x
 
     actx = actx_factory()
-    ones = actx.zeros(shape=(10, 4), dtype=np.float64) + 1
+    ones = actx.thaw(actx.freeze(
+        actx.zeros(shape=(10, 4), dtype=np.float64) + 1
+        ))
     np.testing.assert_allclose(actx.to_numpy(_twice(ones)),
                                actx.to_numpy(actx.compile(_twice)(ones)))
 
