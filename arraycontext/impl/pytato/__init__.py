@@ -13,8 +13,8 @@ Following :mod:`pytato`-based array context are provided:
 .. autoclass:: PytatoJAXArrayContext
 
 
-Compiling a python callable
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compiling a Python callable (Internal)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: arraycontext.impl.pytato.compile
 """
@@ -42,18 +42,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import sys
 from arraycontext.context import ArrayContext, _ScalarLike
 from arraycontext.container.traversal import (rec_map_array_container,
                                               with_array_context)
 from arraycontext.metadata import NameHint
 
 import numpy as np
-from typing import Any, Callable, Union, TYPE_CHECKING, Tuple, Type, FrozenSet, Dict
+from typing import (Any, Callable, Union, TYPE_CHECKING, Tuple, Type, FrozenSet,
+        Dict, Optional)
 from pytools.tag import ToTagSetConvertible, normalize_tags, Tag
 import abc
 
 if TYPE_CHECKING:
     import pytato
+    import pyopencl as cl
+
+if getattr(sys, "ARRAYCONTEXT_BUILDING_SPHINX_DOCS", False):
+    import pyopencl as cl  # noqa: F811
 
 
 # {{{ tag conversion
@@ -99,10 +105,28 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     .. automethod:: compile
     """
-    def __init__(self):
+    def __init__(self,
+            *, compile_trace_callback: Optional[Callable[[Any, str, Any], None]]
+             = None) -> None:
+        """
+        :arg compile_trace_callback: A function of three arguments
+            *(what, stage, ir)*, where *what* identifies the object
+            being compiled, *stage* is a string describing the compilation
+            pass, and *ir* is an object containing the intermediate
+            representation. This interface should be considered
+            unstable.
+        """
         super().__init__()
         self._freeze_prg_cache = {}
         self._dag_transform_cache = {}
+
+        if compile_trace_callback is None:
+            def _compile_trace_callback(what, stage, ir):
+                pass
+
+            compile_trace_callback = _compile_trace_callback
+
+        self._compile_trace_callback = compile_trace_callback
 
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
@@ -182,11 +206,21 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     .. automethod:: compile
     """
-
-    def __init__(self, queue, allocator=None):
+    def __init__(self, queue: "cl.CommandQueue", allocator=None,
+            *,
+            compile_trace_callback: Optional[Callable[[Any, str, Any], None]]
+             = None) -> None:
+        """
+        :arg compile_trace_callback: A function of three arguments
+            *(what, stage, ir)*, where *what* identifies the object
+            being compiled, *stage* is a string describing the compilation
+            pass, and *ir* is an object containing the intermediate
+            representation. This interface should be considered
+            unstable.
+        """
         import pytato as pt
         import pyopencl.array as cla
-        super().__init__()
+        super().__init__(compile_trace_callback=compile_trace_callback)
         self.queue = queue
         self.allocator = allocator
         self.array_types = (pt.Array, cla.Array)
@@ -467,10 +501,20 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     :class:`pytato.target.python.JAXPythonTarget`.
     """
 
-    def __init__(self):
+    def __init__(self,
+            *, compile_trace_callback: Optional[Callable[[Any, str, Any], None]]
+             = None) -> None:
+        """
+        :arg compile_trace_callback: A function of three arguments
+            *(what, stage, ir)*, where *what* identifies the object
+            being compiled, *stage* is a string describing the compilation
+            pass, and *ir* is an object containing the intermediate
+            representation. This interface should be considered
+            unstable.
+        """
         import pytato as pt
         from jax.numpy import DeviceArray
-        super().__init__()
+        super().__init__(compile_trace_callback=compile_trace_callback)
         self.array_types = (pt.Array, DeviceArray)
 
     def clone(self):

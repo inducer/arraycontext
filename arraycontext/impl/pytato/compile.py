@@ -52,13 +52,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _func_to_kernel_name(f: Callable[..., Any]) -> str:
-    name = f.__name__
-    if not name.isidentifier():
-        return "actx_compiled_" + "".join(
-                ch for ch in name if ch.isidentifier())
+def _to_identifier(s: str) -> str:
+    return "".join(ch for ch in s if ch.isidentifier())
+
+
+def _prg_id_to_kernel_name(f: Any) -> str:
+    if callable(f):
+        name = f.__name__
+        if not name.isidentifier():
+            return "actx_compiled_" + _to_identifier(name)
+        else:
+            return name
     else:
-        return name
+        return _to_identifier(str(f))
 
 
 class FromArrayContextCompile(Tag):
@@ -251,7 +257,7 @@ class BaseLazilyCompilingFunctionCaller:
 
     # {{{ abstract interface
 
-    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays):
+    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays, *, prg_id=None):
         raise NotImplementedError
 
     @property
@@ -273,7 +279,8 @@ class BaseLazilyCompilingFunctionCaller:
             dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 {output_id: ary_or_dict_of_named_arrays})
             pytato_program, name_in_program_to_tags, name_in_program_to_axes = (
-                self._dag_to_transformed_pytato_prg(dict_of_named_arrays))
+                self._dag_to_transformed_pytato_prg(dict_of_named_arrays,
+                    prg_id=self.f))
             return self.compiled_function_returning_array_class(
                 self.actx, pytato_program,
                 input_id_to_name_in_program=input_id_to_name_in_program,
@@ -282,7 +289,8 @@ class BaseLazilyCompilingFunctionCaller:
                 output_name=output_id)
         elif isinstance(ary_or_dict_of_named_arrays, pt.DictOfNamedArrays):
             pytato_program, name_in_program_to_tags, name_in_program_to_axes = (
-                self._dag_to_transformed_pytato_prg(ary_or_dict_of_named_arrays))
+                self._dag_to_transformed_pytato_prg(ary_or_dict_of_named_arrays,
+                    prg_id=self.f))
             return self.compiled_function_returning_array_container_class(
                     self.actx, pytato_program,
                     input_id_to_name_in_program=input_id_to_name_in_program,
@@ -328,6 +336,8 @@ class BaseLazilyCompilingFunctionCaller:
                                                self.actx)
                     for kw, arg in kwargs.items()})
 
+        self.actx._compile_trace_callback(self.f, "post_trace", output_template)
+
         if (not (is_array_container_type(output_template.__class__)
                  or isinstance(output_template, pt.Array))):
             # TODO: We could possibly just short-circuit this interface if the
@@ -367,13 +377,22 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
     def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
         return CompiledPyOpenCLFunctionReturningArray
 
-    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays):
+    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays, *, prg_id=None):
+        if prg_id is None:
+            prg_id = self.f
+
         from pytato.target.loopy import BoundPyOpenCLProgram
 
         import loopy as lp
 
-        with ProcessLogger(logger, f"transform_dag for '{self.f}'"):
+        self.actx._compile_trace_callback(
+                prg_id, "pre_transform_dag", dict_of_named_arrays)
+
+        with ProcessLogger(logger, f"transform_dag for '{prg_id}'"):
             pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
+
+        self.actx._compile_trace_callback(
+                prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
         name_in_program_to_tags = {
             name: out.tags
@@ -382,18 +401,25 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
             name: out.axes
             for name, out in pt_dict_of_named_arrays._data.items()}
 
-        with ProcessLogger(logger, f"generate_loopy for '{self.f}'"):
+        self.actx._compile_trace_callback(
+                prg_id, "pre_generate_loopy", pt_dict_of_named_arrays)
+
+        with ProcessLogger(logger, f"generate_loopy for '{prg_id}'"):
             pytato_program = pt.generate_loopy(
                     pt_dict_of_named_arrays,
                     options=lp.Options(
                         return_dict=True,
                         no_numpy=True),
-                    function_name=_func_to_kernel_name(self.f),
-                    # pylint: disable=no-member
-                    cl_device=self.actx.queue.device)
+                    function_name=_prg_id_to_kernel_name(prg_id))
             assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
-        with ProcessLogger(logger, f"transform_loopy_program for '{self.f}'"):
+        self.actx._compile_trace_callback(
+                prg_id, "post_generate_loopy", pytato_program)
+
+        self.actx._compile_trace_callback(
+                prg_id, "pre_transform_loopy_program", pytato_program)
+
+        with ProcessLogger(logger, f"transform_loopy_program for '{prg_id}'"):
 
             pytato_program = (pytato_program
                               .with_transformed_program(
@@ -405,6 +431,12 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
                               .with_transformed_program(self
                                                         .actx
                                                         .transform_loopy_program))
+
+        self.actx._compile_trace_callback(
+                prg_id, "post_transform_loopy_program", pytato_program)
+
+        self.actx._compile_trace_callback(
+                prg_id, "final", pytato_program)
 
         return pytato_program, name_in_program_to_tags, name_in_program_to_axes
 
@@ -439,10 +471,18 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
     def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
         return CompiledJAXFunctionReturningArray
 
-    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays):
+    def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays, *, prg_id=None):
+        if prg_id is None:
+            prg_id = self.f
 
-        with ProcessLogger(logger, "transform_dag"):
+        self.actx._compile_trace_callback(
+                prg_id, "pre_transform_dag", dict_of_named_arrays)
+
+        with ProcessLogger(logger, "transform_dag for '{prg_id}'"):
             pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
+
+        self.actx._compile_trace_callback(
+                prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
         name_in_program_to_tags = {
             name: out.tags
@@ -451,11 +491,17 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
             name: out.axes
             for name, out in pt_dict_of_named_arrays._data.items()}
 
-        with ProcessLogger(logger, "generate_jax"):
+        self.actx._compile_trace_callback(
+                prg_id, "pre_generate_jax", pt_dict_of_named_arrays)
+
+        with ProcessLogger(logger, f"generate_jax for '{prg_id}'"):
             pytato_program = pt.generate_jax(
                     pt_dict_of_named_arrays,
                     jit=True,
-                    function_name=_func_to_kernel_name(self.f))
+                    function_name=_prg_id_to_kernel_name(prg_id))
+
+        self.actx._compile_trace_callback(
+                prg_id, "post_generate_jax", pytato_program)
 
         return pytato_program, name_in_program_to_tags, name_in_program_to_axes
 
