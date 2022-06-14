@@ -116,9 +116,13 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
             representation. This interface should be considered
             unstable.
         """
+        import pytato as pt
+        import loopy as lp
         super().__init__()
-        self._freeze_prg_cache = {}
-        self._dag_transform_cache = {}
+        self._freeze_prg_cache: Dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
+        self._dag_transform_cache: Dict[
+                pt.DictOfNamedArrays,
+                Tuple[pt.DictOfNamedArrays, str]] = {}
 
         if compile_trace_callback is None:
             def _compile_trace_callback(what, stage, ir):
