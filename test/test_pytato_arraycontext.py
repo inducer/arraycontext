@@ -27,7 +27,7 @@ from arraycontext import pytest_generate_tests_for_array_contexts
 from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
 from pytools.tag import Tag
 
-
+import pytest
 import logging
 logger = logging.getLogger(__name__)
 
@@ -79,10 +79,15 @@ class BazTag(Tag):
 
 
 def test_tags_preserved_after_freeze(actx_factory):
+    actx = actx_factory()
+
+    from arraycontext.impl.pytato import _BasePytatoArrayContext
+    if not isinstance(actx, _BasePytatoArrayContext):
+        pytest.skip("only pytato-based array context are supported")
+
     from numpy.random import default_rng
     rng = default_rng()
 
-    actx = actx_factory()
     foo = actx.thaw(actx.freeze(
         actx.from_numpy(rng.random((10, 4)))
         .tagged(FooTag())
@@ -100,7 +105,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         exec(sys.argv[1])
     else:
-        from pytest import main
-        main([__file__])
+        pytest.main([__file__])
 
 # vim: fdm=marker
