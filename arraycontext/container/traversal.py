@@ -779,7 +779,12 @@ def unflatten(
             # {{{ check strides
 
             if strict and hasattr(template_subary, "strides"):
-                if template_subary.strides != subary.strides:
+                # Checking strides for 0 sized arrays is ill-defined
+                # since they cannot be indexed
+                if (
+                    template_subary.strides != subary.strides
+                    and template_subary.size != 0
+                ):
                     raise ValueError(
                             f"strides do not match template: got {subary.strides}, "
                             f"expected {template_subary.strides}")
