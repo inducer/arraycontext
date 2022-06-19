@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     import pytato
     import pyopencl as cl
 
-if getattr(sys, "ARRAYCONTEXT_BUILDING_SPHINX_DOCS", False):
+if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
     import pyopencl as cl  # noqa: F811
 
 
