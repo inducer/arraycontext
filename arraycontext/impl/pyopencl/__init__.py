@@ -29,13 +29,13 @@ THE SOFTWARE.
 """
 
 from warnings import warn
-from typing import Dict, List, Optional, Union, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 
 from pytools.tag import ToTagSetConvertible
 
-from arraycontext.context import ArrayContext, ScalarLike
+from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLike
 from arraycontext.container.traversal import (rec_map_array_container,
                                               with_array_context)
 
@@ -151,6 +151,41 @@ class PyOpenCLArrayContext(ArrayContext):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
         return PyOpenCLFakeNumpyNamespace(self)
 
+    def _rec_map_container(
+            self, func: Callable[[Array], Array], array: ArrayOrContainer,
+            allowed_types: Optional[Tuple[type, ...]] = None, *,
+            default_scalar: Optional[ScalarLike] = None,
+            strict: bool = False) -> ArrayOrContainer:
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+
+        if allowed_types is None:
+            # TODO: replace with 'self.array_types' once `cla.Array` support
+            # is completely removed
+            allowed_types = (tga.TaggableCLArray,)
+
+        def _wrapper(ary):
+            if isinstance(ary, allowed_types):
+                return func(ary)
+            elif not strict and isinstance(ary, self.array_types):
+                from warnings import warn
+                warn(f"Invoking {type(self).__name__}.{func.__name__[1:]} with "
+                    f"{type(ary).__name__} will be unsupported in 2023. Use "
+                    "'to_tagged_cl_array' to convert instances to TaggableCLArray.",
+                    DeprecationWarning, stacklevel=2)
+                return func(tga.to_tagged_cl_array(ary))
+            elif np.isscalar(ary):
+                if default_scalar is None:
+                    return ary
+                else:
+                    return np.array(ary).dtype.type(default_scalar)
+            else:
+                raise TypeError(
+                    f"{type(self).__name__}.{func.__name__[1:]} invoked with "
+                    f"an unsupported array type: got '{type(ary).__name__}', "
+                    f"but expected one of {allowed_types}")
+
+        return rec_map_array_container(_wrapper, array)
+
     # {{{ ArrayContext interface
 
     def empty(self, shape, dtype):
@@ -161,15 +196,66 @@ class PyOpenCLArrayContext(ArrayContext):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         return tga.zeros(self.queue, shape, dtype, allocator=self.allocator)
 
-    def from_numpy(self, array: Union[np.ndarray, ScalarLike]):
+    def empty_like(self, ary):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        return tga.to_device(self.queue, array, allocator=self.allocator)
+
+        def _empty_like(array):
+            return tga.empty(self.queue, array.shape, array.dtype,
+                allocator=self.allocator, axes=array.axes, tags=array.tags)
+
+        return self._rec_map_container(_empty_like, ary)
+
+    def zeros_like(self, ary):
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+
+        def _zeros_like(array):
+            return tga.zeros(self.queue, array.shape, array.dtype,
+                allocator=self.allocator, axes=array.axes, tags=array.tags)
+
+        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+
+    def from_numpy(self, array):
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+
+        def _from_numpy(ary):
+            return tga.to_device(self.queue, ary, allocator=self.allocator)
+
+        return with_array_context(
+            self._rec_map_container(_from_numpy, array, (np.ndarray,), strict=True),
+            actx=self)
 
     def to_numpy(self, array):
-        if np.isscalar(array):
-            return array
+        def _to_numpy(ary):
+            return ary.get(queue=self.queue)
 
-        return array.get(queue=self.queue)
+        return with_array_context(
+            self._rec_map_container(_to_numpy, array),
+            actx=None)
+
+    def freeze(self, array):
+        def _freeze(ary):
+            ary.finish()
+            return ary.with_queue(None)
+
+        return with_array_context(self._rec_map_container(_freeze, array), actx=None)
+
+    def thaw(self, array):
+        def _thaw(ary):
+            return ary.with_queue(self.queue)
+
+        return with_array_context(self._rec_map_container(_thaw, array), actx=self)
+
+    def tag(self, tags: ToTagSetConvertible, array):
+        def _tag(ary):
+            return ary.tagged(tags)
+
+        return self._rec_map_container(_tag, array)
+
+    def tag_axis(self, iaxis: int, tags: ToTagSetConvertible, array):
+        def _tag_axis(ary):
+            return ary.with_tagged_axis(iaxis, tags)
+
+        return self._rec_map_container(_tag_axis, array)
 
     def call_loopy(self, t_unit, **kwargs):
         try:
@@ -195,41 +281,14 @@ class PyOpenCLArrayContext(ArrayContext):
         # FIXME: Inherit loopy tags for these arrays
         return {name: tga.to_tagged_cl_array(ary) for name, ary in result.items()}
 
-    def freeze(self, array):
-        import pyopencl.array as cl_array
-
-        def _rec_freeze(ary):
-            if isinstance(ary, cl_array.Array):
-                ary.finish()
-                return ary.with_queue(None)
-            else:
-                raise TypeError(f"{type(self).__name__} cannot freeze"
-                                f" arrays of type '{type(ary).__name__}'.")
-
-        return with_array_context(rec_map_array_container(_rec_freeze, array),
-                                  actx=None)
-
-    def thaw(self, array):
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-
-        def _rec_thaw(ary):
-            if isinstance(ary, tga.TaggableCLArray):
-                return ary.with_queue(self.queue)
-            elif isinstance(ary, self.array_types):
-                from warnings import warn
-                warn(f"Invoking PyOpenCLArrayContext.thaw with {type(ary).__name__}"
-                    " will be unsupported in 2023. Use `to_tagged_cl_array`"
-                    " to convert instances to TaggableCLArray.",
-                    DeprecationWarning, stacklevel=2)
-                return (tga.to_tagged_cl_array(ary).with_queue(self.queue))
-            else:
-                raise ValueError(
-                    f"array should be a cl.array.Array, got '{type(ary).__name__}'")
-
-        return with_array_context(rec_map_array_container(_rec_thaw, array),
-                                  actx=self)
+    def clone(self):
+        return type(self)(self.queue, self.allocator,
+                wait_event_queue_length=self._wait_event_queue_length,
+                force_device_scalars=self._force_device_scalars)
 
     # }}}
+
+    # {{{ transform_loopy_program
 
     def transform_loopy_program(self, t_unit):
         from warnings import warn
@@ -301,39 +360,9 @@ class PyOpenCLArrayContext(ArrayContext):
 
         return t_unit
 
-    def tag(self, tags: ToTagSetConvertible, array):
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+    # }}}
 
-        def _rec_tagged(ary):
-            if isinstance(ary, tga.TaggableCLArray):
-                return ary.tagged(tags)
-            elif isinstance(ary, self.array_types):
-                return tga.to_tagged_cl_array(ary, tags=tags)
-            else:
-                raise ValueError(
-                    f"array should be a cl.array.Array, got '{type(ary).__name__}'")
-
-        return rec_map_array_container(_rec_tagged, array)
-
-    def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-
-        def _rec_tagged(ary):
-            if isinstance(ary, tga.TaggableCLArray):
-                return ary.with_tagged_axis(iaxis, tags)
-            elif isinstance(ary, self.array_types):
-                return (tga.to_tagged_cl_array(ary, tags=tags)
-                        .with_tagged_axis(iaxis, tags))
-            else:
-                raise ValueError(
-                    f"array should be a cl.array.Array, got '{type(ary).__name__}'")
-
-        return rec_map_array_container(_rec_tagged, array)
-
-    def clone(self):
-        return type(self)(self.queue, self.allocator,
-                wait_event_queue_length=self._wait_event_queue_length,
-                force_device_scalars=self._force_device_scalars)
+    # {{{ properties
 
     @property
     def permits_inplace_modification(self):
@@ -346,6 +375,8 @@ class PyOpenCLArrayContext(ArrayContext):
     @property
     def permits_advanced_indexing(self):
         return False
+
+    # }}}
 
 # }}}
 
