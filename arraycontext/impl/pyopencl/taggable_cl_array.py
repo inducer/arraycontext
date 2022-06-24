@@ -5,12 +5,17 @@
 .. autofunction:: to_tagged_cl_array
 """
 
-import pyopencl.array as cla
-from typing import Any, Dict, FrozenSet, Optional, Tuple
-from pytools.tag import Taggable, Tag, ToTagSetConvertible
 from dataclasses import dataclass
-from pytools import memoize
+from typing import Any, Dict, FrozenSet, Optional, Tuple
 
+import numpy as np
+import pyopencl.array as cla
+
+from pytools import memoize
+from pytools.tag import Taggable, Tag, ToTagSetConvertible
+
+
+# {{{ utils
 
 @dataclass(frozen=True, eq=True)
 class Axis(Taggable):
@@ -42,6 +47,10 @@ def _unwrap_cl_array(ary: cla.Array) -> Dict[str, Any]:
                 _fast=True,
                 )
 
+# }}}
+
+
+# {{{ TaggableCLArray
 
 class TaggableCLArray(cla.Array, Taggable):
     """
@@ -111,8 +120,8 @@ class TaggableCLArray(cla.Array, Taggable):
 
 
 def to_tagged_cl_array(ary: cla.Array,
-                       axes: Optional[Tuple[Axis, ...]],
-                       tags: FrozenSet[Tag]) -> TaggableCLArray:
+                       axes: Optional[Tuple[Axis, ...]] = None,
+                       tags: FrozenSet[Tag] = frozenset()) -> TaggableCLArray:
     """
     Returns a :class:`TaggableCLArray` that is constructed from the data in
     *ary* along with the metadata from *axes* and *tags*. If *ary* is already a
@@ -123,7 +132,7 @@ def to_tagged_cl_array(ary: cla.Array,
         array. If passed *None*, then initialized to a :class:`pytato.Axis`
         with no tags attached for each dimension.
     """
-    if axes and len(axes) != ary.ndim:
+    if axes is not None and len(axes) != ary.ndim:
         raise ValueError("axes length does not match array dimension: "
                          f"got {len(axes)} axes for {ary.ndim}d array")
 
@@ -131,7 +140,7 @@ def to_tagged_cl_array(ary: cla.Array,
     tags = normalize_tags(tags)
 
     if isinstance(ary, TaggableCLArray):
-        if axes:
+        if axes is not None:
             for i, axis in enumerate(axes):
                 ary = ary.with_tagged_axis(i, axis.tags)
 
@@ -144,3 +153,45 @@ def to_tagged_cl_array(ary: cla.Array,
                                **_unwrap_cl_array(ary))
     else:
         raise TypeError(f"unsupported array type: '{type(ary).__name__}'")
+
+# }}}
+
+
+# {{{ creation
+
+def empty(queue, shape, dtype=float, *,
+        axes: Optional[Tuple[Axis, ...]] = None,
+        tags: FrozenSet[Tag] = frozenset(),
+        order: str = "C",
+        allocator=None) -> TaggableCLArray:
+    if dtype is not None:
+        dtype = np.dtype(dtype)
+
+    return TaggableCLArray(
+        queue, shape, dtype,
+        axes=axes, tags=tags,
+        order=order, allocator=allocator)
+
+
+def zeros(queue, shape, dtype=float, *,
+        axes: Optional[Tuple[Axis, ...]] = None,
+        tags: FrozenSet[Tag] = frozenset(),
+        order: str = "C",
+        allocator=None) -> TaggableCLArray:
+    result = empty(
+        queue, shape, dtype=dtype, axes=axes, tags=tags,
+        order=order, allocator=allocator)
+    result._zero_fill()
+
+    return result
+
+
+def to_device(queue, ary, *,
+        axes: Optional[Tuple[Axis, ...]] = None,
+        tags: FrozenSet[Tag] = frozenset(),
+        allocator=None):
+    return to_tagged_cl_array(
+        cla.to_device(queue, ary, allocator=allocator),
+        axes=axes, tags=tags)
+
+# }}}
