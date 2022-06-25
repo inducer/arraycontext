@@ -27,11 +27,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import Callable, Optional, Tuple
+
 import numpy as np
 
-from typing import Union, Callable, Any
 from pytools.tag import ToTagSetConvertible
-from arraycontext.context import ArrayContext, ScalarLike
+from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLike
 from arraycontext.container.traversal import (with_array_context,
                                               rec_map_array_container)
 
@@ -60,6 +61,30 @@ class EagerJAXArrayContext(ArrayContext):
         from .fake_numpy import EagerJAXFakeNumpyNamespace
         return EagerJAXFakeNumpyNamespace(self)
 
+    def _rec_map_container(
+            self, func: Callable[[Array], Array], array: ArrayOrContainer,
+            allowed_types: Optional[Tuple[type, ...]] = None, *,
+            default_scalar: Optional[ScalarLike] = None,
+            strict: bool = False) -> ArrayOrContainer:
+        if allowed_types is None:
+            allowed_types = self.array_types
+
+        def _wrapper(ary):
+            if isinstance(ary, allowed_types):
+                return func(ary)
+            elif np.isscalar(ary):
+                if default_scalar is None:
+                    return ary
+                else:
+                    return np.array(ary).dtype.type(default_scalar)
+            else:
+                raise TypeError(
+                    f"{type(self).__name__}.{func.__name__[1:]} invoked with "
+                    f"an unsupported array type: got '{type(ary).__name__}', "
+                    f"but expected one of {allowed_types}")
+
+        return rec_map_array_container(_wrapper, array)
+
     # {{{ ArrayContext interface
 
     def empty(self, shape, dtype):
@@ -70,39 +95,44 @@ class EagerJAXArrayContext(ArrayContext):
         import jax.numpy as jnp
         return jnp.zeros(shape=shape, dtype=dtype)
 
-    def from_numpy(self, array: Union[np.ndarray, ScalarLike]):
-        import jax
-        return jax.device_put(array)
+    def empty_like(self, ary):
+        def _empty_like(array):
+            return self.empty(array.shape, array.dtype)
+
+        return self._rec_map_container(_empty_like, ary)
+
+    def zeros_like(self, ary):
+        def _zeros_like(array):
+            return self.zeros(array.shape, array.dtype)
+
+        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+
+    def from_numpy(self, array):
+        def _from_numpy(ary):
+            import jax
+            return jax.device_put(ary)
+
+        return with_array_context(
+            self._rec_map_container(_from_numpy, array, allowed_types=(np.ndarray,)),
+            actx=self)
 
     def to_numpy(self, array):
-        import jax
-        # jax.device_get can take scalars as well.
-        return jax.device_get(array)
+        def _to_numpy(ary):
+            import jax
+            return jax.device_get(ary)
 
-    def call_loopy(self, t_unit, **kwargs):
-        raise NotImplementedError("calling loopy on JAX arrays"
-                                  " not supported. Maybe rewrite"
-                                  " the loopy kernel as numpy-flavored array"
-                                  " operations using ArrayContext.np.")
+        return with_array_context(
+            self._rec_map_container(_to_numpy, array),
+            actx=None)
 
     def freeze(self, array):
-        from jax.numpy import DeviceArray
-
-        def _rec_freeze(ary):
-            if isinstance(ary, DeviceArray):
-                pass
-            else:
-                raise TypeError(f"{type(self).__name__}.thaw expects "
-                                f"`jax.DeviceArray` got {type(ary)}.")
+        def _freeze(ary):
             return ary.block_until_ready()
 
-        return with_array_context(rec_map_array_container(_rec_freeze, array),
-                                  actx=None)
+        return with_array_context(self._rec_map_container(_freeze, array), actx=None)
 
     def thaw(self, array):
         return with_array_context(array, actx=self)
-
-    # }}}
 
     def tag(self, tags: ToTagSetConvertible, array):
         # Sorry, not capable.
@@ -112,20 +142,27 @@ class EagerJAXArrayContext(ArrayContext):
         # TODO: See `jax.experiemental.maps.xmap`, proabably that should be useful?
         return array
 
-    def clone(self):
-        return type(self)()
-
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
-        return f
+    def call_loopy(self, t_unit, **kwargs):
+        raise NotImplementedError(
+            "Calling loopy on JAX arrays is not supported. Maybe rewrite"
+            " the loopy kernel as numpy-flavored array operations using"
+            " ArrayContext.np.")
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import jax.numpy as jnp
         if arg_names is not None:
             from warnings import warn
             warn("'arg_names' don't bear any significance in "
-                 "EagerJAXArrayContext.", stacklevel=2)
+                 f"{type(self).__name__}.", stacklevel=2)
 
         return jnp.einsum(spec, *args)
+
+    def clone(self):
+        return type(self)()
+
+    # }}}
+
+    # {{{ properties
 
     @property
     def permits_inplace_modification(self):
@@ -138,5 +175,7 @@ class EagerJAXArrayContext(ArrayContext):
     @property
     def permits_advanced_indexing(self):
         return True
+
+    # }}}
 
 # vim: foldmethod=marker

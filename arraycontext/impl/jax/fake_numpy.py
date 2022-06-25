@@ -60,7 +60,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def full_like(self, ary, fill_value):
         def _full_like(subary):
-            return jnp.full_like(ary, fill_value)
+            return jnp.full_like(subary, fill_value)
 
         return self._new_like(ary, _full_like)
 
