@@ -523,7 +523,7 @@ def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
         elif isinstance(arg, pt.array.DataWrapper):
             # got a Datawrapper => simply gets its data
             arg = arg.data
-        elif isinstance(arg, actx.frozen_array_types):
+        elif isinstance(arg, actx._frozen_array_types):
             # got a frozen array  => do nothing
             pass
         elif isinstance(arg, pt.Array):
