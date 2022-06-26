@@ -50,39 +50,80 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def __getattr__(self, name):
         return partial(rec_multimap_array_container, getattr(jnp, name))
 
+    # NOTE: the order of these follows the order in numpy docs
+    # NOTE: when adding a function here, also add it to `array_context.rst` docs!
+
+    # {{{ array creation routines
+
+    def ones_like(self, ary):
+        return self.full_like(ary, 1)
+
+    def full_like(self, ary, fill_value):
+        def _full_like(subary):
+            return jnp.full_like(ary, fill_value)
+
+        return self._new_like(ary, _full_like)
+
+    # }}}
+
+    # {{{ array manipulation routies
+
     def reshape(self, a, newshape, order="C"):
         return rec_map_array_container(
             lambda ary: jnp.reshape(ary, newshape, order=order),
             a)
 
+    def ravel(self, a, order="C"):
+        """
+        .. warning::
+
+            Since :func:`jax.numpy.reshape` does not support orders `A`` and
+            ``K``, in such cases we fallback to using ``order = C``.
+        """
+        if order in "AK":
+            from warnings import warn
+            warn(f"ravel with order='{order}' not supported by JAX,"
+                 " using order=C.")
+            order = "C"
+
+        return rec_map_array_container(
+            lambda subary: jnp.ravel(subary, order=order), a)
+
     def transpose(self, a, axes=None):
         return rec_multimap_array_container(jnp.transpose, a, axes)
 
+    def broadcast_to(self, array, shape):
+        return rec_map_array_container(partial(jnp.broadcast_to, shape=shape), array)
+
     def concatenate(self, arrays, axis=0):
         return rec_multimap_array_container(jnp.concatenate, arrays, axis)
-
-    def where(self, criterion, then, else_):
-        return rec_multimap_array_container(jnp.where, criterion, then, else_)
-
-    def sum(self, a, axis=None, dtype=None):
-        return rec_map_reduce_array_container(sum,
-                                              partial(jnp.sum,
-                                                      axis=axis,
-                                                      dtype=dtype),
-                                              a)
-
-    def min(self, a, axis=None):
-        return rec_map_reduce_array_container(
-                partial(reduce, jnp.minimum), partial(jnp.amin, axis=axis), a)
-
-    def max(self, a, axis=None):
-        return rec_map_reduce_array_container(
-                partial(reduce, jnp.maximum), partial(jnp.amax, axis=axis), a)
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(
             lambda *args: jnp.stack(arrays=args, axis=axis),
             *arrays)
+
+    # }}}
+
+    # {{{ linear algebra
+
+    def vdot(self, x, y, dtype=None):
+        from arraycontext import rec_multimap_reduce_array_container
+
+        def _rec_vdot(ary1, ary2):
+            if dtype not in [None, numpy.find_common_type((ary1.dtype,
+                                                           ary2.dtype),
+                                                          ())]:
+                raise NotImplementedError(f"{type(self)} cannot take dtype in"
+                                          " vdot.")
+
+            return jnp.vdot(ary1, ary2)
+
+        return rec_multimap_reduce_array_container(sum, _rec_vdot, x, y)
+
+    # }}}
+
+    # {{{ logic functions
 
     def array_equal(self, a, b):
         actx = self._array_context
@@ -109,35 +150,33 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return rec_equal(a, b)
 
-    def ravel(self, a, order="C"):
-        """
-        .. warning::
+    # }}}
 
-            Since :func:`jax.numpy.reshape` does not support orders `A`` and
-            ``K``, in such cases we fallback to using ``order = C``.
-        """
-        if order in "AK":
-            from warnings import warn
-            warn(f"ravel with order='{order}' not supported by JAX,"
-                 " using order=C.")
-            order = "C"
+    # {{{ mathematical functions
 
-        return rec_map_array_container(lambda subary: jnp.ravel(subary, order=order),
-                                       a)
+    def sum(self, a, axis=None, dtype=None):
+        return rec_map_reduce_array_container(
+            sum,
+            partial(jnp.sum, axis=axis, dtype=dtype),
+            a)
 
-    def vdot(self, x, y, dtype=None):
-        from arraycontext import rec_multimap_reduce_array_container
+    def amin(self, a, axis=None):
+        return rec_map_reduce_array_container(
+                partial(reduce, jnp.minimum), partial(jnp.amin, axis=axis), a)
 
-        def _rec_vdot(ary1, ary2):
-            if dtype not in [None, numpy.find_common_type((ary1.dtype,
-                                                           ary2.dtype),
-                                                          ())]:
-                raise NotImplementedError(f"{type(self)} cannot take dtype in"
-                                          " vdot.")
+    min = amin
 
-            return jnp.vdot(ary1, ary2)
+    def amax(self, a, axis=None):
+        return rec_map_reduce_array_container(
+                partial(reduce, jnp.maximum), partial(jnp.amax, axis=axis), a)
 
-        return rec_multimap_reduce_array_container(sum, _rec_vdot, x, y)
+    max = amax
 
-    def broadcast_to(self, array, shape):
-        return rec_map_array_container(partial(jnp.broadcast_to, shape=shape), array)
+    # }}}
+
+    # {{{ sorting, searching and counting
+
+    def where(self, criterion, then, else_):
+        return rec_multimap_array_container(jnp.where, criterion, then, else_)
+
+    # }}}
