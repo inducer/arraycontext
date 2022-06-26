@@ -23,6 +23,9 @@ THE SOFTWARE.
 """
 from functools import partial, reduce
 
+import numpy as np
+import jax.numpy as jnp
+
 from arraycontext.fake_numpy import (
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
         )
@@ -31,8 +34,6 @@ from arraycontext.container.traversal import (
         rec_map_reduce_array_container,
         )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
-import numpy
-import jax.numpy as jnp
 
 
 class EagerJAXFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -62,7 +63,8 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         def _full_like(subary):
             return jnp.full_like(subary, fill_value)
 
-        return self._new_like(ary, _full_like)
+        return self._array_context._rec_map_container(
+            _full_like, ary, default_scalar=fill_value)
 
     # }}}
 
@@ -111,11 +113,10 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         from arraycontext import rec_multimap_reduce_array_container
 
         def _rec_vdot(ary1, ary2):
-            if dtype not in [None, numpy.find_common_type((ary1.dtype,
-                                                           ary2.dtype),
-                                                          ())]:
-                raise NotImplementedError(f"{type(self)} cannot take dtype in"
-                                          " vdot.")
+            common_dtype = np.find_common_type((ary1.dtype, ary2.dtype), ())
+            if dtype not in [None, common_dtype]:
+                raise NotImplementedError(
+                    f"{type(self).__name__} cannot take dtype in vdot.")
 
             return jnp.vdot(ary1, ary2)
 
@@ -129,8 +130,8 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         actx = self._array_context
 
         # NOTE: not all backends support `bool` properly, so use `int8` instead
-        true = actx.from_numpy(numpy.int8(True))
-        false = actx.from_numpy(numpy.int8(False))
+        true = actx.from_numpy(np.int8(True))
+        false = actx.from_numpy(np.int8(False))
 
         def rec_equal(x, y):
             if type(x) != type(y):
