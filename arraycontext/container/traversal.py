@@ -881,37 +881,24 @@ def from_numpy(
 
     The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
     """
-    def _from_numpy_with_check(subary: Union[np.ndarray, ScalarLike]) \
-            -> ArrayOrContainerOrScalar:
-        if isinstance(subary, np.ndarray) or np.isscalar(subary):
-            return actx.from_numpy(subary)
-        else:
-            raise TypeError(f"array is not an ndarray: '{type(subary).__name__}'")
+    warn("Calling from_numpy(ary, actx) is deprecated, call actx.from_numpy(ary)"
+         " instead. This will stop working in 2023.",
+         DeprecationWarning, stacklevel=2)
 
-    return rec_map_array_container(_from_numpy_with_check, ary)
+    return actx.from_numpy(ary)
 
 
-def to_numpy(ary: ArrayOrContainer, actx: ArrayContext) -> Any:
+def to_numpy(ary: ArrayOrContainer, actx: ArrayContext) -> ArrayOrContainer:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
     :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
 
     The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
     """
-    def _to_numpy_with_check(subary: Any) -> Any:
-        if isinstance(subary, actx.array_types) or np.isscalar(subary):
-            # NOTE: these are allowed by np.isscalar, but not here
-            assert not isinstance(subary, (str, bytes))
+    warn("Calling to_numpy(ary, actx) is deprecated, call actx.to_numpy(ary)"
+         " instead. This will stop working in 2023.",
+         DeprecationWarning, stacklevel=2)
 
-            return actx.to_numpy(subary)
-        else:
-            raise TypeError(
-                    f"array of type '{type(subary).__name__}' not in "
-                    f"supported types {actx.array_types}")
-
-    return rec_map_array_container(_to_numpy_with_check,
-                                   # do a freeze first, if 'actx' supports
-                                   # container-wide freezes
-                                   actx.thaw(actx.freeze(ary)))
+    return actx.to_numpy(ary)
 
 # }}}
 

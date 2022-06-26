@@ -221,6 +221,8 @@ ArrayOrContainerOrScalarT = TypeVar(
         "ArrayOrContainerOrScalarT",
         bound=ArrayOrContainerOrScalar)
 
+NumpyOrContainerOrScalar = Union[np.ndarray, "ArrayContainer", ScalarLike]
+
 # }}}
 
 
@@ -304,25 +306,28 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def from_numpy(self,
-                   array: Union["np.ndarray[Any, Any]", ScalarLike]
-                   ) -> Union[Array, ScalarLike]:
+                   array: ArrayOrContainerOrScalar
+                   ) -> NumpyOrContainerOrScalar:
         r"""
         :returns: the :class:`numpy.ndarray` *array* converted to the
             array context's array type. The returned array will be
-            :meth:`thaw`\ ed.
+            :meth:`thaw`\ ed. When working with array containers each leaf
+            must be an :class:`~numpy.ndarray` or scalar, which is then converted
+            to the context's array type leaving the container structure
+            intact.
         """
-        pass
 
     @abstractmethod
     def to_numpy(self,
-                 array: Union[Array, ScalarLike]
-                 ) -> Union["np.ndarray[Any, Any]", ScalarLike]:
+                 array: NumpyOrContainerOrScalar
+                 ) -> ArrayOrContainerOrScalar:
         r"""
-        :returns: *array*, an array recognized by the context, converted
-            to a :class:`numpy.ndarray`. *array* must be
-            :meth:`thaw`\ ed.
+        :returns: an :class:`numpy.ndarray` for each array recognized by the
+            context. The input *array* must be :meth:`thaw`\ ed.
+            When working with array containers each leaf must be one of
+            the context's array types or a scalar, which is then converted to
+            an :class:`~numpy.ndarray` leaving the container structure intact.
         """
-        pass
 
     @abstractmethod
     def call_loopy(self,
@@ -351,8 +356,6 @@ class ArrayContext(ABC):
         Freezing makes the array independent of this :class:`ArrayContext`;
         it is permitted to :meth:`thaw` it in a different one, as long as that
         context understands the array format.
-
-        See also :func:`arraycontext.freeze`.
         """
 
     @abstractmethod
@@ -366,8 +369,6 @@ class ArrayContext(ABC):
         the data in *array*.
 
         The returned array may not be used with other contexts while thawed.
-
-        See also :func:`arraycontext.thaw`.
         """
 
     def freeze_thaw(
@@ -387,10 +388,11 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag(self,
             tags: ToTagSetConvertible,
-            array: ArrayT) -> ArrayT:
+            array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* with the *tags* applied. *array*
-        itself is not modified.
+        itself is not modified. When working with array containers, the
+        tags are applied to each leaf of the container.
 
         See :ref:`metadata` as well as application-specific metadata types.
 
@@ -400,10 +402,11 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag_axis(self,
                  iaxis: int, tags: ToTagSetConvertible,
-                 array: ArrayT) -> ArrayT:
+                 array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* in which axis number *iaxis* has
-        the *tags* applied. *array* itself is not modified.
+        the *tags* applied. *array* itself is not modified. When working with
+        array containers, the tags are applied to each leaf of the container.
 
         See :ref:`metadata` as well as application-specific metadata types.
 
