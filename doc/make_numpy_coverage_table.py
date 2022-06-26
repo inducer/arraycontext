@@ -62,7 +62,9 @@ def initialize_contexts():
 
     return [
             arraycontext.PyOpenCLArrayContext(queue, force_device_scalars=True),
+            arraycontext.EagerJAXArrayContext(),
             arraycontext.PytatoPyOpenCLArrayContext(queue),
+            arraycontext.PytatoJAXArrayContext(),
             ]
 
 
