@@ -67,18 +67,24 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return self.full_like(ary, 1)
 
     def full_like(self, ary, fill_value):
-        def _full_like(subary):
-            ones = self._array_context.empty_like(subary)
-            ones.fill(fill_value)
-            return ones
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
-        return self._new_like(ary, _full_like)
+        def _full_like(subary):
+            filled = tga.empty(
+                self._array_context.queue, subary.shape, subary.dtype,
+                allocator=self._array_context.allocator,
+                axes=subary.axes, tags=subary.tags)
+            filled.fill(fill_value)
+            return filled
+
+        return self._array_context._rec_map_container(
+            _full_like, ary, default_scalar=fill_value)
 
     def copy(self, ary):
         def _copy(subary):
             return subary.copy(queue=self._array_context.queue)
 
-        return self._new_like(ary, _copy)
+        return self._array_context._rec_map_container(_copy, ary)
 
     # }}}
 
@@ -144,9 +150,15 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def all(self, a):
         queue = self._array_context.queue
+
+        def _all(ary):
+            if np.isscalar(ary):
+                return np.int8(all([ary]))
+            return ary.all(queue=queue)
+
         result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
-                lambda subary: subary.all(queue=queue),
+                _all,
                 a)
 
         if not self._array_context._force_device_scalars:
@@ -155,9 +167,15 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def any(self, a):
         queue = self._array_context.queue
+
+        def _any(ary):
+            if np.isscalar(ary):
+                return np.int8(any([ary]))
+            return ary.any(queue=queue)
+
         result = rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
-                lambda subary: subary.any(queue=queue),
+                _any,
                 a)
 
         if not self._array_context._force_device_scalars:

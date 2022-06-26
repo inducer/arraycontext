@@ -83,7 +83,8 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def _full_like(subary):
             return pt.full(subary.shape, fill_value, subary.dtype)
 
-        return self._new_like(ary, _full_like)
+        return self._array_context._rec_map_container(
+            _full_like, ary, default_scalar=fill_value)
 
     # }}}
 

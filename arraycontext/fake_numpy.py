@@ -91,25 +91,11 @@ class BaseFakeNumpyNamespace:
         # "interp",
         })
 
-    def _new_like(self, ary, alloc_like):
-        if np.isscalar(ary):
-            # NOTE: `np.zeros_like(x)` returns `array(x, shape=())`, which
-            # is best implemented by concrete array contexts, if at all
-            raise NotImplementedError("operation not implemented for scalars")
-
-        if isinstance(ary, np.ndarray) and ary.dtype.char == "O":
-            # NOTE: we don't want to match numpy semantics on object arrays,
-            # e.g. `np.zeros_like(x)` returns `array([0, 0, ...], dtype=object)`
-            # FIXME: what about object arrays nested in an ArrayContainer?
-            raise NotImplementedError("operation not implemented for object arrays")
-
-        return rec_map_array_container(alloc_like, ary)
-
     def empty_like(self, ary):
-        return self._new_like(ary, self._array_context.empty_like)
+        return self._array_context.empty_like(ary)
 
     def zeros_like(self, ary):
-        return self._new_like(ary, self._array_context.zeros_like)
+        return self._array_context.zeros_like(ary)
 
     def conjugate(self, x):
         # NOTE: conjugate distributes over object arrays, but it looks for a
