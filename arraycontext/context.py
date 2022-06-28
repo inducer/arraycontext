@@ -239,6 +239,7 @@ class ArrayContext(ABC):
 
     .. automethod:: freeze
     .. automethod:: thaw
+    .. automethod:: force_evaluate
     .. automethod:: tag
     .. automethod:: tag_axis
     .. automethod:: compile
@@ -462,6 +463,15 @@ class ArrayContext(ABC):
         :return: a function with the same signature as *f*.
         """
         return f
+
+    def force_evaluate(self, array: Array) -> Array:
+        """Force the evaluation of any expression trees in the input *array* and
+        return a 'thaw'ed version of that array.  This function forces evaluation
+        by calling 'freeze' and subsequently 'thaw'.
+
+        See also :func:`arraycontext.freeze`, :func:`arraycontext.thaw`
+        """
+        return self.thaw(self.freeze(array))
 
     # undocumented for now
     @property
