@@ -269,6 +269,7 @@ class ArrayContext(ABC):
 
     .. automethod:: freeze
     .. automethod:: thaw
+    .. automethod:: freeze_thaw
     .. automethod:: tag
     .. automethod:: tag_axis
     .. automethod:: compile
@@ -368,6 +369,20 @@ class ArrayContext(ABC):
 
         See also :func:`arraycontext.thaw`.
         """
+
+    def freeze_thaw(
+            self, array: ArrayOrContainerOrScalarT
+            ) -> ArrayOrContainerOrScalarT:
+        r"""Evaluate an input array or container to "frozen" data return a new
+        "thawed" array or container representing the evaluation result that is
+        ready for use. This is a shortcut for calling :meth:`freeze` and
+        :meth:`thaw`.
+
+        This method can be useful in array contexts backed by, e.g.
+        :mod:`pytato`, to force the evaluation of a built-up array expression
+        (and thereby avoid reevaluations for expressions built on the array).
+        """
+        return self.thaw(self.freeze(array))
 
     @abstractmethod
     def tag(self,
