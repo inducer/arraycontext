@@ -197,6 +197,84 @@ def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type:
 # }}}
 
 
+# {{{ nested containers
+
+@with_container_arithmetic(bcast_obj_array=False,
+        eq_comparison=False, rel_comparison=False,
+        _cls_has_array_context_attr=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class MyContainer:
+    name: str
+    mass: Union[DOFArray, np.ndarray]
+    momentum: np.ndarray
+    enthalpy: Union[DOFArray, np.ndarray]
+
+    @property
+    def array_context(self):
+        if isinstance(self.mass, np.ndarray):
+            return next(iter(self.mass)).array_context
+        else:
+            return self.mass.array_context
+
+
+@with_container_arithmetic(
+        bcast_obj_array=False,
+        bcast_container_types=(DOFArray, np.ndarray),
+        matmul=True,
+        rel_comparison=True,
+        _cls_has_array_context_attr=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class MyContainerDOFBcast:
+    name: str
+    mass: Union[DOFArray, np.ndarray]
+    momentum: np.ndarray
+    enthalpy: Union[DOFArray, np.ndarray]
+
+    @property
+    def array_context(self):
+        if isinstance(self.mass, np.ndarray):
+            return next(iter(self.mass)).array_context
+        else:
+            return self.mass.array_context
+
+
+def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
+    from numbers import Number
+    if isinstance(shapes, (Number, tuple)):
+        shapes = [shapes]
+
+    x = DOFArray(actx, tuple([
+        actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes]))
+
+    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
+    dataclass_of_dofs = MyContainer(
+            name="container",
+            mass=x,
+            momentum=make_obj_array([x] * ambient_dim),
+            enthalpy=x)
+
+    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
+    bcast_dataclass_of_dofs = MyContainerDOFBcast(
+            name="container",
+            mass=x,
+            momentum=make_obj_array([x] * ambient_dim),
+            enthalpy=x)
+
+    ary_dof = x
+    ary_of_dofs = make_obj_array([x] * ambient_dim)
+    mat_of_dofs = np.empty((ambient_dim, ambient_dim), dtype=object)
+    for i in np.ndindex(mat_of_dofs.shape):
+        mat_of_dofs[i] = x
+
+    return (ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs,
+            bcast_dataclass_of_dofs)
+
+# }}}
+
+
 # {{{ assert_close_to_numpy*
 
 def randn(shape, dtype):
@@ -340,6 +418,23 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
     args = [randn(ndofs, dtype) for i in range(n_args)]
     assert_close_to_numpy(
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
+
+    for c in (42.0,) + _get_test_containers(actx):
+        result = getattr(actx.np, sym_name)(c)
+        result = actx.thaw(actx.freeze(result))
+
+        if sym_name == "zeros_like":
+            if np.isscalar(result):
+                assert result == 0.0
+            else:
+                assert actx.to_numpy(actx.np.all(actx.np.equal(result, 0.0)))
+        elif sym_name == "ones_like":
+            if np.isscalar(result):
+                assert result == 1.0
+            else:
+                assert actx.to_numpy(actx.np.all(actx.np.equal(result, 1.0)))
+        else:
+            raise ValueError(f"unknown method: '{sym_name}'")
 
 # }}}
 
@@ -670,79 +765,6 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
 
 
 # {{{ array container classes for test
-
-@with_container_arithmetic(bcast_obj_array=False,
-        eq_comparison=False, rel_comparison=False,
-        _cls_has_array_context_attr=True)
-@dataclass_array_container
-@dataclass(frozen=True)
-class MyContainer:
-    name: str
-    mass: Union[DOFArray, np.ndarray]
-    momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
-
-    @property
-    def array_context(self):
-        if isinstance(self.mass, np.ndarray):
-            return next(iter(self.mass)).array_context
-        else:
-            return self.mass.array_context
-
-
-@with_container_arithmetic(
-        bcast_obj_array=False,
-        bcast_container_types=(DOFArray, np.ndarray),
-        matmul=True,
-        rel_comparison=True,
-        _cls_has_array_context_attr=True)
-@dataclass_array_container
-@dataclass(frozen=True)
-class MyContainerDOFBcast:
-    name: str
-    mass: Union[DOFArray, np.ndarray]
-    momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
-
-    @property
-    def array_context(self):
-        if isinstance(self.mass, np.ndarray):
-            return next(iter(self.mass)).array_context
-        else:
-            return self.mass.array_context
-
-
-def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
-    from numbers import Number
-    if isinstance(shapes, (Number, tuple)):
-        shapes = [shapes]
-
-    x = DOFArray(actx, tuple([
-        actx.from_numpy(randn(shape, np.float64))
-        for shape in shapes]))
-
-    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
-    dataclass_of_dofs = MyContainer(
-            name="container",
-            mass=x,
-            momentum=make_obj_array([x] * ambient_dim),
-            enthalpy=x)
-
-    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
-    bcast_dataclass_of_dofs = MyContainerDOFBcast(
-            name="container",
-            mass=x,
-            momentum=make_obj_array([x] * ambient_dim),
-            enthalpy=x)
-
-    ary_dof = x
-    ary_of_dofs = make_obj_array([x] * ambient_dim)
-    mat_of_dofs = np.empty((ambient_dim, ambient_dim), dtype=object)
-    for i in np.ndindex(mat_of_dofs.shape):
-        mat_of_dofs[i] = x
-
-    return (ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs,
-            bcast_dataclass_of_dofs)
 
 
 def test_container_scalar_map(actx_factory):
