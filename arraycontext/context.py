@@ -299,9 +299,19 @@ class ArrayContext(ABC):
         pass
 
     def empty_like(self, ary: Array) -> Array:
+        from warnings import warn
+        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
+            "working in 2023. Prefer actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
+
         return self.empty(shape=ary.shape, dtype=ary.dtype)
 
     def zeros_like(self, ary: Array) -> Array:
+        from warnings import warn
+        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
+            "working in 2023. Use actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
+
         return self.zeros(shape=ary.shape, dtype=ary.dtype)
 
     @abstractmethod

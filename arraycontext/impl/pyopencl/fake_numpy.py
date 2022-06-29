@@ -63,22 +63,49 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ array creation routines
 
+    def empty_like(self, ary):
+        from warnings import warn
+        warn(f"{type(self._array_context).__name__}.np.empty_like is "
+            "deprecated and will stop working in 2023. Prefer actx.np.zeros_like "
+            "instead.",
+            DeprecationWarning, stacklevel=2)
+
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        actx = self._array_context
+
+        def _empty_like(array):
+            return tga.empty(actx.queue, array.shape, array.dtype,
+                allocator=actx.allocator, axes=array.axes, tags=array.tags)
+
+        return actx._rec_map_container(_empty_like, ary)
+
+    def zeros_like(self, ary):
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        actx = self._array_context
+
+        def _zeros_like(array):
+            return tga.zeros(
+                actx.queue, array.shape, array.dtype,
+                allocator=actx.allocator, axes=array.axes, tags=array.tags)
+
+        return actx._rec_map_container(_zeros_like, ary, default_scalar=0)
+
     def ones_like(self, ary):
         return self.full_like(ary, 1)
 
     def full_like(self, ary, fill_value):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        actx = self._array_context
 
         def _full_like(subary):
             filled = tga.empty(
-                self._array_context.queue, subary.shape, subary.dtype,
-                allocator=self._array_context.allocator,
-                axes=subary.axes, tags=subary.tags)
+                actx.queue, subary.shape, subary.dtype,
+                allocator=actx.allocator, axes=subary.axes, tags=subary.tags)
             filled.fill(fill_value)
+
             return filled
 
-        return self._array_context._rec_map_container(
-            _full_like, ary, default_scalar=fill_value)
+        return actx._rec_map_container(_full_like, ary, default_scalar=fill_value)
 
     def copy(self, ary):
         def _copy(subary):

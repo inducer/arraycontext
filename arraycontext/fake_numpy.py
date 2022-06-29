@@ -91,12 +91,6 @@ class BaseFakeNumpyNamespace:
         # "interp",
         })
 
-    def empty_like(self, ary):
-        return self._array_context.empty_like(ary)
-
-    def zeros_like(self, ary):
-        return self._array_context.zeros_like(ary)
-
     def conjugate(self, x):
         # NOTE: conjugate distributes over object arrays, but it looks for a
         # `conjugate` ufunc, while some implementations only have the shorter
