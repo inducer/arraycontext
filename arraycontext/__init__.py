@@ -29,7 +29,9 @@ THE SOFTWARE.
 """
 
 import sys
-from .context import ArrayContext, Array, Scalar, tag_axes
+from .context import (
+        Array, ArrayT,
+        ArrayContext, Scalar, tag_axes)
 
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
@@ -38,6 +40,7 @@ from .transform_metadata import (CommonSubexpressionTag,
 from .metadata import _FirstAxisIsElementsTag
 
 from .container import (
+        ArrayOrContainerT as ArrayOrContainer, ArrayOrContainerT,
         ArrayContainer, NotAnArrayContainerError,
         is_array_container, is_array_container_type,
         get_container_context_opt,
@@ -78,11 +81,13 @@ from .loopy import make_loopy_program
 
 
 __all__ = (
-        "ArrayContext", "Scalar", "Array", "tag_axes",
+        "Array", "ArrayT",
+        "ArrayContext", "Scalar", "tag_axes",
 
         "CommonSubexpressionTag",
         "ElementwiseMapKernelTag",
 
+        "ArrayOrContainer", "ArrayOrContainerT",
         "ArrayContainer", "NotAnArrayContainerError",
         "is_array_container", "is_array_container_type",
         "get_container_context_opt",
