@@ -576,7 +576,7 @@ def test_any_all_same_as_numpy(actx_factory, sym_name):
                 lambda _np, *_args: getattr(_np, sym_name)(*_args), [1 - ary_all])
 
 
-def test_array_equal_same_as_numpy(actx_factory):
+def test_array_equal(actx_factory):
     actx = actx_factory()
 
     sym_name = "array_equal"
@@ -604,6 +604,11 @@ def test_array_equal_same_as_numpy(actx_factory):
 
     # Different types
     assert not actx.to_numpy(actx.np.array_equal(ary, ary_diff_type))
+
+    # Empty
+    ary_empty = np.empty((5, 0), dtype=object)
+    ary_empty_copy = ary_empty.copy()
+    assert actx.to_numpy(actx.np.array_equal(ary_empty, ary_empty_copy))
 
 
 # }}}

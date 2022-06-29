@@ -129,6 +129,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         actx = self._array_context
 
         # NOTE: not all backends support `bool` properly, so use `int8` instead
+        true = actx.from_numpy(numpy.int8(True))
         false = actx.from_numpy(numpy.int8(False))
 
         def rec_equal(x, y):
@@ -145,8 +146,8 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
             else:
                 return reduce(
                         jnp.logical_and,
-                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable]
-                        )
+                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable],
+                        true)
 
         return rec_equal(a, b)
 
