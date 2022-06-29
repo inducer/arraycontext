@@ -3,22 +3,10 @@
 """
 .. currentmodule:: arraycontext
 
-.. class:: ArrayT
-    :canonical: arraycontext.container.ArrayT
-
-    :class:`~typing.TypeVar` for arrays.
-
-.. class:: ContainerT
-    :canonical: arraycontext.container.ContainerT
-
-    :class:`~typing.TypeVar` for array container-like objects.
-
-.. class:: ArrayOrContainerT
-    :canonical: arraycontext.container.ArrayOrContainerT
-
-    :class:`~typing.TypeVar` for arrays or array container-like objects.
-
 .. autoclass:: ArrayContainer
+.. class:: ArrayContainerT
+
+    A type variable with a lower bound of :class:`ArrayContainer`.
 
 .. autoexception:: NotAnArrayContainerError
 
@@ -38,7 +26,22 @@ Context retrieval
 ---------------------------------------------------------
 
 .. autofunction:: register_multivector_as_array_container
+
+.. currentmodule:: arraycontext.container
+
+Canonical locations for type annotations
+----------------------------------------
+
+.. class:: ArrayContainerT
+
+    :canonical: arraycontext.ArrayContainerT
+
+.. class:: ArrayOrContainerT
+
+    :canonical: arraycontext.ArrayOrContainerT
 """
+
+from __future__ import annotations
 
 
 __copyright__ = """
@@ -67,22 +70,24 @@ THE SOFTWARE.
 
 from functools import singledispatch
 from arraycontext.context import ArrayContext
-from typing import Any, Iterable, Tuple, TypeVar, Optional, Union, TYPE_CHECKING
+from typing import Any, Iterable, Tuple, Optional, TypeVar, Protocol, TYPE_CHECKING
 import numpy as np
 
-ArrayT = TypeVar("ArrayT")
-ContainerT = TypeVar("ContainerT")
-ArrayOrContainerT = Union[ArrayT, ContainerT]
+# For use in singledispatch type annotations, because sphinx can't figure out
+# what 'np' is.
+import numpy
+
 
 if TYPE_CHECKING:
     from pymbolic.geometric_algebra import MultiVector
+    from arraycontext import ArrayOrContainer
 
 
 # {{{ ArrayContainer
 
-class ArrayContainer:
-    r"""
-    A generic container for the array type supported by the
+class ArrayContainer(Protocol):
+    """
+    A protocol for generic containers of the array type supported by the
     :class:`ArrayContext`.
 
     The functionality required for the container to operated is supplied via
@@ -113,9 +118,22 @@ class ArrayContainer:
 
     .. note::
 
-        This class is used in type annotation. Inheriting from it confers no
-        special meaning or behavior.
+        This class is used in type annotation and as a marker of array container
+        attributes for :func:`~arraycontext.dataclass_array_container`.
+        As a protocol, it is not intended as a superclass.
     """
+
+    # Array containers do not need to have any particular features, so this
+    # protocol is deliberately empty.
+
+    # This *is* used as a type annotation in dataclasses that are processed
+    # by dataclass_array_container, where it's used to recognize attributes
+    # that are container-typed.
+
+    pass
+
+
+ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
 
 
 class NotAnArrayContainerError(TypeError):
@@ -123,7 +141,8 @@ class NotAnArrayContainerError(TypeError):
 
 
 @singledispatch
-def serialize_container(ary: Any) -> Iterable[Tuple[Any, Any]]:
+def serialize_container(
+        ary: ArrayContainer) -> Iterable[Tuple[Any, ArrayOrContainer]]:
     r"""Serialize the array container into an iterable over its components.
 
     The order of the components and their identifiers are entirely under
@@ -149,7 +168,9 @@ def serialize_container(ary: Any) -> Iterable[Tuple[Any, Any]]:
 
 
 @singledispatch
-def deserialize_container(template: Any, iterable: Iterable[Tuple[Any, Any]]) -> Any:
+def deserialize_container(
+        template: ArrayContainerT,
+        iterable: Iterable[Tuple[Any, Any]]) -> ArrayContainerT:
     """Deserialize an iterable into an array container.
 
     :param template: an instance of an existing object that
@@ -214,7 +235,8 @@ def get_container_context_opt(ary: ArrayContainer) -> Optional[ArrayContext]:
 # {{{ object arrays as array containers
 
 @serialize_container.register(np.ndarray)
-def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
+def _serialize_ndarray_container(
+        ary: numpy.ndarray) -> Iterable[Tuple[Any, ArrayOrContainer]]:
     if ary.dtype.char != "O":
         raise NotAnArrayContainerError(
                 f"cannot serialize '{type(ary).__name__}' with dtype '{ary.dtype}'")
@@ -232,9 +254,10 @@ def _serialize_ndarray_container(ary: np.ndarray) -> Iterable[Tuple[Any, Any]]:
 
 
 @deserialize_container.register(np.ndarray)
-def _deserialize_ndarray_container(
-        template: np.ndarray,
-        iterable: Iterable[Tuple[Any, Any]]) -> np.ndarray:
+# https://github.com/python/mypy/issues/13040
+def _deserialize_ndarray_container(  # type: ignore[misc]
+        template: numpy.ndarray,
+        iterable: Iterable[Tuple[Any, ArrayOrContainer]]) -> numpy.ndarray:
     # disallow subclasses
     assert type(template) is np.ndarray
     assert template.dtype.char == "O"

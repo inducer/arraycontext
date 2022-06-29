@@ -35,7 +35,7 @@ import numpy as np
 
 from pytools.tag import ToTagSetConvertible
 
-from arraycontext.context import ArrayContext, _ScalarLike
+from arraycontext.context import ArrayContext, ScalarLike
 from arraycontext.container.traversal import (rec_map_array_container,
                                               with_array_context)
 
@@ -167,7 +167,7 @@ class PyOpenCLArrayContext(ArrayContext):
                                                  allocator=self.allocator),
                                   axes=None, tags=frozenset())
 
-    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
+    def from_numpy(self, array: Union[np.ndarray, ScalarLike]):
         import pyopencl.array as cl_array
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
         return to_tagged_cl_array(cl_array

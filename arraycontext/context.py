@@ -72,15 +72,42 @@ actual array contexts:
     an array expression that has been built up by the user
     (using, e.g. :func:`pytato.generate_loopy`).
 
-The interface of an array context
----------------------------------
 
 .. currentmodule:: arraycontext
 
-.. autoclass:: Array
-.. autoclass:: Scalar
+The interface of an array context
+---------------------------------
+
 .. autoclass:: ArrayContext
+
 .. autofunction:: tag_axes
+
+Types and Type Variables for Arrays and Containers
+--------------------------------------------------
+
+.. autoclass:: Array
+
+.. class:: ArrayT
+
+    A type variable with a lower bound of :class:`Array`.
+
+.. class:: ScalarLike
+
+    A type annotation for scalar types commonly usable with arrays.
+
+See also :class:`ArrayContainer` and :class:`ArrayOrContainerT`.
+
+.. class:: ArrayOrContainer
+
+.. class:: ArrayOrContainerT
+
+    A type variable with a lower bound of :class:`ArrayOrContainer`.
+
+.. class:: ArrayOrContainerOrScalar
+
+.. class:: ArrayOrContainerOrScalarT
+
+    A type variable with a lower bound of :class:`ArrayOrContainerOrScalar`.
 
 Internal typing helpers (do not import)
 ---------------------------------------
@@ -91,11 +118,21 @@ This is only here because the documentation tool wants it.
 
 .. class:: SelfType
 
+Canonical locations for type annotations
+----------------------------------------
+
 .. class:: ArrayT
 
-    A type variable, with a lower bound of :class:`Array`.
-"""
+    :canonical: arraycontext.ArrayT
 
+.. class:: ArrayOrContainerT
+
+    :canonical: arraycontext.ArrayOrContainerT
+
+.. class:: ArrayOrContainerOrScalarT
+
+    :canonical: arraycontext.ArrayOrContainerOrScalarT
+"""
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -132,11 +169,12 @@ from pytools.tag import ToTagSetConvertible
 
 if TYPE_CHECKING:
     import loopy
+    from arraycontext.container import ArrayContainer
 
 
 # {{{ typing
 
-_ScalarLike = Union[int, float, complex, np.generic]
+ScalarLike = Union[int, float, complex, np.generic]
 
 try:
     from typing import Protocol
@@ -154,6 +192,7 @@ class Array(Protocol):
     supported types see :attr:`ArrayContext.array_types`.
 
     .. attribute:: shape
+    .. attribute:: size
     .. attribute:: dtype
     """
 
@@ -162,34 +201,25 @@ class Array(Protocol):
         ...
 
     @property
+    def size(self) -> int:
+        ...
+
+    @property
     def dtype(self) -> "np.dtype[Any]":
         ...
+
+
+# deprecated, use ScalarLike instead
+Scalar = ScalarLike
 
 
 ArrayT = TypeVar("ArrayT", bound=Array)
-
-
-class Scalar(Protocol):
-    """A :class:`~typing.Protocol` for the scalar type supported by
-    :class:`ArrayContext`.
-
-    In :mod:`numpy` terminology, this is just an array with a shape of ``()``.
-
-    This is meant to aid in typing annotations. For a explicit list of
-    supported types see :attr:`ArrayContext.array_types`.
-
-    .. attribute:: shape
-    .. attribute:: dtype
-    """
-
-    @property
-    def shape(self) -> Tuple[()]:
-        ...
-
-    @property
-    def dtype(self) -> "np.dtype[Any]":
-        ...
-
+ArrayOrContainer = Union[Array, "ArrayContainer"]
+ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
+ArrayOrContainerOrScalar = Union[Array, "ArrayContainer", ScalarLike]
+ArrayOrContainerOrScalarT = TypeVar(
+        "ArrayOrContainerOrScalarT",
+        bound=ArrayOrContainerOrScalar)
 
 # }}}
 
@@ -273,8 +303,8 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def from_numpy(self,
-                   array: Union["np.ndarray[Any, Any]", _ScalarLike]
-                   ) -> Union[Array, _ScalarLike]:
+                   array: Union["np.ndarray[Any, Any]", ScalarLike]
+                   ) -> Union[Array, ScalarLike]:
         r"""
         :returns: the :class:`numpy.ndarray` *array* converted to the
             array context's array type. The returned array will be
@@ -284,8 +314,8 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def to_numpy(self,
-                 array: Union[Array, _ScalarLike]
-                 ) -> Union["np.ndarray[Any, Any]", _ScalarLike]:
+                 array: Union[Array, ScalarLike]
+                 ) -> Union["np.ndarray[Any, Any]", ScalarLike]:
         r"""
         :returns: *array*, an array recognized by the context, converted
             to a :class:`numpy.ndarray`. *array* must be
@@ -293,6 +323,7 @@ class ArrayContext(ABC):
         """
         pass
 
+    @abstractmethod
     def call_loopy(self,
                    program: "loopy.TranslationUnit",
                    **kwargs: Any) -> Dict[str, Array]:
@@ -308,7 +339,7 @@ class ArrayContext(ABC):
         """
 
     @abstractmethod
-    def freeze(self, array: Array) -> Array:
+    def freeze(self, array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         """Return a version of the context-defined array *array* that is
         'frozen', i.e. suitable for long-term storage and reuse. Frozen arrays
         do not support arithmetic. For example, in the context of
@@ -324,7 +355,7 @@ class ArrayContext(ABC):
         """
 
     @abstractmethod
-    def thaw(self, array: Array) -> Array:
+    def thaw(self, array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         """Take a 'frozen' array and return a new array representing the data in
         *array* that is able to perform arithmetic and other operations, using
         the execution resources of this context. In the context of

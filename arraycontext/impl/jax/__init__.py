@@ -31,7 +31,7 @@ import numpy as np
 
 from typing import Union, Callable, Any
 from pytools.tag import ToTagSetConvertible
-from arraycontext.context import ArrayContext, _ScalarLike
+from arraycontext.context import ArrayContext, ScalarLike
 from arraycontext.container.traversal import (with_array_context,
                                               rec_map_array_container)
 
@@ -70,7 +70,7 @@ class EagerJAXArrayContext(ArrayContext):
         import jax.numpy as jnp
         return jnp.zeros(shape=shape, dtype=dtype)
 
-    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
+    def from_numpy(self, array: Union[np.ndarray, ScalarLike]):
         import jax
         return jax.device_put(array)
 
