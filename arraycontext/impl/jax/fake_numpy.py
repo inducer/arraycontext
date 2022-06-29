@@ -56,6 +56,25 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     # {{{ array creation routines
 
+    def empty_like(self, ary):
+        from warnings import warn
+        warn(f"{type(self._array_context).__name__}.np.empty_like is "
+            "deprecated and will stop working in 2023. Prefer actx.np.zeros_like "
+            "instead.",
+            DeprecationWarning, stacklevel=2)
+
+        def _empty_like(array):
+            return self._array_context.empty(array.shape, array.dtype)
+
+        return self._array_context._rec_map_container(_empty_like, ary)
+
+    def zeros_like(self, ary):
+        def _zeros_like(array):
+            return self._array_context.zeros(array.shape, array.dtype)
+
+        return self._array_context._rec_map_container(
+            _zeros_like, ary, default_scalar=0)
+
     def ones_like(self, ary):
         return self.full_like(ary, 1)
 
