@@ -169,6 +169,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         queue = actx.queue
 
         # NOTE: pyopencl doesn't like `bool` much, so use `int8` instead
+        true = actx.from_numpy(np.int8(True))
         false = actx.from_numpy(np.int8(False))
 
         def rec_equal(x, y):
@@ -185,8 +186,8 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             else:
                 return reduce(
                         partial(cl_array.minimum, queue=queue),
-                        [rec_equal(ix, iy)for (_, ix), (_, iy) in iterable]
-                        )
+                        [rec_equal(ix, iy)for (_, ix), (_, iy) in iterable],
+                        true)
 
         result = rec_equal(a, b)
         if not self._array_context._force_device_scalars:

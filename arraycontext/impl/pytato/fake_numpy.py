@@ -148,6 +148,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         actx = self._array_context
 
         # NOTE: not all backends support `bool` properly, so use `int8` instead
+        true = actx.from_numpy(np.int8(True))
         false = actx.from_numpy(np.int8(False))
 
         def rec_equal(x, y):
@@ -164,8 +165,8 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             else:
                 return reduce(
                         pt.logical_and,
-                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable]
-                        )
+                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable],
+                        true)
 
         return rec_equal(a, b)
 
