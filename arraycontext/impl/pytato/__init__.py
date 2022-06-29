@@ -43,7 +43,7 @@ THE SOFTWARE.
 """
 
 import sys
-from arraycontext.context import ArrayContext, _ScalarLike
+from arraycontext.context import ArrayContext, ScalarLike
 from arraycontext.container.traversal import (rec_map_array_container,
                                               with_array_context)
 from arraycontext.metadata import NameHint
@@ -237,7 +237,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def clone(self):
         return type(self)(self.queue, self.allocator)
 
-    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
+    def from_numpy(self, array: Union[np.ndarray, ScalarLike]):
         import pytato as pt
         import pyopencl.array as cla
         cl_array = cla.to_device(self.queue, array)
@@ -288,7 +288,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         import pyopencl.array as cla
         import loopy as lp
 
-        from arraycontext.container import ArrayT
+        from arraycontext.context import ArrayT
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pytato.utils import (_normalize_pt_expr,
                                                     get_cl_axes_from_pt_axes)
@@ -524,7 +524,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     def clone(self):
         return type(self)()
 
-    def from_numpy(self, array: Union[np.ndarray, _ScalarLike]):
+    def from_numpy(self, array: Union[np.ndarray, ScalarLike]):
         import jax
         import pytato as pt
         return pt.make_data_wrapper(jax.device_put(array))
@@ -548,7 +548,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         import pytato as pt
 
         from jax.numpy import DeviceArray
-        from arraycontext.container import ArrayT
+        from arraycontext.context import ArrayT
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
 

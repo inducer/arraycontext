@@ -30,8 +30,14 @@ THE SOFTWARE.
 
 import sys
 from .context import (
+        ArrayContext,
+
+        Scalar, ScalarLike,
         Array, ArrayT,
-        ArrayContext, Scalar, tag_axes)
+        ArrayOrContainer, ArrayOrContainerT,
+        ArrayOrContainerOrScalar, ArrayOrContainerOrScalarT,
+
+        tag_axes)
 
 from .transform_metadata import (CommonSubexpressionTag,
         ElementwiseMapKernelTag)
@@ -40,8 +46,8 @@ from .transform_metadata import (CommonSubexpressionTag,
 from .metadata import _FirstAxisIsElementsTag
 
 from .container import (
-        ArrayOrContainerT as ArrayOrContainer, ArrayOrContainerT,
-        ArrayContainer, NotAnArrayContainerError,
+        ArrayContainer, ArrayContainerT,
+        NotAnArrayContainerError,
         is_array_container, is_array_container_type,
         get_container_context_opt,
         get_container_context_recursively, get_container_context_recursively_opt,
@@ -81,14 +87,18 @@ from .loopy import make_loopy_program
 
 
 __all__ = (
+        "ArrayContext", "Scalar", "Array",
+        "Scalar", "ScalarLike",
         "Array", "ArrayT",
-        "ArrayContext", "Scalar", "tag_axes",
+        "ArrayOrContainer", "ArrayOrContainerT",
+        "ArrayOrContainerOrScalar", "ArrayOrContainerOrScalarT",
+        "tag_axes",
 
         "CommonSubexpressionTag",
         "ElementwiseMapKernelTag",
 
-        "ArrayOrContainer", "ArrayOrContainerT",
-        "ArrayContainer", "NotAnArrayContainerError",
+        "ArrayContainer", "ArrayContainerT",
+        "NotAnArrayContainerError",
         "is_array_container", "is_array_container_type",
         "get_container_context_opt",
         "get_container_context_recursively_opt",

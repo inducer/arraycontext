@@ -29,8 +29,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext.container import (ArrayContainer, is_array_container_type,
-                                    ArrayT)
+from arraycontext.context import ArrayT
+from arraycontext.container import ArrayContainer, is_array_container_type
 from arraycontext.impl.pytato import (_BasePytatoArrayContext,
                                       PytatoJAXArrayContext,
                                       PytatoPyOpenCLArrayContext)
