@@ -239,7 +239,7 @@ class ArrayContext(ABC):
 
     .. automethod:: freeze
     .. automethod:: thaw
-    .. automethod:: force_evaluate
+    .. automethod:: freeze_thaw
     .. automethod:: tag
     .. automethod:: tag_axis
     .. automethod:: compile
@@ -464,12 +464,19 @@ class ArrayContext(ABC):
         """
         return f
 
-    def force_evaluate(self, array: Array) -> Array:
-        """Force the evaluation of any expression trees in the input *array* and
-        return a 'thaw'ed version of that array.  This function forces evaluation
-        by calling 'freeze' and subsequently 'thaw'.
+    def freeze_thaw(self, array: Array) -> Array:
+        r"""Evaluate an input array or container and return a new array or
+        container representing the evaluation result that is ready for use in
+        arithmetic operations using the execution resources of this context.
+        It does this by calling :meth:`~arraycontext.ArrayContext.freeze` and
+        subsequently :meth:`~arraycontext.ArrayContext.thaw`.
 
-        See also :func:`arraycontext.freeze`, :func:`arraycontext.thaw`
+        This method can be used, for example, in the evaluation of any expression
+        trees in the input *array* and producing a 'thaw'\ ed version of the data
+        computed from that evaluation.
+
+        See also :meth:`~arraycontext.ArrayContext.freeze`,
+        :meth:`~arraycontext.ArrayContext.thaw`
         """
         return self.thaw(self.freeze(array))
 
