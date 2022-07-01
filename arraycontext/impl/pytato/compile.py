@@ -152,10 +152,10 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
             arg_id_to_descr[arg_id] = ScalarInputDescriptor(np.dtype(type(arg)))
         elif is_array_container_type(arg.__class__):
             def id_collector(keys, ary):
-                arg_id = (kw,) + keys
-                arg_id_to_arg[arg_id] = ary
-                arg_id_to_descr[arg_id] = LeafArrayDescriptor(np.dtype(ary.dtype),
-                                                              ary.shape)
+                arg_id = (kw,) + keys  # noqa: B023
+                arg_id_to_arg[arg_id] = ary  # noqa: B023
+                arg_id_to_descr[arg_id] = LeafArrayDescriptor(  # noqa: B023
+                        np.dtype(ary.dtype), ary.shape)
                 return ary
 
             rec_keyed_map_array_container(id_collector, arg)
