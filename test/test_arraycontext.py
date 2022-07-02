@@ -37,7 +37,7 @@ from arraycontext import (
         PytatoPyOpenCLArrayContext,
         EagerJAXArrayContext,
         ArrayContainer,
-        to_numpy, tag_axes)
+        tag_axes)
 from arraycontext import (  # noqa: F401
         pytest_generate_tests_for_array_contexts,
         )
@@ -1145,9 +1145,8 @@ def test_numpy_conversion(actx_factory):
             enthalpy=np.array(np.random.rand()),
             )
 
-    from arraycontext import from_numpy, to_numpy
-    ac_actx = from_numpy(ac, actx)
-    ac_roundtrip = to_numpy(ac_actx, actx)
+    ac_actx = actx.from_numpy(ac)
+    ac_roundtrip = actx.to_numpy(ac_actx)
 
     assert np.allclose(ac.mass, ac_roundtrip.mass)
     assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
@@ -1155,13 +1154,13 @@ def test_numpy_conversion(actx_factory):
     from dataclasses import replace
     ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
     with pytest.raises(TypeError):
-        from_numpy(ac_with_cl, actx)
+        actx.from_numpy(ac_with_cl)
 
     with pytest.raises(TypeError):
-        from_numpy(ac_actx, actx)
+        actx.from_numpy(ac_actx)
 
     with pytest.raises(TypeError):
-        to_numpy(ac, actx)
+        actx.to_numpy(ac)
 
 # }}}
 
@@ -1226,7 +1225,6 @@ def scale_and_orthogonalize(alpha, vel):
 
 
 def test_actx_compile(actx_factory):
-    from arraycontext import (to_numpy, from_numpy)
     actx = actx_factory()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1234,17 +1232,16 @@ def test_actx_compile(actx_factory):
     v_x = np.random.rand(10)
     v_y = np.random.rand(10)
 
-    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+    vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
     scaled_speed = compiled_rhs(np.float64(3.14), vel)
 
-    result = to_numpy(scaled_speed, actx)
+    result = actx.to_numpy(scaled_speed)
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
 
 def test_actx_compile_python_scalar(actx_factory):
-    from arraycontext import (to_numpy, from_numpy)
     actx = actx_factory()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1252,17 +1249,16 @@ def test_actx_compile_python_scalar(actx_factory):
     v_x = np.random.rand(10)
     v_y = np.random.rand(10)
 
-    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+    vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
     scaled_speed = compiled_rhs(3.14, vel)
 
-    result = to_numpy(scaled_speed, actx)
+    result = actx.to_numpy(scaled_speed)
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
 
 def test_actx_compile_kwargs(actx_factory):
-    from arraycontext import (to_numpy, from_numpy)
     actx = actx_factory()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1270,11 +1266,11 @@ def test_actx_compile_kwargs(actx_factory):
     v_x = np.random.rand(10)
     v_y = np.random.rand(10)
 
-    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+    vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
     scaled_speed = compiled_rhs(3.14, vel=vel)
 
-    result = to_numpy(scaled_speed, actx)
+    result = actx.to_numpy(scaled_speed)
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
@@ -1550,7 +1546,7 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
     actx = actx_factory()
     u = actx.freeze(actx.zeros(10, dtype="float64")+1)
     np.testing.assert_allclose(actx.to_numpy(u), 1)
-    np.testing.assert_allclose(to_numpy(u, actx), 1)
+    np.testing.assert_allclose(actx.to_numpy(u), 1)
 
 
 def test_tagging(actx_factory):
