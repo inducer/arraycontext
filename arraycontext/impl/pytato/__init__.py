@@ -295,10 +295,12 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     # {{{ ArrayContext interface
 
     def zeros_like(self, ary):
-        def _zeros_like(array):
-            return self.zeros(array.shape, array.dtype)
+        from warnings import warn
+        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
+            "working in 2023. Use actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
 
-        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import pytato as pt
@@ -619,10 +621,12 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     # {{{ ArrayContext interface
 
     def zeros_like(self, ary):
-        def _zeros_like(array):
-            return self.zeros(array.shape, array.dtype)
+        from warnings import warn
+        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
+            "working in 2023. Use actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
 
-        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import jax
