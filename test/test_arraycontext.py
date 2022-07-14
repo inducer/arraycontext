@@ -304,7 +304,7 @@ def randn(shape, dtype):
 
 
 def assert_close_to_numpy(actx, op, args):
-    assert np.allclose(
+    np.testing.assert_allclose(
             actx.to_numpy(
                 op(actx.np, *[
                     actx.from_numpy(arg) if isinstance(arg, np.ndarray) else arg
@@ -328,7 +328,7 @@ def assert_close_to_numpy_in_containers(actx, op, args):
     if isinstance(actx_result, DOFArray):
         actx_result = actx_result[0]
 
-    assert np.allclose(actx.to_numpy(actx_result), ref_result)
+    np.testing.assert_allclose(actx.to_numpy(actx_result), ref_result)
 
     # }}}
 
@@ -342,7 +342,7 @@ def assert_close_to_numpy_in_containers(actx, op, args):
     if isinstance(obj_array_result, np.ndarray):
         obj_array_result = obj_array_result[0][0]
 
-    assert np.allclose(actx.to_numpy(obj_array_result), ref_result)
+    np.testing.assert_allclose(actx.to_numpy(obj_array_result), ref_result)
 
     # }}}
 
@@ -383,7 +383,6 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
         pytest.skip(f"'{sym_name}' not implemented on '{type(actx).__name__}'")
 
     ndofs = 512
-    args = [randn(ndofs, dtype) for i in range(n_args)]
 
     c_to_numpy_arc_functions = {
             "atan": "arctan",
@@ -396,6 +395,12 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
 
         return func(*_args)
 
+    args = [randn(ndofs, dtype) for i in range(n_args)]
+    assert_close_to_numpy_in_containers(actx, evaluate, args)
+
+    args = [randn(ndofs, dtype) for i in range(n_args)]
+    for i in range(n_args):
+        args[i][i] = np.nan
     assert_close_to_numpy_in_containers(actx, evaluate, args)
 
     if sym_name in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
@@ -636,11 +641,20 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
 
 # {{{ reductions same as numpy
 
+@pytest.mark.parametrize("input_case", ["numbers", "nans", "mixed"])
 @pytest.mark.parametrize("op", ["sum", "min", "max"])
-def test_reductions_same_as_numpy(actx_factory, op):
+def test_reductions_same_as_numpy(actx_factory, op, input_case):
     actx = actx_factory()
 
-    ary = np.random.randn(3000)
+    if input_case == "numbers":
+        ary = np.random.randn(3000)
+    elif input_case == "nans":
+        ary = np.array([np.nan, np.nan], dtype=np.float64)
+    elif input_case == "mixed":
+        ary = np.array([np.nan, 1.], dtype=np.float64)
+    else:
+        raise ValueError("invalid input case")
+
     np_red = getattr(np, op)(ary)
     actx_red = getattr(actx.np, op)(actx.from_numpy(ary))
     actx_red = actx.to_numpy(actx_red)
@@ -652,7 +666,7 @@ def test_reductions_same_as_numpy(actx_factory, op):
     else:
         assert actx_red.shape == ()
 
-    assert np.allclose(np_red, actx_red)
+    np.testing.assert_allclose(actx_red, np_red)
 
 
 @pytest.mark.parametrize("sym_name", ["any", "all"])
