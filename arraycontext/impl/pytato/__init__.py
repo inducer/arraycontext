@@ -789,4 +789,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
 # }}}
 
+# }}}
+
 # vim: foldmethod=marker
