@@ -423,7 +423,9 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     self._dag_transform_cache[normalized_expr])
 
         assert len(pt_prg.bound_arguments) == 0
-        evt, out_dict = pt_prg(self.queue, **bound_arguments)
+        evt, out_dict = pt_prg(self.queue,
+                allocator=self.allocator,
+                **bound_arguments)
         evt.wait()
         assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
