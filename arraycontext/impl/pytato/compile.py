@@ -417,9 +417,9 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         with ProcessLogger(logger, f"generate_loopy for '{prg_id}'"):
             import pyopencl as cl
             dev = self.actx.context.devices[0]
-            limit = dev.max_parameter_size
             target = None
             if dev.type & cl.device_type.GPU:
+                limit = dev.max_parameter_size
                 # Leave some extra space since our sizes are estimates
                 target = lp.PyOpenCLTarget(limit_arg_size_nbytes=limit//2)
 
