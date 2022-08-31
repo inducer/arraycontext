@@ -418,7 +418,8 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
             import pyopencl as cl
             dev = self.actx.context.devices[0]
             target = None
-            if dev.type & cl.device_type.GPU:
+            if (dev.type & cl.device_type.GPU
+                    and cl.characterize.has_coarse_grain_buffer_svm(dev)):
                 limit = dev.max_parameter_size
                 # Leave some extra space since our sizes are estimates
                 target = lp.PyOpenCLTarget(limit_arg_size_nbytes=limit//2)
