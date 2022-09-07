@@ -415,22 +415,13 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
                 prg_id, "pre_generate_loopy", pt_dict_of_named_arrays)
 
         with ProcessLogger(logger, f"generate_loopy for '{prg_id}'"):
-            import pyopencl as cl
-            dev = self.actx.context.devices[0]
-            target = None
-            if (dev.type & cl.device_type.GPU
-                    and cl.characterize.has_coarse_grain_buffer_svm(dev)):
-                limit = dev.max_parameter_size
-                # Leave some extra space since our sizes are estimates
-                target = lp.PyOpenCLTarget(limit_arg_size_nbytes=limit//2)
-
             pytato_program = pt.generate_loopy(
                     pt_dict_of_named_arrays,
                     options=lp.Options(
                         return_dict=True,
                         no_numpy=True),
                     function_name=_prg_id_to_kernel_name(prg_id),
-                    target=target,
+                    target=self.actx.get_target(),
                     )
             assert isinstance(pytato_program, BoundPyOpenCLProgram)
 

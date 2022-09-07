@@ -321,6 +321,18 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             self._rec_map_container(_to_numpy, self.freeze(array)),
             actx=None)
 
+    def get_target(self):
+        import pyopencl as cl
+        from pytato.target.loopy import LoopyPyOpenCLTarget
+        dev = self.queue.device
+        target = None
+        if (dev.type & cl.device_type.GPU
+                and cl.characterize.has_coarse_grain_buffer_svm(dev)):
+            target = LoopyPyOpenCLTarget(
+                        limit_arg_size_nbytes=dev.max_parameter_size)
+
+        return target
+
     def freeze(self, array):
         if np.isscalar(array):
             return array
@@ -415,7 +427,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             pt_prg = pt.generate_loopy(transformed_dag,
                                        options=_DEFAULT_LOOPY_OPTIONS,
                                        cl_device=self.queue.device,
-                                       function_name=function_name)
+                                       function_name=function_name,
+                                       target=self.get_target())
             pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
             self._freeze_prg_cache[normalized_expr] = pt_prg
         else:
