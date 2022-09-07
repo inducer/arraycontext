@@ -54,6 +54,7 @@ from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLi
 from arraycontext.container.traversal import (rec_map_array_container,
                                               with_array_context)
 from arraycontext.metadata import NameHint
+from pytools import memoize_method
 
 if TYPE_CHECKING:
     import pytato
@@ -321,6 +322,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             self._rec_map_container(_to_numpy, self.freeze(array)),
             actx=None)
 
+    @memoize_method
     def get_target(self):
         import pyopencl as cl
         from pytato.target.loopy import LoopyPyOpenCLTarget
