@@ -74,7 +74,7 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def __init__(self,
             queue: "pyopencl.CommandQueue",
-            allocator: Optional["pyopencl.tools.AllocatorInterface"] = None,
+            allocator: Optional["pyopencl.tools.AllocatorBase"] = None,
             wait_event_queue_length: Optional[int] = None,
             force_device_scalars: bool = False) -> None:
         r"""
