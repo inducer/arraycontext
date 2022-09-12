@@ -248,12 +248,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         if allocator is not None and use_memory_pool is not None:
             raise TypeError("may not specify both allocator and use_memory_pool")
 
-        from pyopencl.characterize import has_coarse_grain_buffer_svm
-        has_svm = has_coarse_grain_buffer_svm(queue.device)
-
         self.using_svm = None
 
         if allocator is None:
+            from pyopencl.characterize import has_coarse_grain_buffer_svm
+            has_svm = has_coarse_grain_buffer_svm(queue.device)
             if has_svm:
                 self.using_svm = True
 
@@ -261,8 +260,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 allocator = SVMAllocator(queue.context, queue=queue)
 
                 if use_memory_pool:
-                        from pyopencl.tools import SVMPool
-                        allocator = SVMPool(allocator)
+                    from pyopencl.tools import SVMPool
+                    allocator = SVMPool(allocator)
             else:
                 self.using_svm = False
 
@@ -272,6 +271,17 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 if use_memory_pool:
                     from pyopencl.tools import MemoryPool
                     allocator = MemoryPool(allocator)
+        else:
+            # Check whether the passed allocator allocates SVM
+            try:
+                from pyopencl import SVMPointer
+                mem = allocator(4)
+                if isinstance(mem, SVMPointer):
+                    self.using_svm = True
+                else:
+                    self.using_svm = False
+            except ImportError:
+                self.using_svm = False
 
         import pytato as pt
         import pyopencl.array as cla
@@ -359,12 +369,12 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         from pytato.target.loopy import LoopyPyOpenCLTarget
         dev = self.queue.device
         target = None
-        if (dev.type & cl.device_type.GPU
+        if (self.using_svm and dev.type & cl.device_type.GPU
                 and cl.characterize.has_coarse_grain_buffer_svm(dev)):
 
             from loopy import PyOpenCLTarget
             target = LoopyPyOpenCLTarget(
-                        target=PyOpenCLTarget(
+                        loopy_target=PyOpenCLTarget(
                             limit_arg_size_nbytes=dev.max_parameter_size))
 
         return target
