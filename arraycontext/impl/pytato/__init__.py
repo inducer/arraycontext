@@ -204,6 +204,9 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
     def permits_advanced_indexing(self):
         return True
 
+    def get_target(self):
+        return None
+
     # }}}
 
 # }}}
