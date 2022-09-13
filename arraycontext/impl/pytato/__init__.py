@@ -214,6 +214,29 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
 # {{{ PytatoPyOpenCLArrayContext
 
+from pytato.target.loopy import LoopyPyOpenCLTarget
+
+
+class PytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
+    def __init__(self, dev, using_svm) -> None:
+        super().__init__()
+        self.dev = dev
+        self.using_svm = using_svm
+
+    @memoize_method
+    def get_loopy_target(self):
+        import pyopencl as cl
+        target = None
+        if (self.using_svm and self.dev.type & cl.device_type.GPU
+                and cl.characterize.has_coarse_grain_buffer_svm(self.dev)):
+
+            from loopy import PyOpenCLTarget
+            target = PyOpenCLTarget(
+                            limit_arg_size_nbytes=42)
+
+        return target
+
+
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
     A :class:`ArrayContext` that uses :mod:`pytato` data types to represent
@@ -368,19 +391,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     @memoize_method
     def get_target(self):
-        import pyopencl as cl
-        from pytato.target.loopy import LoopyPyOpenCLTarget
-        dev = self.queue.device
-        target = None
-        if (self.using_svm and dev.type & cl.device_type.GPU
-                and cl.characterize.has_coarse_grain_buffer_svm(dev)):
-
-            from loopy import PyOpenCLTarget
-            target = LoopyPyOpenCLTarget(
-                        loopy_target=PyOpenCLTarget(
-                            limit_arg_size_nbytes=dev.max_parameter_size))
-
-        return target
+        return PytatoLoopyPyOpenCLTarget(self.queue.device, self.using_svm)
 
     def freeze(self, array):
         if np.isscalar(array):
