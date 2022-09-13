@@ -232,7 +232,7 @@ class PytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
 
             from loopy import PyOpenCLTarget
             target = PyOpenCLTarget(
-                            limit_arg_size_nbytes=42)
+                            limit_arg_size_nbytes=self.dev.max_parameter_size)
 
         return target
 
