@@ -59,6 +59,7 @@ from pytools import memoize_method
 if TYPE_CHECKING:
     import pytato
     import pyopencl as cl
+    import loopy as lp
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
     import pyopencl as cl  # noqa: F811
@@ -218,13 +219,13 @@ from pytato.target.loopy import LoopyPyOpenCLTarget
 
 
 class PytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
-    def __init__(self, dev, using_svm) -> None:
+    def __init__(self, dev: "cl.Device", using_svm: bool) -> None:
         super().__init__()
         self.dev = dev
         self.using_svm = using_svm
 
     @memoize_method
-    def get_loopy_target(self):
+    def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
         import pyopencl as cl
         target = None
         if (self.using_svm and self.dev.type & cl.device_type.GPU
