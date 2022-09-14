@@ -260,7 +260,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def __init__(
             self, queue: "cl.CommandQueue", allocator=None, *,
             use_memory_pool: Optional[bool] = None,
-            allocator_uses_svm: Optional[bool] = None,
             compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None
             ) -> None:
         """
