@@ -65,6 +65,10 @@ if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
     import pyopencl as cl  # noqa: F811
 
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 # {{{ tag conversion
 
 def _preprocess_array_tags(tags: ToTagSetConvertible) -> FrozenSet[Tag]:
@@ -231,9 +235,11 @@ class PytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
         if (self.using_svm and self.dev.type & cl.device_type.GPU
                 and cl.characterize.has_coarse_grain_buffer_svm(self.dev)):
 
+            limit = self.dev.max_parameter_size
+            logger.info(f"PytatoLoopyPyOpenCLTarget: limit_arg_size_nbytes={limit}")
+
             from loopy import PyOpenCLTarget
-            target = PyOpenCLTarget(
-                            limit_arg_size_nbytes=self.dev.max_parameter_size)
+            target = PyOpenCLTarget(limit_arg_size_nbytes=limit)
 
         return target
 
