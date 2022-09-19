@@ -229,6 +229,7 @@ class _ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
 
     @memoize_method
     def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
+        from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
 
 
