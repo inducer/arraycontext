@@ -420,7 +420,9 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
                     options=lp.Options(
                         return_dict=True,
                         no_numpy=True),
-                    function_name=_prg_id_to_kernel_name(prg_id))
+                    function_name=_prg_id_to_kernel_name(prg_id),
+                    target=self.actx.get_target(),
+                    )
             assert isinstance(pytato_program, BoundPyOpenCLProgram)
 
         self.actx._compile_trace_callback(

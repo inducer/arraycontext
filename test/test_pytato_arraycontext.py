@@ -100,6 +100,27 @@ def test_tags_preserved_after_freeze(actx_factory):
     assert foo.axes[1].tags_of_type(BazTag)
 
 
+def test_arg_size_limit(actx_factory):
+    ran_callback = False
+
+    def my_ctc(what, stage, ir):
+        if stage == "final":
+            assert ir.target.limit_arg_size_nbytes == 42
+            nonlocal ran_callback
+            ran_callback = True
+
+    def twice(x):
+        return 2 * x
+
+    actx = _PytatoPyOpenCLArrayContextForTests(
+        actx_factory().queue, compile_trace_callback=my_ctc, _force_svm_arg_limit=42)
+
+    f = actx.compile(twice)
+    f(99)
+
+    assert ran_callback
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
