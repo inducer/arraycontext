@@ -222,26 +222,14 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 from pytato.target.loopy import LoopyPyOpenCLTarget
 
 
-class PytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
-    def __init__(self, dev: "cl.Device", using_svm: bool) -> None:
+class _ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
+    def __init__(self, limit_arg_size_nbytes: int) -> None:
         super().__init__()
-        self.dev = dev
-        self.using_svm = using_svm
+        self.limit_arg_size_nbytes = limit_arg_size_nbytes
 
     @memoize_method
     def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
-        import pyopencl as cl
-        target = None
-        if (self.using_svm and self.dev.type & cl.device_type.GPU
-                and cl.characterize.has_coarse_grain_buffer_svm(self.dev)):
-
-            limit = self.dev.max_parameter_size
-            logger.info(f"PytatoLoopyPyOpenCLTarget: limit_arg_size_nbytes={limit}")
-
-            from loopy import PyOpenCLTarget
-            target = PyOpenCLTarget(limit_arg_size_nbytes=limit)
-
-        return target
+        return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
 
 
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
@@ -267,7 +255,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def __init__(
             self, queue: "cl.CommandQueue", allocator=None, *,
             use_memory_pool: Optional[bool] = None,
-            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None
+            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None,
+
+            # do not use: only for testing
+            _force_svm_arg_limit: Optional[int] = None,
             ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
@@ -325,6 +316,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context
+
+        self._force_svm_arg_limit = _force_svm_arg_limit
 
     @property
     def _frozen_array_types(self) -> Tuple[Type, ...]:
@@ -397,7 +390,26 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     @memoize_method
     def get_target(self):
-        return PytatoLoopyPyOpenCLTarget(self.queue.device, self.using_svm)
+        import pyopencl as cl
+        import pyopencl.characterize as cl_char
+
+        dev = self.queue.device
+
+        if (
+                self._force_svm_arg_limit is not None
+                or (
+                    self.using_svm and dev.type & cl.device_type.GPU
+                    and cl_char.has_coarse_grain_buffer_svm(dev))):
+
+            limit = dev.max_parameter_size
+            if self._force_svm_arg_limit is not None:
+                limit = self._force_svm_arg_limit
+
+            logger.info(f"limiting argument buffer size for {dev} to {limit} bytes")
+
+            return _ArgSizeLimitingPytatoLoopyPyOpenCLTarget(limit)
+        else:
+            return super().get_target()
 
     def freeze(self, array):
         if np.isscalar(array):
