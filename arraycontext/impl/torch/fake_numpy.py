@@ -24,32 +24,35 @@ THE SOFTWARE.
 from functools import partial, reduce
 
 import numpy as np
-import jax.numpy as jnp
+import torch
 
 from arraycontext.fake_numpy import (
         BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
         )
+from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
-        rec_multimap_array_container, rec_map_array_container,
+        rec_map_array_container,
+        rec_multimap_array_container,
+        multimap_reduce_array_container,
         rec_map_reduce_array_container,
+        rec_multimap_reduce_array_container,
         )
-from arraycontext.container import NotAnArrayContainerError, serialize_container
 
 
-class EagerJAXFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
+class TorchFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     # Everything is implemented in the base class for now.
     pass
 
 
-class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class TorchFakeNumpyNamespace(BaseFakeNumpyNamespace):
     """
-    A :mod:`numpy` mimic for :class:`~arraycontext.EagerJAXArrayContext`.
+    A :mod:`numpy` mimic for :class:`~arraycontext.TorchArrayContext`.
     """
     def _get_fake_numpy_linalg_namespace(self):
-        return EagerJAXFakeNumpyLinalgNamespace(self._array_context)
+        return TorchFakeNumpyLinalgNamespace(self._array_context)
 
     def __getattr__(self, name):
-        return partial(rec_multimap_array_container, getattr(jnp, name))
+        return partial(rec_multimap_array_container, getattr(torch, name))
 
     # NOTE: the order of these follows the order in numpy docs
     # NOTE: when adding a function here, also add it to `array_context.rst` docs!
@@ -61,7 +64,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def full_like(self, ary, fill_value):
         def _full_like(subary):
-            return jnp.full_like(subary, fill_value)
+            return torch.full_like(subary, fill_value)
 
         return self._array_context._rec_map_container(
             _full_like, ary, default_scalar=fill_value)
@@ -71,56 +74,51 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
     # {{{ array manipulation routines
 
     def reshape(self, a, newshape, order="C"):
+        """
+        .. warning::
+
+            Since :func:`torch.reshape` does not support orders `A`` and
+            ``K``, in such cases we fallback to using ``order = C``.
+        """
+        if order in "AK":
+            from warnings import warn
+            warn(f"reshape with order='{order}' nor supported by Torch,"
+                 " using order=C.")
+            
         return rec_map_array_container(
-            lambda ary: jnp.reshape(ary, newshape, order=order),
-            a)
+            lambda ary: torch.reshape(ary, newshape), a
+        )
 
     def ravel(self, a, order="C"):
         """
         .. warning::
 
-            Since :func:`jax.numpy.reshape` does not support orders `A`` and
+            Since :func:`torch.reshape` does not support orders `A`` and
             ``K``, in such cases we fallback to using ``order = C``.
         """
         if order in "AK":
             from warnings import warn
-            warn(f"ravel with order='{order}' not supported by JAX,"
+            warn(f"reshape with order='{order}' nor supported by Torch,"
                  " using order=C.")
-            order = "C"
 
         return rec_map_array_container(
-            lambda subary: jnp.ravel(subary, order=order), a)
+            lambda ary: torch.ravel(ary), a
+        )
 
-    def transpose(self, a, axes=None):
-        return rec_multimap_array_container(jnp.transpose, a, axes)
+    def transpose(self, a, dim0=0, dim1=1):
+        return rec_multimap_array_container(torch.transpose, a, dim0, dim1)
 
     def broadcast_to(self, array, shape):
-        return rec_map_array_container(partial(jnp.broadcast_to, shape=shape), array)
+        return rec_map_array_container(partial(torch.broadcast_to, shape=shape), array)
 
     def concatenate(self, arrays, axis=0):
-        return rec_multimap_array_container(jnp.concatenate, arrays, axis)
+        return rec_multimap_array_container(torch.cat, arrays, axis)
 
     def stack(self, arrays, axis=0):
         return rec_multimap_array_container(
-            lambda *args: jnp.stack(arrays=args, axis=axis),
-            *arrays)
-
-    # }}}
+            lambda *args: torch.stack(tensors=args, dim=axis), *arrays)
 
     # {{{ linear algebra
-
-    def vdot(self, x, y, dtype=None):
-        from arraycontext import rec_multimap_reduce_array_container
-
-        def _rec_vdot(ary1, ary2):
-            common_dtype = np.find_common_type((ary1.dtype, ary2.dtype), ())
-            if dtype not in [None, common_dtype]:
-                raise NotImplementedError(
-                    f"{type(self).__name__} cannot take dtype in vdot.")
-
-            return jnp.vdot(ary1, ary2)
-
-        return rec_multimap_reduce_array_container(sum, _rec_vdot, x, y)
 
     # }}}
 
@@ -128,16 +126,15 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def all(self, a):
         return rec_map_reduce_array_container(
-            partial(reduce, jnp.logical_and), jnp.all, a)
+            partial(reduce, torch.logical_and), torch.all, a)
 
     def any(self, a):
         return rec_map_reduce_array_container(
-            partial(reduce, jnp.logical_or), jnp.any, a)
-    
+            partial(reduce, torch.logical_or), torch.any, a)
+
     def array_equal(self, a, b):
         actx = self._array_context
 
-        # NOTE: not all backends support `bool` properly, so use `int8` instead
         true = actx.from_numpy(np.int8(True))
         false = actx.from_numpy(np.int8(False))
 
@@ -151,42 +148,53 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 if x.shape != y.shape:
                     return false
                 else:
-                    return jnp.all(jnp.equal(x, y))
+                    return torch.all(torch.equal(x, y))
             else:
                 return reduce(
-                        jnp.logical_and,
-                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable],
-                        true)
+                    torch.logical_and,
+                    [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable],
+                    true)
 
         return rec_equal(a, b)
 
+    def equal(self, a, b):
+        # ECG: Really?        
+        return a == b
+                     
     # }}}
-
+    
     # {{{ mathematical functions
 
-    def sum(self, a, axis=None, dtype=None):
+    def sum(self, a, axis=0, dtype=None):        
         return rec_map_reduce_array_container(
             sum,
-            partial(jnp.sum, axis=axis, dtype=dtype),
+            partial(torch.sum, axis=axis, dtype=dtype),
             a)
 
-    def amin(self, a, axis=None):
+    def amin(self, a, axis=0):
         return rec_map_reduce_array_container(
-                partial(reduce, jnp.minimum), partial(jnp.amin, axis=axis), a)
+            partial(reduce, torch.minimum), partial(torch.amin, axis=axis), a)
 
     min = amin
 
-    def amax(self, a, axis=None):
+    def amax(self, a, axis=0):
         return rec_map_reduce_array_container(
-                partial(reduce, jnp.maximum), partial(jnp.amax, axis=axis), a)
+            partial(reduce, torch.maximum), partial(torch.amax, axis=axis), a)
 
     max = amax
-
+    
     # }}}
 
-    # {{{ sorting, searching and counting
+    # {{{ sorting, searching, and counting
 
     def where(self, criterion, then, else_):
-        return rec_multimap_array_container(jnp.where, criterion, then, else_)
-
+        def where_inner(inner_crit, inner_then, inner_else):
+            import torch
+            if isinstance(inner_crit, torch.BoolTensor):
+                return torch.where(inner_crit, inner_then, inner_else)
+            else:
+                return torch.where(inner_crit != 0, inner_then, inner_else)
+            
+        return rec_multimap_array_container(where_inner, criterion, then, else_)
+    
     # }}}

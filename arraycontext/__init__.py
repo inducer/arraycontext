@@ -77,6 +77,7 @@ from .impl.pytato import (PytatoPyOpenCLArrayContext,
                           PytatoJAXArrayContext)
 from .impl.jax import EagerJAXArrayContext
 from .impl.numpy import NumpyArrayContext
+from .impl.torch import TorchArrayContext
 
 from .pytest import (
         PytestArrayContextFactory,
@@ -124,7 +125,7 @@ __all__ = (
         "PytatoJAXArrayContext",
         "EagerJAXArrayContext",
 
-        "NumpyArrayContext",
+        "NumpyArrayContext", "TorchArrayContext",
 
         "make_loopy_program",
 
