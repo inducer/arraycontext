@@ -275,6 +275,7 @@ class ArrayContext(ABC):
     .. automethod:: tag
     .. automethod:: tag_axis
     .. automethod:: compile
+    .. automethod:: solve
     """
 
     array_types: Tuple[type, ...] = ()
@@ -535,6 +536,9 @@ class ArrayContext(ABC):
         """
         *True* if the arrays support :mod:`numpy`'s advanced indexing semantics.
         """
+
+
+    def solve(self,
 
 # }}}
 

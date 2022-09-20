@@ -1574,6 +1574,37 @@ def test_tagging(actx_factory):
     assert not ary.axes[1].tags_of_type(ExampleTag)
 
 
+# {{{ test_solve_sqrt
+
+class SquareRootSolve(Tag):
+    pass
+
+
+def test_solve_sqrt(actx_factory):
+    actx = actx_factory()
+
+    def get_root(b):
+        def f(x):
+            return x**2 - b
+
+        def jacobian(x):
+            return 2*x
+
+        initial = actx.from_numpy(2)
+        return actx.solve(f, initial, jacobian=jacobian,
+                tol=1.48e-08, maxiter=50, rtol=0.0,
+                tags=(SquareRootSolve(),))
+
+    get_root_compiled = actx.compile(get_root)
+
+    ... test that get_root computes square roots ...
+
+    if isinstance(actx, (EagerJAXArrayContext, PytatoJAX...)):
+        ... check that the derivative does what we want ...
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
