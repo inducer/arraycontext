@@ -23,12 +23,18 @@ THE SOFTWARE.
 """
 
 
-from typing import Any, Dict, Set, Tuple, Mapping
+from typing import Any, Dict, Set, Tuple, Mapping, Optional, TYPE_CHECKING
+from pytools import memoize_method
+
 from pytato.array import SizeParam, Placeholder, make_placeholder, Axis as PtAxis
 from pytato.array import Array, DataWrapper, DictOfNamedArrays
 from pytato.transform import CopyMapper
 from pytools import UniqueNameGenerator
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
+from pytato.target.loopy import LoopyPyOpenCLTarget
+
+if TYPE_CHECKING:
+    import loopy as lp
 
 
 class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
@@ -91,3 +97,20 @@ def get_pt_axes_from_cl_axes(axes: Tuple[ClAxis, ...]) -> Tuple[PtAxis, ...]:
 
 def get_cl_axes_from_pt_axes(axes: Tuple[PtAxis, ...]) -> Tuple[ClAxis, ...]:
     return tuple(ClAxis(axis.tags) for axis in axes)
+
+
+# {{{ arg-size-limiting loopy target
+
+class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
+    def __init__(self, limit_arg_size_nbytes: int) -> None:
+        super().__init__()
+        self.limit_arg_size_nbytes = limit_arg_size_nbytes
+
+    @memoize_method
+    def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
+        from loopy import PyOpenCLTarget
+        return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+
+# }}}
+
+# vim: foldmethod=marker
