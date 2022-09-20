@@ -1278,6 +1278,31 @@ def test_actx_compile_kwargs(actx_factory):
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
+
+def test_actx_compile_with_tuple_output_keys(actx_factory):
+    # arraycontext.git<=3c9aee68 would fail due to a bug in output
+    # key stringification logic.
+    from arraycontext import (to_numpy, from_numpy)
+    actx = actx_factory()
+
+    def my_rhs(scale, vel):
+        result = np.empty((1, 1), dtype=object)
+        result[0, 0] = scale_and_orthogonalize(scale, vel)
+        return result
+
+    compiled_rhs = actx.compile(my_rhs)
+
+    v_x = np.random.rand(10)
+    v_y = np.random.rand(10)
+
+    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+
+    scaled_speed = compiled_rhs(3.14, vel=vel)
+
+    result = to_numpy(scaled_speed, actx)[0, 0]
+    np.testing.assert_allclose(result.u, -3.14*v_y)
+    np.testing.assert_allclose(result.v, 3.14*v_x)
+
 # }}}
 
 

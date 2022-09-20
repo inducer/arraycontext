@@ -354,8 +354,7 @@ class BaseLazilyCompilingFunctionCaller:
                 f" but an instance of '{output_template.__class__}' instead.")
 
         def _as_dict_of_named_arrays(keys, ary):
-            name = "_pt_out_" + "_".join(str(key)
-                                         for key in keys)
+            name = "_pt_out_" + _ary_container_key_stringifier(keys)
             output_id_to_name_in_program[keys] = name
             dict_of_named_arrays[name] = ary
             return ary
@@ -606,7 +605,7 @@ class CompiledFunction(abc.ABC):
 # }}}
 
 
-# {{{ copmiled pyopencl function
+# {{{ compiled pyopencl function
 
 @dataclass(frozen=True)
 class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
@@ -698,7 +697,8 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
 # }}}
 
 
-# {{{ comiled jax function
+# {{{ compiled jax function
+
 @dataclass(frozen=True)
 class CompiledJAXFunctionReturningArrayContainer(CompiledFunction):
     """
