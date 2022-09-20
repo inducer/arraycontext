@@ -219,18 +219,20 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
 # {{{ PytatoPyOpenCLArrayContext
 
-from pytato.target.loopy import LoopyPyOpenCLTarget
+try:
+    from pytato.target.loopy import LoopyPyOpenCLTarget
 
+    class _ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
+        def __init__(self, limit_arg_size_nbytes: int) -> None:
+            super().__init__()
+            self.limit_arg_size_nbytes = limit_arg_size_nbytes
 
-class _ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
-    def __init__(self, limit_arg_size_nbytes: int) -> None:
-        super().__init__()
-        self.limit_arg_size_nbytes = limit_arg_size_nbytes
-
-    @memoize_method
-    def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
-        from loopy import PyOpenCLTarget
-        return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+        @memoize_method
+        def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
+            from loopy import PyOpenCLTarget
+            return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+except ImportError:
+    pass
 
 
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
