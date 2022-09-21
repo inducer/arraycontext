@@ -275,7 +275,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 self.using_svm = False
 
                 from pyopencl.tools import ImmediateAllocator
-                allocator = ImmediateAllocator(queue.context)
+                allocator = ImmediateAllocator(queue)
 
                 if use_memory_pool:
                     from pyopencl.tools import MemoryPool
