@@ -129,7 +129,9 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
     alloc = None
     use_memory_pool = None
 
-    if pass_allocator == "auto_true":
+    if pass_allocator == "auto_none":
+        pass
+    elif pass_allocator == "auto_true":
         use_memory_pool = True
     elif pass_allocator == "auto_false":
         use_memory_pool = False
@@ -145,6 +147,8 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
     elif pass_allocator == "pass_svm_pool":
         from pyopencl.tools import SVMAllocator, SVMPool
         alloc = SVMPool(SVMAllocator(base_actx.queue.context, queue=base_actx.queue))
+    else:
+        raise ValueError(f"unknown option {pass_allocator}")
 
     actx = _PytatoPyOpenCLArrayContextForTests(base_actx.queue, allocator=alloc,
                                                use_memory_pool=use_memory_pool)
