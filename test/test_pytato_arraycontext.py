@@ -139,12 +139,18 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
         from pyopencl.tools import ImmediateAllocator
         alloc = ImmediateAllocator(base_actx.queue)
     elif pass_allocator == "pass_svm":
+        from pyopencl.characterize import has_coarse_grain_buffer_svm
+        if not has_coarse_grain_buffer_svm(base_actx.queue.device):
+            pytest.skip("need SVM support for this test")
         from pyopencl.tools import SVMAllocator
         alloc = SVMAllocator(base_actx.queue.context, queue=base_actx.queue)
     elif pass_allocator == "pass_buffer_pool":
         from pyopencl.tools import ImmediateAllocator, MemoryPool
         alloc = MemoryPool(ImmediateAllocator(base_actx.queue))
     elif pass_allocator == "pass_svm_pool":
+        from pyopencl.characterize import has_coarse_grain_buffer_svm
+        if not has_coarse_grain_buffer_svm(base_actx.queue.device):
+            pytest.skip("need SVM support for this test")
         from pyopencl.tools import SVMAllocator, SVMPool
         alloc = SVMPool(SVMAllocator(base_actx.queue.context, queue=base_actx.queue))
     else:
