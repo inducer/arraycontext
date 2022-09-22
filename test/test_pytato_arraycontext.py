@@ -175,6 +175,11 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
                     return_value=False):
             actx = _PytatoPyOpenCLArrayContextForTests(base_actx.queue,
                         allocator=alloc, use_memory_pool=use_memory_pool)
+
+            from pyopencl.tools import ImmediateAllocator, MemoryPool
+            assert isinstance(actx.allocator,
+                              MemoryPool if use_memory_pool else ImmediateAllocator)
+
             f = actx.compile(twice)
             res = actx.to_numpy(f(99))
 
