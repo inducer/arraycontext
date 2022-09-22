@@ -169,22 +169,16 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
 
     # Also test a case in which SVM is not available
     if pass_allocator in ["auto_none", "auto_true", "auto_false"]:
-        def override_has_svm(dev):
-            return False
+        from unittest.mock import patch
 
-        import pyopencl.characterize as cl_char
+        with patch("pyopencl.characterize.has_coarse_grain_buffer_svm",
+                    return_value=False):
+            actx = _PytatoPyOpenCLArrayContextForTests(base_actx.queue,
+                        allocator=alloc, use_memory_pool=use_memory_pool)
+            f = actx.compile(twice)
+            res = actx.to_numpy(f(99))
 
-        backup_has_coarse_grain_buffer_svm = cl_char.has_coarse_grain_buffer_svm
-        cl_char.has_coarse_grain_buffer_svm = override_has_svm
-
-        actx = _PytatoPyOpenCLArrayContextForTests(base_actx.queue, allocator=alloc,
-                                               use_memory_pool=use_memory_pool)
-        f = actx.compile(twice)
-        res = actx.to_numpy(f(99))
-
-        assert res == 198
-
-        cl_char.has_coarse_grain_buffer_svm = backup_has_coarse_grain_buffer_svm
+            assert res == 198
 
 
 if __name__ == "__main__":
