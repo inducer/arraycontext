@@ -59,7 +59,6 @@ from pytools import memoize_method
 if TYPE_CHECKING:
     import pytato
     import pyopencl as cl
-    import loopy as lp
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
     import pyopencl as cl  # noqa: F811
@@ -219,20 +218,6 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
 # {{{ PytatoPyOpenCLArrayContext
 
-from pytato.target.loopy import LoopyPyOpenCLTarget
-
-
-class _ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
-    def __init__(self, limit_arg_size_nbytes: int) -> None:
-        super().__init__()
-        self.limit_arg_size_nbytes = limit_arg_size_nbytes
-
-    @memoize_method
-    def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
-        from loopy import PyOpenCLTarget
-        return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
-
-
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
     A :class:`ArrayContext` that uses :mod:`pytato` data types to represent
@@ -290,7 +275,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 self.using_svm = False
 
                 from pyopencl.tools import ImmediateAllocator
-                allocator = ImmediateAllocator(queue.context)
+                allocator = ImmediateAllocator(queue)
 
                 if use_memory_pool:
                     from pyopencl.tools import MemoryPool
@@ -408,7 +393,9 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
             logger.info(f"limiting argument buffer size for {dev} to {limit} bytes")
 
-            return _ArgSizeLimitingPytatoLoopyPyOpenCLTarget(limit)
+            from arraycontext.impl.pytato.utils import \
+                    ArgSizeLimitingPytatoLoopyPyOpenCLTarget
+            return ArgSizeLimitingPytatoLoopyPyOpenCLTarget(limit)
         else:
             return super().get_target()
 
