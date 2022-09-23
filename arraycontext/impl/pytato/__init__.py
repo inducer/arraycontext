@@ -402,7 +402,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     self.using_svm and dev.type & cl.device_type.GPU
                     and cl_char.has_coarse_grain_buffer_svm(dev))):
 
-            limit = dev.max_parameter_size
+            limit = dev.max_parameter_size // 2
             if self._force_svm_arg_limit is not None:
                 limit = self._force_svm_arg_limit
 
