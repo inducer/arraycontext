@@ -387,7 +387,19 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     self.using_svm and dev.type & cl.device_type.GPU
                     and cl_char.has_coarse_grain_buffer_svm(dev))):
 
-            limit = dev.max_parameter_size // 2
+            if dev.max_parameter_size == 4352:
+                # Nvidia devices and PTXAS advertise a limit of 4352 bytes,
+                # which is incorrect. The CUDA documentation at
+                # https://docs.nvidia.com/cuda/cuda-c-programming-guide/#function-parameters
+                # advertises a limit of 4KB, which is also incorrect.
+                # As far as I can tell, the actual limit is around 4080
+                # bytes, at least on a K40. Reducing the limit further
+                # in order ot be on the safe side.
+
+                limit = 4096-200
+            else:
+                limit = dev.max_parameter_size
+
             if self._force_svm_arg_limit is not None:
                 limit = self._force_svm_arg_limit
 
