@@ -48,7 +48,8 @@ jobs:
                 curl -L -O https://tiker.net/ci-support-v0
                 . ./ci-support-v0
                 build_py_project_in_conda_env
-                python -m pip install mypy
+                # for https://github.com/python/mypy/issues/13627
+                python -m pip install "git+https://github.com/python/mypy.git@2d903e883932eeff134e4782fe09701a49c04e9f#egg=mypy"
                 ./run-mypy.sh
 
     pytest3_pocl:
