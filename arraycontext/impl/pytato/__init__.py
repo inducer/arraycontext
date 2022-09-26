@@ -396,6 +396,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 # bytes, at least on a K40. Reducing the limit further
                 # in order to be on the safe side.
 
+                # Note that the naming convention isn't super consistent
+                # for Nvidia GPUs, so that we only use the maximum
+                # parameter size to determine if it is an Nvidia GPU.
+
                 limit = 4096-200
 
                 from warnings import warn
