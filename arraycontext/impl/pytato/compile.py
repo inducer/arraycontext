@@ -58,7 +58,7 @@ def _to_identifier(s: str) -> str:
 
 def _prg_id_to_kernel_name(f: Any) -> str:
     if callable(f):
-        name = f.__name__
+        name = getattr(f, "__name__", "<anonymous>")
         if not name.isidentifier():
             return "actx_compiled_" + _to_identifier(name)
         else:
