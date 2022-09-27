@@ -1574,6 +1574,20 @@ def test_tagging(actx_factory):
     assert not ary.axes[1].tags_of_type(ExampleTag)
 
 
+def test_compile_anonymous_function(actx_factory):
+    from functools import partial
+    # See https://github.com/inducer/grudge/issues/287
+    actx = actx_factory()
+    f = actx.compile(lambda x: 2*x+40)
+    np.testing.assert_allclose(
+        actx.to_numpy(f(1+actx.zeros((10, 4), "float64"))),
+        42)
+    f = actx.compile(partial(lambda x: 2*x+40))
+    np.testing.assert_allclose(
+        actx.to_numpy(f(1+actx.zeros((10, 4), "float64"))),
+        42)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
