@@ -260,26 +260,37 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         self.using_svm = None
 
         if allocator is None:
+            import sys
+
             from pyopencl.characterize import has_coarse_grain_buffer_svm
             has_svm = has_coarse_grain_buffer_svm(queue.device)
-            if has_svm:
-                self.using_svm = True
+            is_nvidia_cl_with_pytest = (queue.device.platform.name == "NVIDIA CUDA"
+                                        and "pytest" in sys.modules)
 
-                from pyopencl.tools import SVMAllocator
-                allocator = SVMAllocator(queue.context, queue=queue)
+            if is_nvidia_cl_with_pytest or not has_svm:
+                if is_nvidia_cl_with_pytest and has_svm:
+                    from warnings import warn
+                    warn("Disabling SVM due to memory leak"
+                         "in Nvidia CL when running pytest."
+                         "See https://github.com/inducer/arraycontext/issues/196")
 
-                if use_memory_pool:
-                    from pyopencl.tools import SVMPool
-                    allocator = SVMPool(allocator)
-            else:
                 self.using_svm = False
-
                 from pyopencl.tools import ImmediateAllocator
                 allocator = ImmediateAllocator(queue)
 
                 if use_memory_pool:
                     from pyopencl.tools import MemoryPool
                     allocator = MemoryPool(allocator)
+
+            else:
+                self.using_svm = True
+                from pyopencl.tools import SVMAllocator
+                allocator = SVMAllocator(queue.context, queue=queue)
+
+                if use_memory_pool:
+                    from pyopencl.tools import SVMPool
+                    allocator = SVMPool(allocator)
+
         else:
             # Check whether the passed allocator allocates SVM
             try:
