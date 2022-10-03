@@ -100,8 +100,21 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
         ctx, queue = self.get_command_queue()
+
+        alloc = None
+
+        if queue.device.platform.name == "NVIDIA CUDA":
+            from pyopencl.tools import ImmediateAllocator
+            alloc = ImmediateAllocator(queue)
+
+            from warnings import warn
+            warn("Disabling SVM due to memory leak "
+                 "in Nvidia CL when running pytest. "
+                 "See https://github.com/inducer/arraycontext/issues/196")
+
         return self.actx_class(
                 queue,
+                allocator=alloc,
                 force_device_scalars=self.force_device_scalars)
 
     def __str__(self):
@@ -141,7 +154,19 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
         ctx, queue = self.get_command_queue()
-        return self.actx_class(queue)
+
+        alloc = None
+
+        if queue.device.platform.name == "NVIDIA CUDA":
+            from pyopencl.tools import ImmediateAllocator
+            alloc = ImmediateAllocator(queue)
+
+            from warnings import warn
+            warn("Disabling SVM due to memory leak "
+                 "in Nvidia CL when running pytest. "
+                 "See https://github.com/inducer/arraycontext/issues/196")
+
+        return self.actx_class(queue, allocator=alloc)
 
     def __str__(self):
         return ("<PytatoPyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>>" %
