@@ -286,6 +286,9 @@ class ArrayContext(ABC):
         from .fake_numpy import BaseFakeNumpyNamespace
         return BaseFakeNumpyNamespace(self)
 
+    def __hash__(self) -> int:
+        raise TypeError(f"unhashable type: '{type(self).__name__}'")
+
     @abstractmethod
     def empty(self,
               shape: Union[int, Tuple[int, ...]],
