@@ -319,8 +319,8 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def from_numpy(self,
-                   array: ArrayOrContainerOrScalar
-                   ) -> NumpyOrContainerOrScalar:
+                   array: NumpyOrContainerOrScalar
+                   ) -> ArrayOrContainerOrScalar:
         r"""
         :returns: the :class:`numpy.ndarray` *array* converted to the
             array context's array type. The returned array will be
@@ -332,8 +332,8 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def to_numpy(self,
-                 array: NumpyOrContainerOrScalar
-                 ) -> ArrayOrContainerOrScalar:
+                 array: ArrayOrContainerOrScalar
+                 ) -> NumpyOrContainerOrScalar:
         r"""
         :returns: an :class:`numpy.ndarray` for each array recognized by the
             context. The input *array* must be :meth:`thaw`\ ed.
