@@ -82,7 +82,8 @@ def test_dataclass_array_container():
     @dataclass
     class ArrayContainerWithInitFalse:
         x: np.ndarray
-        y: np.ndarray = field(default=np.zeros(42), init=False, repr=False)
+        y: np.ndarray = field(default_factory=lambda: np.zeros(42),
+                              init=False, repr=False)
 
     with pytest.raises(ValueError):
         # NOTE: init=False fields are not allowed
