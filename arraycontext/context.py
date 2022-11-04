@@ -160,8 +160,8 @@ THE SOFTWARE.
 
 from abc import ABC, abstractmethod
 from typing import (
-        Any, Callable, Dict, Optional, Tuple, Union, Mapping,
-        TYPE_CHECKING, TypeVar)
+        Any, Callable, Dict, Optional, Tuple, Union, Mapping, Protocol, TypeVar,
+        TYPE_CHECKING)
 
 import numpy as np
 from pytools import memoize_method
@@ -175,12 +175,6 @@ if TYPE_CHECKING:
 # {{{ typing
 
 ScalarLike = Union[int, float, complex, np.generic]
-
-try:
-    from typing import Protocol
-except ImportError:
-    from typing_extensions import Protocol                  # type: ignore[misc]
-
 SelfType = TypeVar("SelfType")
 
 

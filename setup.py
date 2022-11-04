@@ -44,9 +44,6 @@ def main():
             "pytools>=2022.1.3",
 
             "loopy>=2019.1",
-            "dataclasses; python_version<'3.7'",
-            "typing_extensions; python_version<'3.9'",
-            "types-dataclasses",
         ],
         extras_require={
             "test": ["pytest>=2.3"],
