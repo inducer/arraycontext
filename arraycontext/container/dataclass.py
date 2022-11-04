@@ -30,12 +30,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Tuple, Union, get_args
-try:
-    # NOTE: only available in python >= 3.8
-    from typing import get_origin
-except ImportError:
-    from typing_extensions import get_origin
+from typing import Tuple, Union, get_args, get_origin
 
 from dataclasses import Field, is_dataclass, fields
 from arraycontext.container import is_array_container_type
