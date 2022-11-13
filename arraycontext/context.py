@@ -175,6 +175,7 @@ if TYPE_CHECKING:
 # {{{ typing
 
 ScalarLike = Union[int, float, complex, np.generic]
+
 SelfType = TypeVar("SelfType")
 
 
