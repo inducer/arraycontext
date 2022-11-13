@@ -46,7 +46,7 @@ def test_pt_actx_key_stringification_uniqueness():
 
 # {{{ test_dataclass_array_container
 
-def test_dataclass_array_container():
+def test_dataclass_array_container() -> None:
     from typing import Optional
     from dataclasses import dataclass, field
     from arraycontext import dataclass_array_container
@@ -109,7 +109,7 @@ def test_dataclass_array_container():
 
 # {{{ test_dataclass_container_unions
 
-def test_dataclass_container_unions():
+def test_dataclass_container_unions() -> None:
     from dataclasses import dataclass
     from arraycontext import dataclass_array_container
 

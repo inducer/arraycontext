@@ -681,8 +681,7 @@ def flatten(
                 # NOTE: we can't do much if the array context fails to ravel,
                 # since it is the one responsible for the actual memory layout
                 if hasattr(subary_c, "strides"):
-                    # Mypy has a point: nobody promised a strides attr.
-                    strides_msg = f" and strides {subary_c.strides}"  # type: ignore[attr-defined]  # noqa: E501
+                    strides_msg = f" and strides {subary_c.strides}"
                 else:
                     strides_msg = ""
 
