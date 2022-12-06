@@ -44,7 +44,9 @@ from arraycontext import (  # noqa: F401
 from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
                                  _PytestPytatoPyOpenCLArrayContextFactory,
                                  _PytestEagerJaxArrayContextFactory,
-                                 _PytestPytatoJaxArrayContextFactory)
+                                 _PytestPytatoJaxArrayContextFactory,
+                                 _PytestPytatoPyOpenCLArrayContextFactory,
+                                 _PytestNumpyArrayContextFactory)
 
 
 import logging
@@ -93,6 +95,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestNumpyArrayContextFactory,
     ])
 
 
@@ -1135,7 +1138,11 @@ def test_flatten_with_leaf_class(actx_factory):
 # {{{ test from_numpy and to_numpy
 
 def test_numpy_conversion(actx_factory):
+    from arraycontext import NumpyArrayContext
+
     actx = actx_factory()
+    if isinstance(actx, NumpyArrayContext):
+        pytest.skip("Irrelevant tests  for NumpyArrayContext")
 
     nelements = 42
     ac = MyContainer(
@@ -1334,6 +1341,8 @@ def test_container_equality(actx_factory):
 @dataclass(frozen=True)
 class Foo:
     u: DOFArray
+
+    __array_priority__ = 1  # disallow numpy arithmetic to take precedence
 
     @property
     def array_context(self):
