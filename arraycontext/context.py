@@ -520,6 +520,12 @@ class ArrayContext(ABC):
         """
         return f
 
+    # Supporting interface for function/call tracing in actx implementations
+    def trace_call(self, f: Callable[..., Any],
+                   *args, identifier=None, **kwargs):
+        """Returns the result of the called function *f* with the specified args."""
+        return f(*args, **kwargs)
+
     # undocumented for now
     @property
     @abstractmethod
