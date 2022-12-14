@@ -13,4 +13,4 @@ dependencies:
 - pyopencl
 - islpy
 - pip
-- jax <0.4
+- jax
