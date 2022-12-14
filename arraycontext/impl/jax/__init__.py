@@ -54,8 +54,8 @@ class EagerJAXArrayContext(ArrayContext):
     def __init__(self) -> None:
         super().__init__()
 
-        from jax import Array
-        self.array_types = (Array, )
+        from jax import Array as JAXArray
+        self.array_types = (JAXArray, )
 
     def _get_fake_numpy_namespace(self):
         from .fake_numpy import EagerJAXFakeNumpyNamespace

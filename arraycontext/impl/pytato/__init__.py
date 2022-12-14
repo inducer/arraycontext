@@ -686,14 +686,14 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             unstable.
         """
         import pytato as pt
-        from jax import Array
+        from jax import Array as JAXArray
         super().__init__(compile_trace_callback=compile_trace_callback)
-        self.array_types = (pt.Array, Array)
+        self.array_types = (pt.Array, JAXArray)
 
     @property
     def _frozen_array_types(self) -> Tuple[Type, ...]:
-        from jax import Array
-        return (Array, )
+        from jax import Array as JAXArray
+        return (JAXArray, )
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
@@ -756,16 +756,16 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         import pytato as pt
 
-        from jax import Array
+        from jax import Array as JAXArray
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
 
-        array_as_dict: Dict[str, Union[Array, pt.Array]] = {}
-        key_to_frozen_subary: Dict[str, Array] = {}
+        array_as_dict: Dict[str, Union[JAXArray, pt.Array]] = {}
+        key_to_frozen_subary: Dict[str, JAXArray] = {}
         key_to_pt_arrays: Dict[str, pt.Array] = {}
 
         def _record_leaf_ary_in_dict(key: Tuple[Any, ...],
-                                     ary: Union[Array, pt.Array]) -> None:
+                                     ary: Union[JAXArray, pt.Array]) -> None:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             array_as_dict[key_str] = ary
 
@@ -774,7 +774,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         # {{{ remove any non pytato arrays from array_as_dict
 
         for key, subary in array_as_dict.items():
-            if isinstance(subary, Array):
+            if isinstance(subary, JAXArray):
                 key_to_frozen_subary[key] = subary.block_until_ready()
             elif isinstance(subary, pt.DataWrapper):
                 # trivial freeze.
@@ -801,7 +801,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
                for k, v in out_dict.items()}
         }
 
-        def _to_frozen(key: Tuple[Any, ...], ary) -> Array:
+        def _to_frozen(key: Tuple[Any, ...], ary) -> JAXArray:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             return key_to_frozen_subary[key_str]
 
@@ -825,7 +825,8 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
     def tag(self, tags: ToTagSetConvertible, array):
         def _tag(ary):
-            if isinstance(ary, Array):
+            from jax import Array as JAXArray
+            if isinstance(ary, JAXArray):
                 return ary
             else:
                 return ary.tagged(_preprocess_array_tags(tags))
@@ -834,7 +835,8 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
     def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
         def _tag_axis(ary):
-            if isinstance(ary, Array):
+            from jax import Array as JAXArray
+            if isinstance(ary, JAXArray):
                 return ary
             else:
                 return ary.with_tagged_axis(iaxis, tags)
@@ -857,7 +859,8 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             arg_names = (None,) * len(args)
 
         def preprocess_arg(name, arg):
-            if isinstance(arg, Array):
+            from jax import Array as JAXArray
+            if isinstance(arg, JAXArray):
                 ary = self.thaw(arg)
             elif isinstance(arg, pt.Array):
                 ary = arg
