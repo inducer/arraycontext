@@ -784,9 +784,9 @@ def test_container_scalar_map(actx_factory):
         result = rec_map_array_container(lambda x: x, ary)
         assert result is not None
 
-        result = map_reduce_array_container(np.shape, lambda x: x, ary)
+        result = map_reduce_array_container(lambda x: x, np.shape, ary)
         assert result is not None
-        result = rec_map_reduce_array_container(np.shape, lambda x: x, ary)
+        result = rec_map_reduce_array_container(lambda x: x, np.shape, ary)
         assert result is not None
 
 
