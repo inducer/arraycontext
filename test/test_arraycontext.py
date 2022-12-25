@@ -767,9 +767,10 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
 # {{{ array container classes for test
 
 
-def test_container_scalar_map(actx_factory):
+def test_container_map_on_device_scalar(actx_factory):
     actx = actx_factory()
 
+    expected_sizes = [1, 2, 4, 4, 4]
     arys = _get_test_containers(actx, shapes=0)
     arys += (np.pi,)
 
@@ -778,16 +779,16 @@ def test_container_scalar_map(actx_factory):
             map_reduce_array_container, rec_map_reduce_array_container,
             )
 
-    for ary in arys:
+    for size, ary in zip(expected_sizes, arys[:-1]):
         result = map_array_container(lambda x: x, ary)
-        assert result is not None
+        assert actx.to_numpy(actx.np.array_equal(result, ary))
         result = rec_map_array_container(lambda x: x, ary)
-        assert result is not None
+        assert actx.to_numpy(actx.np.array_equal(result, ary))
 
-        result = map_reduce_array_container(lambda x: x, np.shape, ary)
-        assert result is not None
-        result = rec_map_reduce_array_container(lambda x: x, np.shape, ary)
-        assert result is not None
+        result = map_reduce_array_container(sum, np.size, ary)
+        assert result == size
+        result = rec_map_reduce_array_container(sum, np.size, ary)
+        assert result == size
 
 
 def test_container_map(actx_factory):
