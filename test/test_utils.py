@@ -144,6 +144,51 @@ def test_dataclass_container_unions() -> None:
 # }}}
 
 
+# {{{ test_stringify_array_container_tree
+
+
+def test_stringify_array_container_tree() -> None:
+    from dataclasses import dataclass
+
+    from arraycontext import (
+        Array, dataclass_array_container, stringify_array_container_tree)
+
+    @dataclass_array_container
+    @dataclass(frozen=True)
+    class ArrayWrapper:
+        ary: Array
+
+    @dataclass_array_container
+    @dataclass(frozen=True)
+    class SomeContainer:
+        points: Array
+        radius: float
+        centers: ArrayWrapper
+
+    @dataclass_array_container
+    @dataclass(frozen=True)
+    class SomeOtherContainer:
+        disk: SomeContainer
+        circle: SomeContainer
+        has_disk: bool
+        norm_type: str
+        extent: float
+
+    rng = np.random.default_rng(seed=42)
+    a = ArrayWrapper(ary=rng.random(10))
+    d = SomeContainer(points=rng.random((2, 10)), radius=rng.random(), centers=a)
+    c = SomeContainer(points=rng.random((2, 10)), radius=rng.random(), centers=a)
+    ary = SomeOtherContainer(
+        disk=d, circle=c,
+        has_disk=True,
+        norm_type="l2",
+        extent=1)
+
+    logger.info("\n%s", stringify_array_container_tree(ary))
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
