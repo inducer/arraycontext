@@ -22,11 +22,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-import pytest
+import logging
 
 import numpy as np
+import pytest
 
-import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,8 +48,9 @@ def test_pt_actx_key_stringification_uniqueness():
 # {{{ test_dataclass_array_container
 
 def test_dataclass_array_container() -> None:
-    from typing import Optional
     from dataclasses import dataclass, field
+    from typing import Optional
+
     from arraycontext import dataclass_array_container
 
     # {{{ string fields
@@ -111,10 +113,9 @@ def test_dataclass_array_container() -> None:
 
 def test_dataclass_container_unions() -> None:
     from dataclasses import dataclass
-    from arraycontext import dataclass_array_container
-
     from typing import Union
-    from arraycontext import Array
+
+    from arraycontext import Array, dataclass_array_container
 
     # {{{ union fields
 

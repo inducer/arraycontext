@@ -22,13 +22,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext import PytatoPyOpenCLArrayContext
-from arraycontext import pytest_generate_tests_for_array_contexts
-from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
-from pytools.tag import Tag
+import logging
 
 import pytest
-import logging
+
+from pytools.tag import Tag
+
+from arraycontext import (
+    PytatoPyOpenCLArrayContext, pytest_generate_tests_for_array_contexts)
+from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
+
+
 logger = logging.getLogger(__name__)
 
 

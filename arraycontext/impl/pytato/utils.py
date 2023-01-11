@@ -23,15 +23,17 @@ THE SOFTWARE.
 """
 
 
-from typing import Any, Dict, Set, Tuple, Mapping, Optional, TYPE_CHECKING
-from pytools import memoize_method
+from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Set, Tuple
 
-from pytato.array import SizeParam, Placeholder, make_placeholder, Axis as PtAxis
-from pytato.array import Array, DataWrapper, DictOfNamedArrays
-from pytato.transform import CopyMapper
-from pytools import UniqueNameGenerator
-from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
+from pytato.array import (
+    Array, Axis as PtAxis, DataWrapper, DictOfNamedArrays, Placeholder, SizeParam,
+    make_placeholder)
 from pytato.target.loopy import LoopyPyOpenCLTarget
+from pytato.transform import CopyMapper
+from pytools import UniqueNameGenerator, memoize_method
+
+from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
+
 
 if TYPE_CHECKING:
     import loopy as lp

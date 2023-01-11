@@ -25,19 +25,14 @@ from functools import partial, reduce
 
 import numpy as np
 
-from arraycontext.fake_numpy import (
-        BaseFakeNumpyLinalgNamespace
-        )
-from arraycontext.loopy import (
-        LoopyBasedFakeNumpyNamespace
-        )
+import pytato as pt
+
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-        rec_map_array_container,
-        rec_multimap_array_container,
-        rec_map_reduce_array_container,
-        )
-import pytato as pt
+    rec_map_array_container, rec_map_reduce_array_container,
+    rec_multimap_array_container)
+from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
+from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 
 class PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):

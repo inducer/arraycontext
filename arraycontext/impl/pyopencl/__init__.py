@@ -28,21 +28,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 from warnings import warn
-from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 
 from pytools.tag import ToTagSetConvertible
 
-from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLike
-from arraycontext.container.traversal import (rec_map_array_container,
-                                              with_array_context)
+from arraycontext.container.traversal import (
+    rec_map_array_container, with_array_context)
+from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 
 
 if TYPE_CHECKING:
-    import pyopencl
     import loopy as lp
+    import pyopencl
 
 
 # {{{ PyOpenCLArrayContext
@@ -287,6 +287,7 @@ class PyOpenCLArrayContext(ArrayContext):
                 wait_event_queue.pop(0).wait()
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
+
         # FIXME: Inherit loopy tags for these arrays
         return {name: tga.to_tagged_cl_array(ary) for name, ary in result.items()}
 

@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
+
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import rec_map_array_container
 
@@ -105,8 +106,8 @@ class BaseFakeNumpyNamespace:
 # {{{ BaseFakeNumpyLinalgNamespace
 
 def _reduce_norm(actx, arys, ord):
-    from numbers import Number
     from functools import reduce
+    from numbers import Number
 
     if ord is None:
         ord = 2

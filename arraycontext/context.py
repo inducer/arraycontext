@@ -160,15 +160,18 @@ THE SOFTWARE.
 
 from abc import ABC, abstractmethod
 from typing import (
-        Any, Callable, Dict, Optional, Tuple, Union, Mapping, Protocol, TypeVar,
-        TYPE_CHECKING)
+    TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Protocol, Tuple, TypeVar,
+    Union)
 
 import numpy as np
+
 from pytools import memoize_method
 from pytools.tag import ToTagSetConvertible
 
+
 if TYPE_CHECKING:
     import loopy
+
     from arraycontext.container import ArrayContainer
 
 
@@ -426,8 +429,9 @@ class ArrayContext(ABC):
                         spec: str, arg_names: Tuple[str, ...],
                         tagged: ToTagSetConvertible) -> "loopy.TranslationUnit":
         import loopy as lp
-        from .loopy import _DEFAULT_LOOPY_OPTIONS
         from loopy.version import MOST_RECENT_LANGUAGE_VERSION
+
+        from .loopy import _DEFAULT_LOOPY_OPTIONS
         return lp.make_einsum(
             spec,
             arg_names,

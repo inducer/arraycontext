@@ -63,7 +63,7 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import pyopencl         # noqa: F401
+            import pyopencl  # noqa: F401
             return True
         except ImportError:
             return False
@@ -79,6 +79,7 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
         collect()
 
         import pyopencl as cl
+
         # On Intel CPU CL, existence of a command queue does not ensure that
         # the context survives.
         ctx = cl.Context([self.device])
@@ -134,8 +135,8 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import pyopencl         # noqa: F401
-            import pytato           # noqa: F401
+            import pyopencl  # noqa: F401
+            import pytato  # noqa: F401
             return True
         except ImportError:
             return False
@@ -182,14 +183,15 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import jax              # noqa: F401
+            import jax  # noqa: F401
             return True
         except ImportError:
             return False
 
     def __call__(self):
-        from arraycontext import EagerJAXArrayContext
         from jax.config import config
+
+        from arraycontext import EagerJAXArrayContext
         config.update("jax_enable_x64", True)
         return EagerJAXArrayContext()
 
@@ -204,15 +206,17 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import jax              # noqa: F401
-            import pytato           # noqa: F401
+            import jax  # noqa: F401
+
+            import pytato  # noqa: F401
             return True
         except ImportError:
             return False
 
     def __call__(self):
-        from arraycontext import PytatoJAXArrayContext
         from jax.config import config
+
+        from arraycontext import PytatoJAXArrayContext
         config.update("jax_enable_x64", True)
         return PytatoJAXArrayContext()
 

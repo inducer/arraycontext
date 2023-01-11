@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, FrozenSet, Optional, Tuple
 
 import numpy as np
-import pyopencl.array as cla
 
+import pyopencl.array as cla
 from pytools import memoize
-from pytools.tag import Taggable, Tag, ToTagSetConvertible
+from pytools.tag import Tag, Taggable, ToTagSetConvertible
 
 
 # {{{ utils

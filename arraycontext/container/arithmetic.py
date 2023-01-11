@@ -7,6 +7,7 @@
 
 import enum
 
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -31,8 +32,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import Any, Callable, Optional, Tuple, Type, TypeVar, Union
 from warnings import warn
-from typing import Any, Callable, Optional, Tuple, TypeVar, Union, Type
 
 import numpy as np
 

@@ -29,26 +29,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext.context import ArrayT
-from arraycontext.container import ArrayContainer, is_array_container_type
-from arraycontext.impl.pytato import (_BasePytatoArrayContext,
-                                      PytatoJAXArrayContext,
-                                      PytatoPyOpenCLArrayContext)
-from arraycontext.container.traversal import rec_keyed_map_array_container
-
 import abc
-import numpy as np
-from typing import Any, Callable, Tuple, Dict, Mapping, FrozenSet, Type
+import itertools
+import logging
 from dataclasses import dataclass, field
-from pyrsistent import pmap, PMap
+from typing import Any, Callable, Dict, FrozenSet, Mapping, Tuple, Type
+
+import numpy as np
+from pyrsistent import PMap, pmap
 
 import pytato as pt
-import itertools
+from pytools import ProcessLogger
 from pytools.tag import Tag
 
-from pytools import ProcessLogger
+from arraycontext.container import ArrayContainer, is_array_container_type
+from arraycontext.container.traversal import rec_keyed_map_array_container
+from arraycontext.context import ArrayT
+from arraycontext.impl.pytato import (
+    PytatoJAXArrayContext, PytatoPyOpenCLArrayContext, _BasePytatoArrayContext)
 
-import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -185,8 +185,9 @@ def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
       :meth:`PytatoPyOpenCLArrayContext.transform_dag`.
     """
     import pyopencl.array as cla
-    from arraycontext.impl.pyopencl.taggable_cl_array import (to_tagged_cl_array,
-                                                              TaggableCLArray)
+
+    from arraycontext.impl.pyopencl.taggable_cl_array import (
+        TaggableCLArray, to_tagged_cl_array)
     if isinstance(ary, pt.Array):
         dag = pt.make_dict_of_named_arrays({"_actx_out": ary})
         # Transform the DAG to give metadata inference a chance to do its job
@@ -390,9 +391,8 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         if prg_id is None:
             prg_id = self.f
 
-        from pytato.target.loopy import BoundPyOpenCLProgram
-
         import loopy as lp
+        from pytato.target.loopy import BoundPyOpenCLProgram
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_transform_dag", dict_of_named_arrays)
@@ -632,8 +632,8 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
     output_template: ArrayContainer
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
-        from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
         from .utils import get_cl_axes_from_pt_axes
+        from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
 
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
@@ -674,8 +674,8 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
     output_name: str
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
-        from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
         from .utils import get_cl_axes_from_pt_axes
+        from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
 
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
