@@ -44,8 +44,8 @@ from .container.traversal import (
     multimap_array_container, multimap_reduce_array_container,
     multimapped_over_array_containers, outer, rec_map_array_container,
     rec_map_reduce_array_container, rec_multimap_array_container,
-    rec_multimap_reduce_array_container, thaw, to_numpy, unflatten,
-    with_array_context)
+    rec_multimap_reduce_array_container, stringify_array_container_tree, thaw,
+    to_numpy, unflatten, with_array_context)
 from .context import (
     Array, ArrayContext, ArrayOrContainer, ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT, ArrayOrContainerT, ArrayT, Scalar, ScalarLike,
@@ -85,6 +85,7 @@ __all__ = (
         "with_container_arithmetic",
         "dataclass_array_container",
 
+        "stringify_array_container_tree",
         "map_array_container", "multimap_array_container",
         "rec_map_array_container", "rec_multimap_array_container",
         "mapped_over_array_containers",

@@ -13,6 +13,8 @@
 .. autofunction:: rec_map_reduce_array_container
 .. autofunction:: rec_multimap_reduce_array_container
 
+.. autofunction:: stringify_array_container_tree
+
 Traversing decorators
 ~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: mapped_over_array_containers
@@ -223,6 +225,33 @@ def _multimap_array_container_impl(
 
 
 # {{{ array container traversal
+
+def stringify_array_container_tree(ary: ArrayOrContainer) -> str:
+    """
+    :returns: a string for an ASCII tree representation of the array container,
+        similar to `asciitree <https://github.com/mbr/asciitree>`__.
+    """
+    def rec(lines: List[str], ary_: ArrayOrContainerT, level: int) -> None:
+        try:
+            iterable = serialize_container(ary_)
+        except NotAnArrayContainerError:
+            pass
+        else:
+            for key, subary in iterable:
+                key = f"{key} ({type(subary).__name__})"
+                if level == 0:
+                    indent = ""
+                else:
+                    indent = f" |  {' ' * 4 * (level - 1)}"
+
+                lines.append(f"{indent} +-- {key}")
+                rec(lines, subary, level + 1)
+
+    lines = [f"root ({type(ary).__name__})"]
+    rec(lines, ary, 0)
+
+    return "\n".join(lines)
+
 
 def map_array_container(
         f: Callable[[Any], Any],
