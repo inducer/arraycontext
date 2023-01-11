@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Union
 
@@ -28,26 +29,16 @@ import pytest
 
 from pytools.obj_array import make_obj_array
 
-from arraycontext import (
-        ArrayContext,
-        dataclass_array_container, with_container_arithmetic,
-        serialize_container, deserialize_container, with_array_context,
-        FirstAxisIsElementsTag,
-        PyOpenCLArrayContext,
-        PytatoPyOpenCLArrayContext,
-        EagerJAXArrayContext,
-        ArrayContainer,
-        tag_axes)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_array_contexts,
-        )
-from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
-                                 _PytestPytatoPyOpenCLArrayContextFactory,
-                                 _PytestEagerJaxArrayContextFactory,
-                                 _PytestPytatoJaxArrayContextFactory)
+    ArrayContainer, ArrayContext, EagerJAXArrayContext, FirstAxisIsElementsTag,
+    PyOpenCLArrayContext, PytatoPyOpenCLArrayContext, dataclass_array_container,
+    deserialize_container, pytest_generate_tests_for_array_contexts,
+    serialize_container, tag_axes, with_array_context, with_container_arithmetic)
+from arraycontext.pytest import (
+    _PytestEagerJaxArrayContextFactory, _PytestPyOpenCLArrayContextFactoryWithClass,
+    _PytestPytatoJaxArrayContextFactory, _PytestPytatoPyOpenCLArrayContextFactory)
 
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -497,8 +488,9 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
         return ary.imag
 
     import operator
+    from random import randrange, uniform
+
     from pytools import generate_nonnegative_integer_tuples_below as gnitb
-    from random import uniform, randrange
     for op_func, n_args, use_integers in [
             (operator.add, 2, False),
             (operator.sub, 2, False),
@@ -775,9 +767,8 @@ def test_container_map_on_device_scalar(actx_factory):
     arys += (np.pi,)
 
     from arraycontext import (
-            map_array_container, rec_map_array_container,
-            map_reduce_array_container, rec_map_reduce_array_container,
-            )
+        map_array_container, map_reduce_array_container, rec_map_array_container,
+        rec_map_reduce_array_container)
 
     for size, ary in zip(expected_sizes, arys[:-1]):
         result = map_array_container(lambda x: x, ary)
@@ -921,6 +912,7 @@ def test_container_arithmetic(actx_factory):
         assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
 
     from functools import partial
+
     from arraycontext import rec_multimap_array_container
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
         rec_multimap_array_container(
@@ -973,8 +965,7 @@ def test_container_freeze_thaw(actx_factory):
     # {{{ check
 
     from arraycontext import (
-            get_container_context_opt,
-            get_container_context_recursively_opt)
+        get_container_context_opt, get_container_context_recursively_opt)
 
     assert get_container_context_opt(ary_of_dofs) is None
     assert get_container_context_opt(mat_of_dofs) is None
@@ -1077,7 +1068,7 @@ def test_flatten_array_container(actx_factory, shapes):
 
 
 def _checked_flatten(ary, actx, leaf_class=None):
-    from arraycontext import flatten, flat_size_and_dtype
+    from arraycontext import flat_size_and_dtype, flatten
     result = flatten(ary, actx, leaf_class=leaf_class)
 
     if leaf_class is None:
@@ -1279,7 +1270,7 @@ def test_actx_compile_kwargs(actx_factory):
 def test_actx_compile_with_tuple_output_keys(actx_factory):
     # arraycontext.git<=3c9aee68 would fail due to a bug in output
     # key stringification logic.
-    from arraycontext import (to_numpy, from_numpy)
+    from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
 
     def my_rhs(scale, vel):
@@ -1361,6 +1352,7 @@ def test_leaf_array_type_broadcasting(actx_factory):
             return True
         else:
             import pyopencl as cl
+
             # See https://github.com/inducer/pyopencl/issues/498
             return cl.version.VERSION > (2021, 2, 5)
 
@@ -1573,6 +1565,7 @@ def test_tagging(actx_factory):
 
 def test_compile_anonymous_function(actx_factory):
     from functools import partial
+
     # See https://github.com/inducer/grudge/issues/287
     actx = actx_factory()
     f = actx.compile(lambda x: 2*x+40)

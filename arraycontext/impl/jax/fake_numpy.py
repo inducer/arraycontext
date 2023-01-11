@@ -23,17 +23,15 @@ THE SOFTWARE.
 """
 from functools import partial, reduce
 
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
 
-from arraycontext.fake_numpy import (
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
-        )
-from arraycontext.container.traversal import (
-        rec_multimap_array_container, rec_map_array_container,
-        rec_map_reduce_array_container,
-        )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
+from arraycontext.container.traversal import (
+    rec_map_array_container, rec_map_reduce_array_container,
+    rec_multimap_array_container)
+from arraycontext.fake_numpy import (
+    BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace)
 
 
 class EagerJAXFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):

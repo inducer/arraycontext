@@ -41,6 +41,7 @@ Algebraic operations
 
 from __future__ import annotations
 
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -65,22 +66,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable, Iterable, List, Optional, Union, Tuple, cast
-from functools import update_wrapper, partial, singledispatch
+from functools import partial, singledispatch, update_wrapper
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
 from warnings import warn
 
 import numpy as np
 
-from arraycontext.context import (
-    ArrayT, ArrayOrContainer, ArrayOrContainerT,
-    ArrayOrContainerOrScalar, ScalarLike,
-    ArrayContext, Array
-)
 from arraycontext.container import (
-        NotAnArrayContainerError,
-        ArrayContainer,
-        serialize_container, deserialize_container,
-        get_container_context_recursively_opt)
+    ArrayContainer, NotAnArrayContainerError, deserialize_container,
+    get_container_context_recursively_opt, serialize_container)
+from arraycontext.context import (
+    Array, ArrayContext, ArrayOrContainer, ArrayOrContainerOrScalar,
+    ArrayOrContainerT, ArrayT, ScalarLike)
 
 
 # {{{ array container traversal helpers
