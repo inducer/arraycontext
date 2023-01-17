@@ -36,7 +36,8 @@ from arraycontext import (  # noqa: F401
     serialize_container, tag_axes, with_array_context, with_container_arithmetic)
 from arraycontext.pytest import (
     _PytestEagerJaxArrayContextFactory, _PytestPyOpenCLArrayContextFactoryWithClass,
-    _PytestPytatoJaxArrayContextFactory, _PytestPytatoPyOpenCLArrayContextFactory)
+    _PytestPytatoJaxArrayContextFactory, _PytestPytatoPyOpenCLArrayContextFactory,
+    _PytestSplitPytatoPyOpenCLArrayContextFactory)
 
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestSplitPytatoPyOpenCLArrayContextFactory,
     ])
 
 
