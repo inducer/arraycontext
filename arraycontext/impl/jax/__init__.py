@@ -32,9 +32,10 @@ from typing import Callable, Optional, Tuple
 import numpy as np
 
 from pytools.tag import ToTagSetConvertible
-from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLike
-from arraycontext.container.traversal import (with_array_context,
-                                              rec_map_array_container)
+
+from arraycontext.container.traversal import (
+    rec_map_array_container, with_array_context)
+from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 
 
 class EagerJAXArrayContext(ArrayContext):

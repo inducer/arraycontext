@@ -22,11 +22,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-import pytest
+import logging
 
 import numpy as np
+import pytest
 
-import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,8 +48,9 @@ def test_pt_actx_key_stringification_uniqueness():
 # {{{ test_dataclass_array_container
 
 def test_dataclass_array_container() -> None:
-    from typing import Optional
     from dataclasses import dataclass, field
+    from typing import Optional
+
     from arraycontext import dataclass_array_container
 
     # {{{ string fields
@@ -111,10 +113,9 @@ def test_dataclass_array_container() -> None:
 
 def test_dataclass_container_unions() -> None:
     from dataclasses import dataclass
-    from arraycontext import dataclass_array_container
-
     from typing import Union
-    from arraycontext import Array
+
+    from arraycontext import Array, dataclass_array_container
 
     # {{{ union fields
 
@@ -139,6 +140,51 @@ def test_dataclass_container_unions() -> None:
         dataclass_array_container(ArrayContainerWithWrongUnion)
 
     # }}}
+
+# }}}
+
+
+# {{{ test_stringify_array_container_tree
+
+
+def test_stringify_array_container_tree() -> None:
+    from dataclasses import dataclass
+
+    from arraycontext import (
+        Array, dataclass_array_container, stringify_array_container_tree)
+
+    @dataclass_array_container
+    @dataclass(frozen=True)
+    class ArrayWrapper:
+        ary: Array
+
+    @dataclass_array_container
+    @dataclass(frozen=True)
+    class SomeContainer:
+        points: Array
+        radius: float
+        centers: ArrayWrapper
+
+    @dataclass_array_container
+    @dataclass(frozen=True)
+    class SomeOtherContainer:
+        disk: SomeContainer
+        circle: SomeContainer
+        has_disk: bool
+        norm_type: str
+        extent: float
+
+    rng = np.random.default_rng(seed=42)
+    a = ArrayWrapper(ary=rng.random(10))
+    d = SomeContainer(points=rng.random((2, 10)), radius=rng.random(), centers=a)
+    c = SomeContainer(points=rng.random((2, 10)), radius=rng.random(), centers=a)
+    ary = SomeOtherContainer(
+        disk=d, circle=c,
+        has_disk=True,
+        norm_type="l2",
+        extent=1)
+
+    logger.info("\n%s", stringify_array_container_tree(ary))
 
 # }}}
 

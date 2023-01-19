@@ -26,24 +26,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from functools import partial, reduce
 import operator
+from functools import partial, reduce
 
 import numpy as np
 
-from arraycontext.fake_numpy import (
-        BaseFakeNumpyLinalgNamespace
-        )
-from arraycontext.loopy import (
-        LoopyBasedFakeNumpyNamespace
-        )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-        rec_map_array_container,
-        rec_multimap_array_container,
-        rec_map_reduce_array_container,
-        rec_multimap_reduce_array_container,
-        )
+    rec_map_array_container, rec_map_reduce_array_container,
+    rec_multimap_array_container, rec_multimap_reduce_array_container)
+from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
+from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
+
 
 try:
     import pyopencl as cl  # noqa: F401
