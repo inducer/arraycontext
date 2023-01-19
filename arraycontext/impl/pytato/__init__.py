@@ -798,11 +798,26 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                                                  actx=self)
                     for kw, arg in kwargs.items()}
 
-        # Pass the placeholders
+        # Pass the placeholders to get output in terms of placeholders
         output_template = f(*pl_args, **pl_kwargs)
         print(f"{output_template=}")
 
-        # construct the function
+        # Stick the output in a return data structure for the function to parse
+        #
+        # if isinstance(output, Array):
+        #    returns = {"_": output}
+        #elif isinstance(output, tuple):
+        #    assert all(isinstance(el, Array) for el in output)
+        #    returns = {f"_{iout}": out for iout, out in enumerate(output)}
+        #elif isinstance(output, dict):
+        #    assert all(isinstance(el, Array) for el in output.values())
+        #    returns = output
+        #else:
+        #    raise ValueError("The function being traced must return one of"
+        #                     f"pytato.Array, tuple, dict. Got {type(output)}.")
+
+        # Construct the (symbolic) traced function
+        #
         # function = FunctionDefinition(
         # frozenset(pl_arg.name for pl_arg in pl_args) | frozenset(pl_kwargs),
         # Map(returns),
