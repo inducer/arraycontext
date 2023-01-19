@@ -53,6 +53,7 @@ from .context import (
 from .impl.jax import EagerJAXArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
+from .impl.pytato.batched_einsum import BatchedEinsumPytatoPyOpenCLArrayContext
 from .impl.pytato.split_actx import SplitPytatoPyOpenCLArrayContext
 from .loopy import make_loopy_program
 # deprecated, remove in 2022.
@@ -100,6 +101,7 @@ __all__ = (
 
         "PyOpenCLArrayContext", "PytatoPyOpenCLArrayContext",
         "SplitPytatoPyOpenCLArrayContext",
+        "BatchedEinsumPytatoPyOpenCLArrayContext",
 
         "PytatoJAXArrayContext",
         "EagerJAXArrayContext",
