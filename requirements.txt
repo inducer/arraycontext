@@ -5,5 +5,7 @@ git+https://github.com/inducer/pymbolic.git#egg=pymbolic
 git+https://github.com/inducer/pyopencl.git#egg=pyopencl
 git+https://github.com/inducer/islpy.git#egg=islpy
 
+git+https://github.com/kaushikcfd/feinsum.git#egg=feinsum
+
 git+https://github.com/inducer/loopy.git#egg=loopy
 git+https://github.com/inducer/pytato.git#egg=pytato
