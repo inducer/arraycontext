@@ -53,7 +53,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     _pt_funcs = frozenset({
         "sin", "cos", "tan", "arcsin", "arccos", "arctan",
         "sinh", "cosh", "tanh", "exp", "log", "log10",
-        "sqrt", "abs", "isnan"
+        "sqrt", "abs", "isnan", "real", "imag", "conj",
         })
 
     def _get_fake_numpy_linalg_namespace(self):
@@ -208,9 +208,6 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             return pt.sum(ary, axis=axis)
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
-
-    def conj(self, x):
-        return rec_multimap_array_container(pt.conj, x)
 
     def maximum(self, x, y):
         return rec_multimap_array_container(pt.maximum, x, y)
