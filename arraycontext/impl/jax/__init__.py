@@ -41,7 +41,7 @@ from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLi
 class EagerJAXArrayContext(ArrayContext):
     """
     A :class:`ArrayContext` that uses
-    :class:`jaxlib.xla_extension.DeviceArrayBase` instances for its base array
+    :class:`jax.Array` instances for its base array
     class and performs all array operations eagerly. See
     :class:`~arraycontext.PytatoJAXArrayContext` for a lazier version.
 
