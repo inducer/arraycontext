@@ -804,17 +804,26 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         # Stick the output in a return data structure for the function to parse
         #
-        # if isinstance(output, Array):
-        #    returns = {"_": output}
-        #elif isinstance(output, tuple):
-        #    assert all(isinstance(el, Array) for el in output)
-        #    returns = {f"_{iout}": out for iout, out in enumerate(output)}
-        #elif isinstance(output, dict):
-        #    assert all(isinstance(el, Array) for el in output.values())
-        #    returns = output
+        print(f"{type(output_template)=}")
+
+        if is_array_container_type(type(output_template)):
+            print("Array Container!")
+
+        # if isinstance(output_template, Array):
+        #    returns = {"_": output_template}
+        #elif isinstance(output_template, tuple):
+        #    # assert all(isinstance(el, Array) for el in output)
+        #    returns = {f"_{iout}": out for iout, out in enumerate(output_template)}
+        #elif isinstance(output_template, dict):
+        #    #    assert all(isinstance(el, Array) for el in output.values())
+        #    #    returns = output
+        #    returns = output_template
+        #elif is_array_container_type(output_template):
+        #    returns = output_template
         #else:
         #    raise ValueError("The function being traced must return one of"
         #                     f"pytato.Array, tuple, dict. Got {type(output)}.")
+        # print(f"{returns=}")
 
         # Construct the (symbolic) traced function
         #
@@ -844,6 +853,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         #    return {kw: traced_call[kw] for kw in output}
         #else:
         #    raise NotImplementedError(type(output))
+        # return output_template
         return f(*args, **kwargs)
 
     def clone(self):
