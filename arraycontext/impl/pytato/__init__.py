@@ -533,8 +533,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             TaggableCLArray,
             to_tagged_cl_array,
         )
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
         from arraycontext.impl.pytato.utils import (
+            _ary_container_key_stringifier,
             _normalize_pt_expr,
             get_cl_axes_from_pt_axes,
         )
@@ -870,7 +870,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
+        from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
 
         array_as_dict: dict[str, jnp.ndarray | pt.Array] = {}
         key_to_frozen_subary: dict[str, jnp.ndarray] = {}
