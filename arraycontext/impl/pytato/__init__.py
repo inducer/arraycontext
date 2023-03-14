@@ -226,6 +226,20 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     # }}}
 
+    def outline(self,
+                f: Callable[..., Any],
+                name: str | None = None,
+                tags: frozenset[Tag] = frozenset()
+                ) -> Callable[..., Any]:
+        from pytato.tags import FunctionIdentifier
+
+        from .outline import OutlinedCall
+        name = name or getattr(f, "__name__", None)
+        if name is not None:
+            tags = tags | {FunctionIdentifier(name)}
+
+        return OutlinedCall(self, f, tags)
+
 # }}}
 
 
