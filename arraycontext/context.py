@@ -1,4 +1,4 @@
-"""
+r"""
 .. _freeze-thaw:
 
 Freezing and thawing
@@ -79,6 +79,11 @@ The :class:`ArrayContext` Interface
 .. autoclass:: ArrayContext
 
 .. autofunction:: tag_axes
+
+.. class:: P
+
+    A :class:`typing.ParamSpec` representing the arguments of a function
+    being :meth:`ArrayContext.outline`\ d.
 
 Types and Type Variables for Arrays and Containers
 --------------------------------------------------
@@ -174,11 +179,12 @@ THE SOFTWARE.
 
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Hashable, Mapping
 from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    ParamSpec,
     Protocol,
     SupportsInt,
     TypeAlias,
@@ -211,6 +217,9 @@ if TYPE_CHECKING:
 
 
 # {{{ typing
+
+P = ParamSpec("P")
+
 
 # We won't support 'A' and 'K', since they depend on in-memory order; that is
 # not intended to be a meaningful concept for actx arrays.
@@ -391,6 +400,7 @@ class ArrayContext(ABC):
     .. automethod:: tag
     .. automethod:: tag_axis
     .. automethod:: compile
+    .. automethod:: outline
     """
 
     array_types: tuple[type, ...] = ()
@@ -644,6 +654,26 @@ class ArrayContext(ABC):
         it may be called only once (or a few times).
 
         :arg f: the function executing the computation.
+        :return: a function with the same signature as *f*.
+        """
+        return f
+
+    def outline(self,
+                f: Callable[P, ArrayOrContainerOrScalarT],
+                *,
+                id: Hashable | None = None  # pyright: ignore[reportUnusedParameter]
+            ) -> Callable[P, ArrayOrContainerOrScalarT]:
+        """
+        Returns a drop-in-replacement for *f*. The behavior of the returned
+        callable is specific to the derived class.
+
+        The reason for the existence of such a routine is mainly for
+        arraycontexts that allow a lazy mode of execution. In such
+        arraycontexts, the computations within *f* maybe staged to potentially
+        enable additional compiler transformations. See
+        :func:`pytato.trace_call` or :func:`jax.named_call` for examples.
+
+        :arg f: the function executing the computation to be staged.
         :return: a function with the same signature as *f*.
         """
         return f

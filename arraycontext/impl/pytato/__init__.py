@@ -72,6 +72,7 @@ from arraycontext.context import (
     ArrayOrContainerOrScalarT,
     ArrayOrContainerT,
     ArrayOrScalar,
+    P,
     ScalarLike,
     UntransformedCodeWarning,
     is_scalar_like,
@@ -80,7 +81,7 @@ from arraycontext.metadata import NameHint
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable, Hashable, Mapping
 
     import jax.numpy as jnp
     import loopy as lp
@@ -99,6 +100,8 @@ import logging
 
 
 logger = logging.getLogger(__name__)
+
+_EMPTY_TAG_SET: frozenset[Tag] = frozenset()
 
 
 # {{{ tag conversion
@@ -277,6 +280,33 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         return None
 
     # }}}
+
+    @override
+    def outline(self,
+                f: Callable[P, ArrayOrContainerOrScalarT],
+                *,
+                id: Hashable | None = None,
+                tags: frozenset[Tag] = _EMPTY_TAG_SET,
+            ) -> Callable[P, ArrayOrContainerOrScalarT]:
+        from pytato.tags import FunctionIdentifier
+
+        from .outline import OutlinedCall
+        id = id or getattr(f, "__name__", None)
+        if id is not None:
+            tags = tags | {FunctionIdentifier(id)}
+
+        # FIXME Ideally, the ParamSpec P should be bounded by ArrayOrContainerOrScalar,
+        # but this is not currently possible:
+        # https://github.com/python/typing/issues/1027
+
+        # FIXME An aspect of this that's a bit of a lie is that the types
+        # coming out of the outlined function are not guaranteed to be the same
+        # as the ones that the un-outlined function would return. That said,
+        # if f is written only in terms of the array context types (Array, ScalarLike,
+        # containers), this is close enough to being true that I'm willing
+        # to take responsibility. -AK, 2025-06-30
+        return cast("Callable[P, ArrayOrContainerOrScalarT]",
+                    cast("object", OutlinedCall(self, f, tags)))
 
 # }}}
 
