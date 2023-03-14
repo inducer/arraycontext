@@ -329,6 +329,7 @@ class ArrayContext(ABC):
     .. automethod:: tag
     .. automethod:: tag_axis
     .. automethod:: compile
+    .. automethod:: outline
     """
 
     array_types: tuple[type, ...] = ()
@@ -574,6 +575,24 @@ class ArrayContext(ABC):
         it may be called only once (or a few times).
 
         :arg f: the function executing the computation.
+        :return: a function with the same signature as *f*.
+        """
+        return f
+
+    def outline(self,
+                f: Callable[..., Any],
+                name: str | None = None) -> Callable[..., Any]:
+        """
+        Returns a drop-in-replacement for *f*. The behavior of the returned
+        callable is specific to the derived class.
+
+        The reason for the existence of such a routine is mainly for
+        arraycontexts that allow a lazy mode of execution. In such
+        arraycontexts, the computations within *f* maybe staged to potentially
+        enable additional compiler transformations. See
+        :func:`pytato.trace_call` or :func:`jax.named_call` for examples.
+
+        :arg f: the function executing the computation to be staged.
         :return: a function with the same signature as *f*.
         """
         return f
