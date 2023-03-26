@@ -486,6 +486,16 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
+        def _to_frozen(key: Tuple[Any, ...], ary) -> TaggableCLArray:
+            key_str = "_ary" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        if not key_to_pt_arrays:
+            # all cl arrays => no need to perform any codegen
+            return with_array_context(
+                    rec_keyed_map_array_container(_to_frozen, array),
+                    actx=None)
+
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 key_to_pt_arrays)
         normalized_expr, bound_arguments = _normalize_pt_expr(
@@ -543,10 +553,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     tags=transformed_dag[k].expr.tags)
                for k, v in out_dict.items()}
         }
-
-        def _to_frozen(key: Tuple[Any, ...], ary) -> TaggableCLArray:
-            key_str = "_ary" + _ary_container_key_stringifier(key)
-            return key_to_frozen_subary[key_str]
 
         return with_array_context(
                 rec_keyed_map_array_container(_to_frozen, array),
@@ -800,6 +806,16 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
+        def _to_frozen(key: Tuple[Any, ...], ary) -> jnp.ndarray:
+            key_str = "_ary" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        if not key_to_pt_arrays:
+            # all cl arrays => no need to perform any codegen
+            return with_array_context(
+                    rec_keyed_map_array_container(_to_frozen, array),
+                    actx=None)
+
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(key_to_pt_arrays)
         transformed_dag = self.transform_dag(pt_dict_of_named_arrays)
         pt_prg = pt.generate_jax(transformed_dag, jit=True)
@@ -811,10 +827,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             **{k: v.block_until_ready()
                for k, v in out_dict.items()}
         }
-
-        def _to_frozen(key: Tuple[Any, ...], ary) -> jnp.ndarray:
-            key_str = "_ary" + _ary_container_key_stringifier(key)
-            return key_to_frozen_subary[key_str]
 
         return with_array_context(
             rec_keyed_map_array_container(_to_frozen, array),
