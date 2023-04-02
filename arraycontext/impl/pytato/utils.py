@@ -58,8 +58,9 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                                  f"{expr.name} => Illegal.")
             self.seen_inputs.add(expr.name)
 
-        # Normalizing names so that we more arrays can have the normalized DAG.
-        name = self.vng("_actx_dw")
+        # Normalizing names so that more arrays can have the same normalized DAG.
+        from pytato.codegen import _generate_name_for_temp
+        name = _generate_name_for_temp(expr, self.vng, "_actx_dw")
         self.bound_arguments[name] = expr.data
         return make_placeholder(
                     name=name,
