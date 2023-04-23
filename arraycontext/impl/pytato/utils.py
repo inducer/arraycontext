@@ -26,8 +26,8 @@ THE SOFTWARE.
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Set, Tuple
 
 from pytato.array import (
-    Array, Axis as PtAxis, DataWrapper, DictOfNamedArrays, Placeholder, SizeParam,
-    make_placeholder)
+    AbstractResultWithNamedArrays, Array, Axis as PtAxis, DataWrapper,
+    DictOfNamedArrays, Placeholder, SizeParam, make_placeholder)
 from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
@@ -78,8 +78,9 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                          " DatawrapperToBoundPlaceholderMapper.")
 
 
-def _normalize_pt_expr(expr: DictOfNamedArrays) -> Tuple[DictOfNamedArrays,
-                                                         Mapping[str, Any]]:
+def _normalize_pt_expr(
+        expr: DictOfNamedArrays
+        ) -> Tuple[AbstractResultWithNamedArrays, Mapping[str, Any]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
     normalized form of *expr*, with all instances of
