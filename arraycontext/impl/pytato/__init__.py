@@ -832,9 +832,10 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             self._rec_map_container(_thaw, array, self._frozen_array_types),
             actx=self)
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def compile(self, f: Callable[..., Any],
+                single_version_only: bool = False) -> Callable[..., Any]:
         from .compile import LazilyJAXCompilingFunctionCaller
-        return LazilyJAXCompilingFunctionCaller(self, f)
+        return LazilyJAXCompilingFunctionCaller(self, f, single_version_only)
 
     def tag(self, tags: ToTagSetConvertible, array):
         def _tag(ary):

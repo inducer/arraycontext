@@ -259,10 +259,9 @@ class BaseLazilyCompilingFunctionCaller:
 
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
+    single_version_only: bool
     program_cache: Dict["PMap[Tuple[Any, ...], AbstractInputDescriptor]",
                         "CompiledFunction"] = field(default_factory=lambda: {})
-
-    single_version_only: bool = False
 
     # {{{ abstract interface
 

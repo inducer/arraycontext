@@ -521,6 +521,8 @@ class ArrayContext(ABC):
         it may be called only once (or a few times).
 
         :arg f: the function executing the computation.
+        :arg single_version_only: If *True*, raise an error if *f* is compiled
+            more than once (due to different input argument types).
         :return: a function with the same signature as *f*.
         """
         return f
