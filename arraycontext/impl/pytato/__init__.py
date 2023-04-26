@@ -612,9 +612,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         return call_loopy(program, processed_kwargs, entrypoint)
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def compile(self, f: Callable[..., Any],
+                single_version_only: bool = False) -> Callable[..., Any]:
         from .compile import LazilyPyOpenCLCompilingFunctionCaller
-        return LazilyPyOpenCLCompilingFunctionCaller(self, f)
+        return LazilyPyOpenCLCompilingFunctionCaller(self,
+                                                     f, single_version_only)
 
     def transform_dag(self, dag: "pytato.DictOfNamedArrays"
                       ) -> "pytato.DictOfNamedArrays":

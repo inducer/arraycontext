@@ -504,7 +504,8 @@ class ArrayContext(ABC):
             "setup-only" array context "leaks" into the application.
         """
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def compile(self, f: Callable[..., Any],
+                single_version_only: bool = False) -> Callable[..., Any]:
         """Compiles *f* for repeated use on this array context. *f* is expected
         to be a `pure function <https://en.wikipedia.org/wiki/Pure_function>`__
         performing an array computation.
