@@ -86,7 +86,7 @@ class BaseFakeNumpyNamespace:
 
         # Miscellaneous
         "convolve", "clip", "sqrt", "cbrt", "square", "absolute", "abs", "fabs",
-        "sign", "heaviside", "maximum", "fmax", "nan_to_num",
+        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan",
 
         # FIXME:
         # "interp",
