@@ -54,11 +54,12 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         "sin", "cos", "tan", "arcsin", "arccos", "arctan",
         "sinh", "cosh", "tanh", "exp", "log", "log10",
         "sqrt", "abs", "isnan", "real", "imag", "conj",
+        "logical_not",
         })
 
     _pt_multi_ary_funcs = frozenset({
         "arctan2", "equal", "greater", "greater_equal", "less", "less_equal",
-        "not_equal", "minimum", "maximum", "where",
+        "not_equal", "minimum", "maximum", "where", "logical_and", "logical_or",
     })
 
     def _get_fake_numpy_linalg_namespace(self):

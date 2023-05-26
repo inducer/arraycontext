@@ -259,6 +259,15 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def not_equal(self, x, y):
         return rec_multimap_array_container(operator.ne, x, y)
 
+    def logical_or(self, x, y):
+        return rec_multimap_array_container(cl_array.logical_or, x, y)
+
+    def logical_and(self, x, y):
+        return rec_multimap_array_container(cl_array.logical_and, x, y)
+
+    def logical_not(self, x):
+        return rec_map_array_container(cl_array.logical_not, x)
+
     # }}}
 
     # {{{ mathematical functions
