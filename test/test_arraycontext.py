@@ -1311,7 +1311,8 @@ def test_container_equality(actx_factory):
     dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
     assert dc != dc2
 
-    assert isinstance(bcast_dc_of_dofs == bcast_dc_of_dofs_2, MyContainerDOFBcast)
+    assert isinstance(actx.np.equal(bcast_dc_of_dofs, bcast_dc_of_dofs_2),
+                      MyContainerDOFBcast)
 
 # }}}
 
