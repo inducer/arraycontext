@@ -30,14 +30,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Tuple, Union, get_args
-try:
-    # NOTE: only available in python >= 3.8
-    from typing import get_origin
-except ImportError:
-    from typing_extensions import get_origin
+from dataclasses import Field, fields, is_dataclass
+from typing import Tuple, Union, get_args, get_origin
 
-from dataclasses import Field, is_dataclass, fields
 from arraycontext.container import is_array_container_type
 
 
@@ -100,7 +95,7 @@ def dataclass_array_container(cls: type) -> type:
             # NOTE:
             # * `_BaseGenericAlias` catches `List`, `Tuple`, etc.
             # * `_SpecialForm` catches `Any`, `Literal`, etc.
-            from typing import (                    # type: ignore[attr-defined]
+            from typing import (  # type: ignore[attr-defined]
                 _BaseGenericAlias, _SpecialForm)
             if isinstance(f.type, (_BaseGenericAlias, _SpecialForm)):
                 # NOTE: anything except a Union is not allowed

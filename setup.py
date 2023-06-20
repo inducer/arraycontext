@@ -3,7 +3,7 @@
 
 
 def main():
-    from setuptools import setup, find_packages
+    from setuptools import find_packages, setup
 
     version_dict = {}
     init_filename = "arraycontext/version.py"
@@ -43,12 +43,11 @@ def main():
             # https://github.com/inducer/arraycontext/pull/147
             "pytools>=2022.1.3",
 
-            "pytest>=2.3",
             "loopy>=2019.1",
-            "dataclasses; python_version<'3.7'",
-            "typing_extensions; python_version<'3.9'",
-            "types-dataclasses",
         ],
+        extras_require={
+            "test": ["pytest>=2.3"],
+        },
         package_data={"arraycontext": ["py.typed"]},
     )
 

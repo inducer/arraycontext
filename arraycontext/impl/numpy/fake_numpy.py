@@ -23,18 +23,15 @@ THE SOFTWARE.
 """
 from functools import partial, reduce
 
-from arraycontext.fake_numpy import (
-        BaseFakeNumpyNamespace, BaseFakeNumpyLinalgNamespace,
-        )
+import numpy as np
+
 from arraycontext.container import is_array_container
 from arraycontext.container.traversal import (
-        rec_map_array_container,
-        rec_multimap_array_container,
-        multimap_reduce_array_container,
-        rec_map_reduce_array_container,
-        rec_multimap_reduce_array_container,
-        )
-import numpy as np
+    multimap_reduce_array_container, rec_map_array_container,
+    rec_map_reduce_array_container, rec_multimap_array_container,
+    rec_multimap_reduce_array_container)
+from arraycontext.fake_numpy import (
+    BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace)
 
 
 class NumpyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):

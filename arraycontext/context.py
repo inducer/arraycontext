@@ -160,26 +160,24 @@ THE SOFTWARE.
 
 from abc import ABC, abstractmethod
 from typing import (
-        Any, Callable, Dict, Optional, Tuple, Union, Mapping,
-        TYPE_CHECKING, TypeVar)
+    TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Protocol, Tuple, TypeVar,
+    Union)
 
 import numpy as np
+
 from pytools import memoize_method
 from pytools.tag import ToTagSetConvertible
 
+
 if TYPE_CHECKING:
     import loopy
+
     from arraycontext.container import ArrayContainer
 
 
 # {{{ typing
 
 ScalarLike = Union[int, float, complex, np.generic]
-
-try:
-    from typing import Protocol
-except ImportError:
-    from typing_extensions import Protocol                  # type: ignore[misc]
 
 SelfType = TypeVar("SelfType")
 
@@ -286,6 +284,9 @@ class ArrayContext(ABC):
         from .fake_numpy import BaseFakeNumpyNamespace
         return BaseFakeNumpyNamespace(self)
 
+    def __hash__(self) -> int:
+        raise TypeError(f"unhashable type: '{type(self).__name__}'")
+
     @abstractmethod
     def empty(self,
               shape: Union[int, Tuple[int, ...]],
@@ -299,15 +300,25 @@ class ArrayContext(ABC):
         pass
 
     def empty_like(self, ary: Array) -> Array:
+        from warnings import warn
+        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
+            "working in 2023. Prefer actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
+
         return self.empty(shape=ary.shape, dtype=ary.dtype)
 
     def zeros_like(self, ary: Array) -> Array:
+        from warnings import warn
+        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
+            "working in 2023. Use actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
+
         return self.zeros(shape=ary.shape, dtype=ary.dtype)
 
     @abstractmethod
     def from_numpy(self,
-                   array: ArrayOrContainerOrScalar
-                   ) -> NumpyOrContainerOrScalar:
+                   array: NumpyOrContainerOrScalar
+                   ) -> ArrayOrContainerOrScalar:
         r"""
         :returns: the :class:`numpy.ndarray` *array* converted to the
             array context's array type. The returned array will be
@@ -319,8 +330,8 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def to_numpy(self,
-                 array: NumpyOrContainerOrScalar
-                 ) -> ArrayOrContainerOrScalar:
+                 array: ArrayOrContainerOrScalar
+                 ) -> NumpyOrContainerOrScalar:
         r"""
         :returns: an :class:`numpy.ndarray` for each array recognized by the
             context. The input *array* must be :meth:`thaw`\ ed.
@@ -418,8 +429,9 @@ class ArrayContext(ABC):
                         spec: str, arg_names: Tuple[str, ...],
                         tagged: ToTagSetConvertible) -> "loopy.TranslationUnit":
         import loopy as lp
-        from .loopy import _DEFAULT_LOOPY_OPTIONS
         from loopy.version import MOST_RECENT_LANGUAGE_VERSION
+
+        from .loopy import _DEFAULT_LOOPY_OPTIONS
         return lp.make_einsum(
             spec,
             arg_names,

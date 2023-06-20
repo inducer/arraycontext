@@ -28,11 +28,14 @@ THE SOFTWARE.
 """
 
 import numpy as np
+
 import loopy as lp
 from loopy.version import MOST_RECENT_LANGUAGE_VERSION
-from arraycontext.fake_numpy import BaseFakeNumpyNamespace
-from arraycontext.container.traversal import multimapped_over_array_containers
 from pytools import memoize_in
+
+from arraycontext.container.traversal import multimapped_over_array_containers
+from arraycontext.fake_numpy import BaseFakeNumpyNamespace
+
 
 # {{{ loopy
 
@@ -89,6 +92,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
         domain_bset, = domain.get_basic_sets()
 
         import loopy as lp
+
         from .loopy import make_loopy_program
         from arraycontext.transform_metadata import ElementwiseMapKernelTag
         return make_loopy_program(

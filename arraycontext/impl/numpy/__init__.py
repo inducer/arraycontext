@@ -30,11 +30,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext.context import ArrayContext
+from typing import Dict, Sequence, Union
+
 import numpy as np
+
 import loopy as lp
-from typing import Union, Sequence, Dict
 from pytools.tag import Tag
+
+from arraycontext.context import ArrayContext
 
 
 class NumpyArrayContext(ArrayContext):

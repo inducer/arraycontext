@@ -34,8 +34,8 @@ THE SOFTWARE.
 
 from typing import Any, Callable, Dict, Sequence, Type, Union
 
-from arraycontext.context import ArrayContext
 from arraycontext import NumpyArrayContext
+from arraycontext.context import ArrayContext
 
 
 # {{{ array context factories
@@ -64,7 +64,7 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import pyopencl         # noqa: F401
+            import pyopencl  # noqa: F401
             return True
         except ImportError:
             return False
@@ -80,6 +80,7 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
         collect()
 
         import pyopencl as cl
+
         # On Intel CPU CL, existence of a command queue does not ensure that
         # the context survives.
         ctx = cl.Context([self.device])
@@ -101,8 +102,21 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
         ctx, queue = self.get_command_queue()
+
+        alloc = None
+
+        if queue.device.platform.name == "NVIDIA CUDA":
+            from pyopencl.tools import ImmediateAllocator
+            alloc = ImmediateAllocator(queue)
+
+            from warnings import warn
+            warn("Disabling SVM due to memory leak "
+                 "in Nvidia CL when running pytest. "
+                 "See https://github.com/inducer/arraycontext/issues/196")
+
         return self.actx_class(
                 queue,
+                allocator=alloc,
                 force_device_scalars=self.force_device_scalars)
 
     def __str__(self):
@@ -122,8 +136,8 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import pyopencl         # noqa: F401
-            import pytato           # noqa: F401
+            import pyopencl  # noqa: F401
+            import pytato  # noqa: F401
             return True
         except ImportError:
             return False
@@ -142,7 +156,19 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
         ctx, queue = self.get_command_queue()
-        return self.actx_class(queue)
+
+        alloc = None
+
+        if queue.device.platform.name == "NVIDIA CUDA":
+            from pyopencl.tools import ImmediateAllocator
+            alloc = ImmediateAllocator(queue)
+
+            from warnings import warn
+            warn("Disabling SVM due to memory leak "
+                 "in Nvidia CL when running pytest. "
+                 "See https://github.com/inducer/arraycontext/issues/196")
+
+        return self.actx_class(queue, allocator=alloc)
 
     def __str__(self):
         return ("<PytatoPyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>>" %
@@ -158,14 +184,15 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import jax              # noqa: F401
+            import jax  # noqa: F401
             return True
         except ImportError:
             return False
 
     def __call__(self):
-        from arraycontext import EagerJAXArrayContext
         from jax.config import config
+
+        from arraycontext import EagerJAXArrayContext
         config.update("jax_enable_x64", True)
         return EagerJAXArrayContext()
 
@@ -180,15 +207,17 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
     @classmethod
     def is_available(cls) -> bool:
         try:
-            import jax              # noqa: F401
-            import pytato           # noqa: F401
+            import jax  # noqa: F401
+
+            import pytato  # noqa: F401
             return True
         except ImportError:
             return False
 
     def __call__(self):
-        from arraycontext import PytatoJAXArrayContext
         from jax.config import config
+
+        from arraycontext import PytatoJAXArrayContext
         config.update("jax_enable_x64", True)
         return PytatoJAXArrayContext()
 

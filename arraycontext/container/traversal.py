@@ -13,6 +13,8 @@
 .. autofunction:: rec_map_reduce_array_container
 .. autofunction:: rec_multimap_reduce_array_container
 
+.. autofunction:: stringify_array_container_tree
+
 Traversing decorators
 ~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: mapped_over_array_containers
@@ -41,6 +43,7 @@ Algebraic operations
 
 from __future__ import annotations
 
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -65,22 +68,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable, Iterable, List, Optional, Union, Tuple, cast
-from functools import update_wrapper, partial, singledispatch
+from functools import partial, singledispatch, update_wrapper
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
 from warnings import warn
 
 import numpy as np
 
-from arraycontext.context import (
-    ArrayT, ArrayOrContainer, ArrayOrContainerT,
-    ArrayOrContainerOrScalar, ScalarLike,
-    ArrayContext, Array
-)
 from arraycontext.container import (
-        NotAnArrayContainerError,
-        ArrayContainer,
-        serialize_container, deserialize_container,
-        get_container_context_recursively_opt)
+    ArrayContainer, NotAnArrayContainerError, deserialize_container,
+    get_container_context_recursively_opt, serialize_container)
+from arraycontext.context import (
+    Array, ArrayContext, ArrayOrContainer, ArrayOrContainerOrScalar,
+    ArrayOrContainerT, ArrayT, ScalarLike)
 
 
 # {{{ array container traversal helpers
@@ -226,6 +225,33 @@ def _multimap_array_container_impl(
 
 
 # {{{ array container traversal
+
+def stringify_array_container_tree(ary: ArrayOrContainer) -> str:
+    """
+    :returns: a string for an ASCII tree representation of the array container,
+        similar to `asciitree <https://github.com/mbr/asciitree>`__.
+    """
+    def rec(lines: List[str], ary_: ArrayOrContainerT, level: int) -> None:
+        try:
+            iterable = serialize_container(ary_)
+        except NotAnArrayContainerError:
+            pass
+        else:
+            for key, subary in iterable:
+                key = f"{key} ({type(subary).__name__})"
+                if level == 0:
+                    indent = ""
+                else:
+                    indent = f" |  {' ' * 4 * (level - 1)}"
+
+                lines.append(f"{indent} +-- {key}")
+                rec(lines, subary, level + 1)
+
+    lines = [f"root ({type(ary).__name__})"]
+    rec(lines, ary, 0)
+
+    return "\n".join(lines)
+
 
 def map_array_container(
         f: Callable[[Any], Any],
@@ -681,8 +707,7 @@ def flatten(
                 # NOTE: we can't do much if the array context fails to ravel,
                 # since it is the one responsible for the actual memory layout
                 if hasattr(subary_c, "strides"):
-                    # Mypy has a point: nobody promised a strides attr.
-                    strides_msg = f" and strides {subary_c.strides}"  # type: ignore[attr-defined]  # noqa: E501
+                    strides_msg = f" and strides {subary_c.strides}"
                 else:
                     strides_msg = ""
 

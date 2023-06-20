@@ -25,19 +25,14 @@ from functools import partial, reduce
 
 import numpy as np
 
-from arraycontext.fake_numpy import (
-        BaseFakeNumpyLinalgNamespace
-        )
-from arraycontext.loopy import (
-        LoopyBasedFakeNumpyNamespace
-        )
+import pytato as pt
+
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-        rec_map_array_container,
-        rec_multimap_array_container,
-        rec_map_reduce_array_container,
-        )
-import pytato as pt
+    rec_map_array_container, rec_map_reduce_array_container,
+    rec_multimap_array_container)
+from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
+from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 
 class PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -55,19 +50,29 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         :ref:`Pytato docs <pytato:memory-layout>` for more on this.
     """
 
-    _pt_funcs = frozenset({
+    _pt_unary_funcs = frozenset({
         "sin", "cos", "tan", "arcsin", "arccos", "arctan",
         "sinh", "cosh", "tanh", "exp", "log", "log10",
-        "sqrt", "abs", "isnan"
+        "sqrt", "abs", "isnan", "real", "imag", "conj",
+        "logical_not",
         })
+
+    _pt_multi_ary_funcs = frozenset({
+        "arctan2", "equal", "greater", "greater_equal", "less", "less_equal",
+        "not_equal", "minimum", "maximum", "where", "logical_and", "logical_or",
+    })
 
     def _get_fake_numpy_linalg_namespace(self):
         return PytatoFakeNumpyLinalgNamespace(self._array_context)
 
     def __getattr__(self, name):
-        if name in self._pt_funcs:
+        if name in self._pt_unary_funcs:
             from functools import partial
             return partial(rec_map_array_container, getattr(pt, name))
+
+        if name in self._pt_multi_ary_funcs:
+            from functools import partial
+            return partial(rec_multimap_array_container, getattr(pt, name))
 
         return super().__getattr__(name)
 
@@ -76,12 +81,21 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ array creation routines
 
+    def zeros_like(self, ary):
+        def _zeros_like(array):
+            return self._array_context.zeros(
+                array.shape, array.dtype).copy(axes=array.axes, tags=array.tags)
+
+        return self._array_context._rec_map_container(
+            _zeros_like, ary, default_scalar=0)
+
     def ones_like(self, ary):
         return self.full_like(ary, 1)
 
     def full_like(self, ary, fill_value):
         def _full_like(subary):
-            return pt.full(subary.shape, fill_value, subary.dtype)
+            return pt.full(subary.shape, fill_value, subary.dtype).copy(
+                axes=subary.axes, tags=subary.tags)
 
         return self._array_context._rec_map_container(
             _full_like, ary, default_scalar=fill_value)
@@ -171,30 +185,9 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return rec_equal(a, b)
 
-    def greater(self, x, y):
-        return rec_multimap_array_container(pt.greater, x, y)
-
-    def greater_equal(self, x, y):
-        return rec_multimap_array_container(pt.greater_equal, x, y)
-
-    def less(self, x, y):
-        return rec_multimap_array_container(pt.less, x, y)
-
-    def less_equal(self, x, y):
-        return rec_multimap_array_container(pt.less_equal, x, y)
-
-    def equal(self, x, y):
-        return rec_multimap_array_container(pt.equal, x, y)
-
-    def not_equal(self, x, y):
-        return rec_multimap_array_container(pt.not_equal, x, y)
-
     # }}}
 
     # {{{ mathematical functions
-
-    def arctan2(self, y, x):
-        return rec_multimap_array_container(pt.arctan2, y, x)
 
     def sum(self, a, axis=None, dtype=None):
         def _pt_sum(ary):
@@ -205,20 +198,11 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
 
-    def conj(self, x):
-        return rec_multimap_array_container(pt.conj, x)
-
-    def maximum(self, x, y):
-        return rec_multimap_array_container(pt.maximum, x, y)
-
     def amax(self, a, axis=None):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.maximum), partial(pt.amax, axis=axis), a)
 
     max = amax
-
-    def minimum(self, x, y):
-        return rec_multimap_array_container(pt.minimum, x, y)
 
     def amin(self, a, axis=None):
         return rec_map_reduce_array_container(
@@ -228,12 +212,5 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def absolute(self, a):
         return self.abs(a)
-
-    # }}}
-
-    # {{{ sorting, searching, and counting
-
-    def where(self, criterion, then, else_):
-        return rec_multimap_array_container(pt.where, criterion, then, else_)
 
     # }}}

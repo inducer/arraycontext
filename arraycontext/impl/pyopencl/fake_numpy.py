@@ -26,24 +26,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from functools import partial, reduce
 import operator
+from functools import partial, reduce
 
 import numpy as np
 
-from arraycontext.fake_numpy import (
-        BaseFakeNumpyLinalgNamespace
-        )
-from arraycontext.loopy import (
-        LoopyBasedFakeNumpyNamespace
-        )
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-        rec_map_array_container,
-        rec_multimap_array_container,
-        rec_map_reduce_array_container,
-        rec_multimap_reduce_array_container,
-        )
+    rec_map_array_container, rec_map_reduce_array_container,
+    rec_multimap_array_container, rec_multimap_reduce_array_container)
+from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
+from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
+
 
 try:
     import pyopencl as cl  # noqa: F401
@@ -63,22 +57,49 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ array creation routines
 
+    def empty_like(self, ary):
+        from warnings import warn
+        warn(f"{type(self._array_context).__name__}.np.empty_like is "
+            "deprecated and will stop working in 2023. Prefer actx.np.zeros_like "
+            "instead.",
+            DeprecationWarning, stacklevel=2)
+
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        actx = self._array_context
+
+        def _empty_like(array):
+            return tga.empty(actx.queue, array.shape, array.dtype,
+                allocator=actx.allocator, axes=array.axes, tags=array.tags)
+
+        return actx._rec_map_container(_empty_like, ary)
+
+    def zeros_like(self, ary):
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        actx = self._array_context
+
+        def _zeros_like(array):
+            return tga.zeros(
+                actx.queue, array.shape, array.dtype,
+                allocator=actx.allocator, axes=array.axes, tags=array.tags)
+
+        return actx._rec_map_container(_zeros_like, ary, default_scalar=0)
+
     def ones_like(self, ary):
         return self.full_like(ary, 1)
 
     def full_like(self, ary, fill_value):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        actx = self._array_context
 
         def _full_like(subary):
             filled = tga.empty(
-                self._array_context.queue, subary.shape, subary.dtype,
-                allocator=self._array_context.allocator,
-                axes=subary.axes, tags=subary.tags)
+                actx.queue, subary.shape, subary.dtype,
+                allocator=actx.allocator, axes=subary.axes, tags=subary.tags)
             filled.fill(fill_value)
+
             return filled
 
-        return self._array_context._rec_map_container(
-            _full_like, ary, default_scalar=fill_value)
+        return actx._rec_map_container(_full_like, ary, default_scalar=fill_value)
 
     def copy(self, ary):
         def _copy(subary):
@@ -237,6 +258,15 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def not_equal(self, x, y):
         return rec_multimap_array_container(operator.ne, x, y)
+
+    def logical_or(self, x, y):
+        return rec_multimap_array_container(cl_array.logical_or, x, y)
+
+    def logical_and(self, x, y):
+        return rec_multimap_array_container(cl_array.logical_and, x, y)
+
+    def logical_not(self, x):
+        return rec_map_array_container(cl_array.logical_not, x)
 
     # }}}
 

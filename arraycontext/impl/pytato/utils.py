@@ -23,12 +23,20 @@ THE SOFTWARE.
 """
 
 
-from typing import Any, Dict, Set, Tuple, Mapping
-from pytato.array import SizeParam, Placeholder, make_placeholder, Axis as PtAxis
-from pytato.array import Array, DataWrapper, DictOfNamedArrays
+from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Set, Tuple
+
+from pytato.array import (
+    AbstractResultWithNamedArrays, Array, Axis as PtAxis, DataWrapper,
+    DictOfNamedArrays, Placeholder, SizeParam, make_placeholder)
+from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import CopyMapper
-from pytools import UniqueNameGenerator
+from pytools import UniqueNameGenerator, memoize_method
+
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
+
+
+if TYPE_CHECKING:
+    import loopy as lp
 
 
 class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
@@ -50,8 +58,9 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                                  f"{expr.name} => Illegal.")
             self.seen_inputs.add(expr.name)
 
-        # Normalizing names so that we more arrays can have the normalized DAG.
-        name = self.vng("_actx_dw")
+        # Normalizing names so that more arrays can have the same normalized DAG.
+        from pytato.codegen import _generate_name_for_temp
+        name = _generate_name_for_temp(expr, self.vng, "_actx_dw")
         self.bound_arguments[name] = expr.data
         return make_placeholder(
                     name=name,
@@ -69,8 +78,9 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                          " DatawrapperToBoundPlaceholderMapper.")
 
 
-def _normalize_pt_expr(expr: DictOfNamedArrays) -> Tuple[DictOfNamedArrays,
-                                                         Mapping[str, Any]]:
+def _normalize_pt_expr(
+        expr: DictOfNamedArrays
+        ) -> Tuple[AbstractResultWithNamedArrays, Mapping[str, Any]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
     normalized form of *expr*, with all instances of
@@ -91,3 +101,20 @@ def get_pt_axes_from_cl_axes(axes: Tuple[ClAxis, ...]) -> Tuple[PtAxis, ...]:
 
 def get_cl_axes_from_pt_axes(axes: Tuple[PtAxis, ...]) -> Tuple[ClAxis, ...]:
     return tuple(ClAxis(axis.tags) for axis in axes)
+
+
+# {{{ arg-size-limiting loopy target
+
+class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
+    def __init__(self, limit_arg_size_nbytes: int) -> None:
+        super().__init__()
+        self.limit_arg_size_nbytes = limit_arg_size_nbytes
+
+    @memoize_method
+    def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
+        from loopy import PyOpenCLTarget
+        return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+
+# }}}
+
+# vim: foldmethod=marker
