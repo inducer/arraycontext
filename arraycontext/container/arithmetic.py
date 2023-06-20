@@ -273,6 +273,7 @@ def with_container_arithmetic(
 
         if cls_has_array_context_attr is None:
             if hasattr(cls, "array_context"):
+                from warnings import warn
                 cls_has_array_context_attr = _FailSafe
                 warn(f"{cls} has an .array_context attribute, but it does not "
                         "set _cls_has_array_context_attr to True when calling "
