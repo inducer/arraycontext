@@ -37,9 +37,9 @@ import numpy as np
 import loopy as lp
 from pytools.tag import Tag
 
-from arraycontext.context import ArrayContext
 from arraycontext.container.traversal import (
     rec_map_array_container, with_array_context)
+from arraycontext.context import ArrayContext
 
 
 class NumpyArrayContext(ArrayContext):

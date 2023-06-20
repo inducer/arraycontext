@@ -31,9 +31,10 @@ from pytools.obj_array import make_obj_array
 
 from arraycontext import (  # noqa: F401
     ArrayContainer, ArrayContext, EagerJAXArrayContext, FirstAxisIsElementsTag,
-    PyOpenCLArrayContext, PytatoPyOpenCLArrayContext, dataclass_array_container,
-    deserialize_container, pytest_generate_tests_for_array_contexts,
-    serialize_container, tag_axes, with_array_context, with_container_arithmetic, NumpyArrayContext)
+    NumpyArrayContext, PyOpenCLArrayContext, PytatoPyOpenCLArrayContext,
+    dataclass_array_container, deserialize_container,
+    pytest_generate_tests_for_array_contexts, serialize_container, tag_axes,
+    with_array_context, with_container_arithmetic)
 from arraycontext.pytest import (
     _PytestEagerJaxArrayContextFactory, _PytestNumpyArrayContextFactory,
     _PytestPyOpenCLArrayContextFactoryWithClass, _PytestPytatoJaxArrayContextFactory,
