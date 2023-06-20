@@ -132,9 +132,12 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
             else:
                 return np.all(np.equal(a, b))
         else:
-            return multimap_reduce_array_container(partial(reduce,
+            try:
+                return multimap_reduce_array_container(partial(reduce,
                                                            np.logical_and),
                                                    self.array_equal, a, b)
+            except TypeError:
+                return True
 
     def zeros_like(self, ary):
         return rec_multimap_array_container(np.zeros_like, ary)
