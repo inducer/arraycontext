@@ -30,12 +30,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Dict, Sequence, Union
+from typing import Dict
 
 import numpy as np
 
 import loopy as lp
-from pytools.tag import Tag
 
 from arraycontext.container.traversal import (
     rec_map_array_container, with_array_context)
@@ -71,7 +70,7 @@ class NumpyArrayContext(ArrayContext):
     def zeros(self, shape, dtype):
         return np.zeros(shape, dtype)
 
-    def from_numpy(self, np_array: np.ndarray):
+    def from_numpy(self, np_array):
         # Uh oh...
         return np_array
 
@@ -112,11 +111,11 @@ class NumpyArrayContext(ArrayContext):
                          "transform_loopy_program. Sub-classes are supposed "
                          "to implement it.")
 
-    def tag(self, tags: Union[Sequence[Tag], Tag], array):
+    def tag(self, tags, array):
         # Numpy doesn't support tagging
         return array
 
-    def tag_axis(self, iaxis, tags: Union[Sequence[Tag], Tag], array):
+    def tag_axis(self, iaxis, tags, array):
         return array
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):

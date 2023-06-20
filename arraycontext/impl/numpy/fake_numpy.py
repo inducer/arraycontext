@@ -41,7 +41,7 @@ class NumpyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
 
 _NUMPY_UFUNCS = {"abs", "sin", "cos", "tan", "arcsin", "arccos", "arctan",
                  "sinh", "cosh", "tanh", "exp", "log", "log10", "isnan",
-                 "sqrt", "exp", "concatenate", "reshape", "transpose",
+                 "sqrt", "concatenate", "transpose",
                  "ones_like", "maximum", "minimum", "where", "conj", "arctan2",
                  }
 
@@ -60,7 +60,7 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
             return partial(rec_multimap_array_container,
                            getattr(np, name))
 
-        return super().__getattr__(name)
+        raise NotImplementedError
 
     def sum(self, a, axis=None, dtype=None):
         return rec_map_reduce_array_container(sum, partial(np.sum,
