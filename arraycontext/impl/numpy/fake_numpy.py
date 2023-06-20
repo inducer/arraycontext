@@ -136,4 +136,12 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                                                            np.logical_and),
                                                    self.array_equal, a, b)
 
+    def zeros_like(self, ary):
+        return rec_multimap_array_container(np.zeros_like, ary)
+
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: ary.reshape(newshape, order=order),
+                a)
+
 # vim: fdm=marker
