@@ -38,6 +38,8 @@ import loopy as lp
 from pytools.tag import Tag
 
 from arraycontext.context import ArrayContext
+from arraycontext.container.traversal import (
+    rec_map_array_container, with_array_context)
 
 
 class NumpyArrayContext(ArrayContext):
@@ -92,10 +94,16 @@ class NumpyArrayContext(ArrayContext):
         return result
 
     def freeze(self, array):
-        return array
+        def _freeze(ary):
+            return ary
+
+        return with_array_context(rec_map_array_container(_freeze, array), actx=None)
 
     def thaw(self, array):
-        return array
+        def _thaw(ary):
+            return ary
+
+        return with_array_context(rec_map_array_container(_thaw, array), actx=self)
 
     # }}}
 
