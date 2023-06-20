@@ -33,7 +33,7 @@ from arraycontext import (  # noqa: F401
     ArrayContainer, ArrayContext, EagerJAXArrayContext, FirstAxisIsElementsTag,
     PyOpenCLArrayContext, PytatoPyOpenCLArrayContext, dataclass_array_container,
     deserialize_container, pytest_generate_tests_for_array_contexts,
-    serialize_container, tag_axes, with_array_context, with_container_arithmetic)
+    serialize_container, tag_axes, with_array_context, with_container_arithmetic, NumpyArrayContext)
 from arraycontext.pytest import (
     _PytestEagerJaxArrayContextFactory, _PytestNumpyArrayContextFactory,
     _PytestPyOpenCLArrayContextFactoryWithClass, _PytestPytatoJaxArrayContextFactory,
@@ -928,8 +928,9 @@ def test_container_arithmetic(actx_factory):
     with pytest.raises(TypeError):
         ary_of_dofs + dc_of_dofs
 
-    with pytest.raises(TypeError):
-        dc_of_dofs + ary_of_dofs
+    if not isinstance(actx, NumpyArrayContext):
+        with pytest.raises(TypeError):
+            dc_of_dofs + ary_of_dofs
 
     with pytest.raises(TypeError):
         ary_dof + dc_of_dofs
@@ -1089,9 +1090,10 @@ def test_flatten_array_container_failure(actx_factory):
     ary = _get_test_containers(actx, shapes=512)[0]
     flat_ary = _checked_flatten(ary, actx)
 
-    with pytest.raises(TypeError):
-        # cannot unflatten from a numpy array
-        unflatten(ary, actx.to_numpy(flat_ary), actx)
+    if not isinstance(actx, NumpyArrayContext):
+        with pytest.raises(TypeError):
+            # cannot unflatten from a numpy array
+            unflatten(ary, actx.to_numpy(flat_ary), actx)
 
     with pytest.raises(ValueError):
         # cannot unflatten non-flat arrays
@@ -1134,7 +1136,7 @@ def test_numpy_conversion(actx_factory):
 
     actx = actx_factory()
     if isinstance(actx, NumpyArrayContext):
-        pytest.skip("Irrelevant tests  for NumpyArrayContext")
+        pytest.skip("Irrelevant tests for NumpyArrayContext")
 
     nelements = 42
     ac = MyContainer(
@@ -1345,6 +1347,9 @@ class Foo:
 def test_leaf_array_type_broadcasting(actx_factory):
     # test support for https://github.com/inducer/arraycontext/issues/49
     actx = actx_factory()
+
+    if isinstance(actx, NumpyArrayContext):
+        pytest.skip("NumpyArrayContext has no leaf array type broadcasting support")
 
     foo = Foo(DOFArray(actx, (actx.zeros(3, dtype=np.float64) + 41, )))
     bar = foo + 4
@@ -1557,6 +1562,9 @@ def test_tagging(actx_factory):
 
     if isinstance(actx, EagerJAXArrayContext):
         pytest.skip("Eager JAX has no tagging support")
+
+    if isinstance(actx, NumpyArrayContext):
+        pytest.skip("NumpyArrayContext has no tagging support")
 
     from pytools.tag import Tag
 
