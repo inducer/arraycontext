@@ -103,6 +103,10 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                         var(c_name)(*[
                             var("inp%d" % i)[subscript] for i in range(nargs)]))
                     ],
+                [
+                    lp.GlobalArg("out", dtype=None, shape=lp.auto)] + [
+                        lp.GlobalArg("inp%d" % i, dtype=None, shape=lp.auto)
+                        for i in range(nargs)] + [...],
                 name="actx_special_%s" % c_name,
                 tags=(ElementwiseMapKernelTag(),))
 
