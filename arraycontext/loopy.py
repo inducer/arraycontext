@@ -138,11 +138,8 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
             return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:
-            from warnings import warn
-            warn(f"'{name}' in ArrayContext.np is deprecated. "
-                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. "
-                    "The old name will stop working in 2022.",
-                    DeprecationWarning, stacklevel=3)
+            raise RuntimeError(f"'{name}' in ArrayContext.np has been removed. "
+                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. ")
 
         # normalize to C names anyway
         c_name = self._numpy_to_c_arc_functions.get(name, name)
