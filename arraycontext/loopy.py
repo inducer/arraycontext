@@ -27,6 +27,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import sys
+
 import numpy as np
 
 import loopy as lp
@@ -41,7 +43,9 @@ from arraycontext.fake_numpy import BaseFakeNumpyNamespace
 
 _DEFAULT_LOOPY_OPTIONS = lp.Options(
         no_numpy=True,
-        return_dict=True)
+        return_dict=True,
+        enforce_array_accesses_within_bounds="no_check" if sys.flags.optimize
+                                             else True)
 
 
 def make_loopy_program(domains, statements, kernel_data=None,
