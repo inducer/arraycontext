@@ -391,7 +391,6 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         if prg_id is None:
             prg_id = self.f
 
-        import loopy as lp
         from pytato.target.loopy import BoundPyOpenCLProgram
 
         self.actx._compile_trace_callback(
@@ -414,11 +413,10 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
                 prg_id, "pre_generate_loopy", pt_dict_of_named_arrays)
 
         with ProcessLogger(logger, f"generate_loopy for '{prg_id}'"):
+            from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
             pytato_program = pt.generate_loopy(
                     pt_dict_of_named_arrays,
-                    options=lp.Options(
-                        return_dict=True,
-                        no_numpy=True),
+                    options=_DEFAULT_LOOPY_OPTIONS,
                     function_name=_prg_id_to_kernel_name(prg_id),
                     target=self.actx.get_target(),
                     )
