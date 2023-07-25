@@ -414,9 +414,13 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
 
         with ProcessLogger(logger, f"generate_loopy for '{prg_id}'"):
             from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
+            opts = _DEFAULT_LOOPY_OPTIONS
+            assert opts.return_dict
+
             pytato_program = pt.generate_loopy(
                     pt_dict_of_named_arrays,
-                    options=_DEFAULT_LOOPY_OPTIONS,
+                    options=opts,
+
                     function_name=_prg_id_to_kernel_name(prg_id),
                     target=self.actx.get_target(),
                     )
