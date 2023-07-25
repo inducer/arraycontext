@@ -527,8 +527,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                         transformed_dag, function_name)
 
             from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
+            opts = _DEFAULT_LOOPY_OPTIONS
+            assert opts.return_dict
+
             pt_prg = pt.generate_loopy(transformed_dag,
-                                       options=_DEFAULT_LOOPY_OPTIONS,
+                                       options=opts,
                                        cl_device=self.queue.device,
                                        function_name=function_name,
                                        target=self.get_target())
