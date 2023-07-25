@@ -420,7 +420,6 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
             pytato_program = pt.generate_loopy(
                     pt_dict_of_named_arrays,
                     options=opts,
-
                     function_name=_prg_id_to_kernel_name(prg_id),
                     target=self.actx.get_target(),
                     )
