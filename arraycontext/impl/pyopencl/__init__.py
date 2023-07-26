@@ -271,14 +271,14 @@ class PyOpenCLArrayContext(ArrayContext):
             t_unit = self._loopy_transform_cache[t_unit]
         except KeyError:
             orig_t_unit = t_unit
-            t_unit = self.transform_loopy_program(t_unit)
+            t_unit = self.transform_loopy_program(t_unit).executor(self.context)
             self._loopy_transform_cache[orig_t_unit] = t_unit
             del orig_t_unit
 
         evt, result = t_unit(self.queue, **kwargs, allocator=self.allocator)
 
         if self._wait_event_queue_length is not False:
-            prg_name = t_unit.default_entrypoint.name
+            prg_name = t_unit.entrypoint
             wait_event_queue = self._kernel_name_to_wait_event_queue.setdefault(
                     prg_name, [])
 
