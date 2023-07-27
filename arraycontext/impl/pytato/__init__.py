@@ -534,8 +534,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                                        options=opts,
                                        cl_device=self.queue.device,
                                        function_name=function_name,
-                                       target=self.get_target())
-            pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
+                                       target=self.get_target()
+                                       ).bind_to_context(self.context)
+            pt_prg = pt_prg.with_transformed_translation_unit(
+                    self.transform_loopy_program)
             self._freeze_prg_cache[normalized_expr] = pt_prg
         else:
             transformed_dag, function_name = (
