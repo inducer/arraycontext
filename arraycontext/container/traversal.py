@@ -965,7 +965,7 @@ def outer(a: Any, b: Any) -> Any:
     elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
         return map_array_container(lambda x: outer(x, b), a)
     else:
-        if type(a) != type(b):
+        if type(a) is not type(b):
             raise TypeError(
                 "both arguments must have the same type if they are both "
                 "non-object-array array containers.")
