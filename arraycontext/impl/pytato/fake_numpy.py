@@ -167,7 +167,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         false = actx.from_numpy(np.int8(False))
 
         def rec_equal(x, y):
-            if type(x) != type(y):
+            if type(x) is not type(y):
                 return false
 
             try:
