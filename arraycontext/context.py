@@ -438,6 +438,7 @@ class ArrayContext(ABC):
             options=_DEFAULT_LOOPY_OPTIONS,
             lang_version=MOST_RECENT_LANGUAGE_VERSION,
             tags=tagged,
+            default_order=lp.auto,
             default_offset=lp.auto,
         )
 
