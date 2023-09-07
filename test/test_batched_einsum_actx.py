@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from pytools.obj_array import make_obj_array
 from pytools.tag import UniqueTag
 
 from arraycontext import (
@@ -264,5 +265,33 @@ def test_dg_3d_divergence(actx_factory):
                                   8*az_np]))
 
     np.testing.assert_allclose(ref_out, actx.to_numpy(out))
+
+
+def test_multiple_large_sized_outputs(actx_factory):
+    actx = actx_factory()
+    rng = np.random.default_rng(0)
+    n1 = 1_000_000
+    n2 = 2_000_000
+
+    x1_np = rng.random((n1, 1))
+    x2_np = rng.random((n2, 1))
+
+    x1 = actx.from_numpy(x1_np)
+    x2 = actx.from_numpy(x2_np)
+
+    x1 = tag_axes(actx, {0: NamedAxis("e"),
+                         1: NamedAxis("i")},
+                  x1)
+    x2 = tag_axes(actx, {0: NamedAxis("e"),
+                         1: NamedAxis("i")},
+                  x2)
+
+    out = make_obj_array([actx.einsum("ij->i", 3 * x1),
+                          actx.einsum("ij->i", 4 * x2)])
+    ref_out = make_obj_array([np.einsum("ij->i", 3 * x1_np),
+                              np.einsum("ij->i", 4 * x2_np)])
+
+    np.testing.assert_allclose(ref_out[0], actx.to_numpy(out)[0])
+    np.testing.assert_allclose(ref_out[1], actx.to_numpy(out)[1])
 
 # vim: fdm=marker
