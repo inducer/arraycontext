@@ -100,6 +100,12 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return self._array_context._rec_map_container(
             _full_like, ary, default_scalar=fill_value)
 
+    def arange(self, *args: Any, **kwargs: Any):
+        return pt.arange(*args, **kwargs)
+
+    def full(self, shape, fill_value, dtype=None):
+        return pt.full(shape, fill_value, dtype)
+
     # }}}
 
     # {{{ array manipulation routines
