@@ -28,11 +28,14 @@ THE SOFTWARE.
 """
 
 import numpy as np
+
 import loopy as lp
 from loopy.version import MOST_RECENT_LANGUAGE_VERSION
-from arraycontext.fake_numpy import BaseFakeNumpyNamespace
-from arraycontext.container.traversal import multimapped_over_array_containers
 from pytools import memoize_in
+
+from arraycontext.container.traversal import multimapped_over_array_containers
+from arraycontext.fake_numpy import BaseFakeNumpyNamespace
+
 
 # {{{ loopy
 
@@ -89,6 +92,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
         domain_bset, = domain.get_basic_sets()
 
         import loopy as lp
+
         from .loopy import make_loopy_program
         from arraycontext.transform_metadata import ElementwiseMapKernelTag
         return make_loopy_program(
@@ -99,6 +103,12 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                         var(c_name)(*[
                             var("inp%d" % i)[subscript] for i in range(nargs)]))
                     ],
+                [
+                    lp.GlobalArg("out",
+                                 dtype=None, shape=lp.auto, offset=lp.auto)] + [
+                        lp.GlobalArg("inp%d" % i,
+                                     dtype=None, shape=lp.auto, offset=lp.auto)
+                        for i in range(nargs)] + [...],
                 name="actx_special_%s" % c_name,
                 tags=(ElementwiseMapKernelTag(),))
 
@@ -134,11 +144,8 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
             return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:
-            from warnings import warn
-            warn(f"'{name}' in ArrayContext.np is deprecated. "
-                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. "
-                    "The old name will stop working in 2022.",
-                    DeprecationWarning, stacklevel=3)
+            raise RuntimeError(f"'{name}' in ArrayContext.np has been removed. "
+                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. ")
 
         # normalize to C names anyway
         c_name = self._numpy_to_c_arc_functions.get(name, name)

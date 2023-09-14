@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, FrozenSet, Optional, Tuple
 
 import numpy as np
-import pyopencl.array as cla
 
+import pyopencl.array as cla
 from pytools import memoize
-from pytools.tag import Taggable, Tag, ToTagSetConvertible
+from pytools.tag import Tag, Taggable, ToTagSetConvertible
 
 
 # {{{ utils
@@ -35,17 +35,19 @@ def _construct_untagged_axes(ndim: int) -> Tuple[Axis, ...]:
 
 
 def _unwrap_cl_array(ary: cla.Array) -> Dict[str, Any]:
-    return dict(shape=ary.shape, dtype=ary.dtype,
-                allocator=ary.allocator,
-                strides=ary.strides,
-                data=ary.base_data,
-                offset=ary.offset,
-                events=ary.events,
-                _context=ary.context,
-                _queue=ary.queue,
-                _size=ary.size,
-                _fast=True,
-                )
+    return {
+        "shape": ary.shape,
+        "dtype": ary.dtype,
+        "allocator": ary.allocator,
+        "strides": ary.strides,
+        "data": ary.base_data,
+        "offset": ary.offset,
+        "events": ary.events,
+        "_context": ary.context,
+        "_queue": ary.queue,
+        "_size": ary.size,
+        "_fast": True,
+        }
 
 # }}}
 

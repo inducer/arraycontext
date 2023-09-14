@@ -69,17 +69,19 @@ THE SOFTWARE.
 """
 
 from functools import singledispatch
-from arraycontext.context import ArrayContext
-from typing import Any, Iterable, Tuple, Optional, TypeVar, Protocol, TYPE_CHECKING
-import numpy as np
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Protocol, Tuple, TypeVar
 
 # For use in singledispatch type annotations, because sphinx can't figure out
 # what 'np' is.
 import numpy
+import numpy as np
+
+from arraycontext.context import ArrayContext
 
 
 if TYPE_CHECKING:
     from pymbolic.geometric_algebra import MultiVector
+
     from arraycontext import ArrayOrContainer
 
 

@@ -29,63 +29,42 @@ THE SOFTWARE.
 """
 
 import sys
-from .context import (
-        ArrayContext,
-
-        Scalar, ScalarLike,
-        Array, ArrayT,
-        ArrayOrContainer, ArrayOrContainerT,
-        ArrayOrContainerOrScalar, ArrayOrContainerOrScalarT,
-
-        tag_axes)
-
-from .transform_metadata import (CommonSubexpressionTag,
-        ElementwiseMapKernelTag)
-
-# deprecated, remove in 2022.
-from .metadata import _FirstAxisIsElementsTag
 
 from .container import (
-        ArrayContainer, ArrayContainerT,
-        NotAnArrayContainerError,
-        is_array_container, is_array_container_type,
-        get_container_context_opt,
-        get_container_context_recursively, get_container_context_recursively_opt,
-        serialize_container, deserialize_container,
-        register_multivector_as_array_container)
+    ArrayContainer, ArrayContainerT, NotAnArrayContainerError, deserialize_container,
+    get_container_context_opt, get_container_context_recursively,
+    get_container_context_recursively_opt, is_array_container,
+    is_array_container_type, register_multivector_as_array_container,
+    serialize_container)
 from .container.arithmetic import with_container_arithmetic
 from .container.dataclass import dataclass_array_container
-
 from .container.traversal import (
-        map_array_container,
-        multimap_array_container,
-        rec_map_array_container,
-        rec_multimap_array_container,
-        mapped_over_array_containers,
-        multimapped_over_array_containers,
-        map_reduce_array_container,
-        multimap_reduce_array_container,
-        rec_map_reduce_array_container,
-        rec_multimap_reduce_array_container,
-        thaw, freeze,
-        flatten, unflatten, flat_size_and_dtype,
-        from_numpy, to_numpy,
-        outer, with_array_context)
-
-from .impl.pyopencl import PyOpenCLArrayContext
-from .impl.pytato import (PytatoPyOpenCLArrayContext,
-                          PytatoJAXArrayContext)
+    flat_size_and_dtype, flatten, freeze, from_numpy, map_array_container,
+    map_reduce_array_container, mapped_over_array_containers,
+    multimap_array_container, multimap_reduce_array_container,
+    multimapped_over_array_containers, outer, rec_map_array_container,
+    rec_map_reduce_array_container, rec_multimap_array_container,
+    rec_multimap_reduce_array_container, stringify_array_container_tree, thaw,
+    to_numpy, unflatten, with_array_context)
+from .context import (
+    Array, ArrayContext, ArrayOrContainer, ArrayOrContainerOrScalar,
+    ArrayOrContainerOrScalarT, ArrayOrContainerT, ArrayT, Scalar, ScalarLike,
+    tag_axes)
 from .impl.jax import EagerJAXArrayContext
+
 from .impl.numpy import NumpyArrayContext
 from .impl.torch import TorchArrayContext
-
-from .pytest import (
-        PytestArrayContextFactory,
-        PytestPyOpenCLArrayContextFactory,
-        pytest_generate_tests_for_array_contexts,
-        pytest_generate_tests_for_pyopencl_array_context)
+from .impl.pyopencl import PyOpenCLArrayContext
+from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
 
 from .loopy import make_loopy_program
+# deprecated, remove in 2022.
+from .metadata import _FirstAxisIsElementsTag
+from .pytest import (
+    PytestArrayContextFactory, PytestPyOpenCLArrayContextFactory,
+    pytest_generate_tests_for_array_contexts,
+    pytest_generate_tests_for_pyopencl_array_context)
+from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 
 
 __all__ = (
@@ -110,6 +89,7 @@ __all__ = (
         "with_container_arithmetic",
         "dataclass_array_container",
 
+        "stringify_array_container_tree",
         "map_array_container", "multimap_array_container",
         "rec_map_array_container", "rec_multimap_array_container",
         "mapped_over_array_containers",

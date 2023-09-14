@@ -1,5 +1,6 @@
 from urllib.request import urlopen
 
+
 _conf_url = \
         "https://raw.githubusercontent.com/inducer/sphinxconfig/main/sphinxconfig.py"
 with urlopen(_conf_url) as _inf:
@@ -15,16 +16,16 @@ version = ".".join(str(x) for x in ver_dic["VERSION"])
 release = ver_dic["VERSION_TEXT"]
 
 intersphinx_mapping = {
-    "https://docs.python.org/3/": None,
-    "https://numpy.org/doc/stable/": None,
-    "https://documen.tician.de/pytools": None,
-    "https://documen.tician.de/pymbolic": None,
-    "https://documen.tician.de/pyopencl": None,
-    "https://documen.tician.de/pytato": None,
-    "https://documen.tician.de/loopy": None,
-    "https://documen.tician.de/meshmode": None,
-    "https://docs.pytest.org/en/latest/": None,
-    "https://jax.readthedocs.io/en/latest/": None,
+    "jax": ("https://jax.readthedocs.io/en/latest/", None),
+    "loopy": ("https://documen.tician.de/loopy", None),
+    "meshmode": ("https://documen.tician.de/meshmode", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pymbolic": ("https://documen.tician.de/pymbolic", None),
+    "pyopencl": ("https://documen.tician.de/pyopencl", None),
+    "pytato": ("https://documen.tician.de/pytato", None),
+    "pytest": ("https://docs.pytest.org/en/latest/", None),
+    "python": ("https://docs.python.org/3/", None),
+    "pytools": ("https://documen.tician.de/pytools", None),
 }
 
 # Some modules need to import things just so that sphinx can resolve symbols in
@@ -37,4 +38,6 @@ intersphinx_mapping = {
 # this needs a setting of the same name across all packages involved, that's
 # why this name is as global-sounding as it is.
 import sys
+
+
 sys._BUILDING_SPHINX_DOCS = True

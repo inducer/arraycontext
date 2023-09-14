@@ -1,6 +1,6 @@
 Python 3 POCL:
   script: |
-    export PYOPENCL_TEST=portable:pthread
+    export PYOPENCL_TEST=portable:cpu
     export EXTRA_INSTALL="jax[cpu]"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
     . ./build-and-test-py-project.sh
@@ -32,10 +32,27 @@ Python 3 Nvidia Titan V:
     reports:
       junit: test/pytest.xml
 
+Python 3 POCL Nvidia Titan V:
+  script: |
+    curl -L -O https://tiker.net/ci-support-v0
+    . ./ci-support-v0
+    export PYOPENCL_TEST=port:titan
+    build_py_project_in_venv
+    test_py_project
+
+  tags:
+  - python3
+  - nvidia-titan-v
+  except:
+  - tags
+  artifacts:
+    reports:
+      junit: test/pytest.xml
+
 Python 3 POCL Examples:
   script:
   - test -n "$SKIP_EXAMPLES" && exit
-  - export PYOPENCL_TEST=portable:pthread
+  - export PYOPENCL_TEST=portable:cpu
   - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
   - ". ./build-py-project-and-run-examples.sh"
   tags:
@@ -47,6 +64,11 @@ Python 3 POCL Examples:
 
 Python 3 Conda:
   script: |
+    export PYOPENCL_TEST=portable:cpu
+
+    # Avoid crashes like https://gitlab.tiker.net/inducer/arraycontext/-/jobs/536021
+    sed -i 's/jax/jax !=0.4.6/' .test-conda-env-py3.yml
+
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project-within-miniconda.sh
     . ./build-and-test-py-project-within-miniconda.sh
   tags:
@@ -89,7 +111,7 @@ Mypy:
     curl -L -O https://tiker.net/ci-support-v0
     . ./ci-support-v0
     build_py_project_in_venv
-    python -m pip install mypy
+    python -m pip install mypy pytest
     ./run-mypy.sh
   tags:
   - python3

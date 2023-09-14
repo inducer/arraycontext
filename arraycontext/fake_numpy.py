@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 
 import numpy as np
+
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import rec_map_array_container
 
@@ -85,17 +86,11 @@ class BaseFakeNumpyNamespace:
 
         # Miscellaneous
         "convolve", "clip", "sqrt", "cbrt", "square", "absolute", "abs", "fabs",
-        "sign", "heaviside", "maximum", "fmax", "nan_to_num",
+        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan",
 
         # FIXME:
         # "interp",
         })
-
-    def empty_like(self, ary):
-        return self._array_context.empty_like(ary)
-
-    def zeros_like(self, ary):
-        return self._array_context.zeros_like(ary)
 
     def conjugate(self, x):
         # NOTE: conjugate distributes over object arrays, but it looks for a
@@ -111,8 +106,8 @@ class BaseFakeNumpyNamespace:
 # {{{ BaseFakeNumpyLinalgNamespace
 
 def _reduce_norm(actx, arys, ord):
-    from numbers import Number
     from functools import reduce
+    from numbers import Number
 
     if ord is None:
         ord = 2

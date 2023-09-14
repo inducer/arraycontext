@@ -44,23 +44,31 @@ THE SOFTWARE.
 
 import abc
 import sys
-from typing import (Any, Callable, Union, Tuple, Type, FrozenSet, Dict, Optional,
-                    TYPE_CHECKING)
+from typing import (
+    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Optional, Tuple, Type, Union)
 
 import numpy as np
-from pytools.tag import ToTagSetConvertible, normalize_tags, Tag
 
-from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLike
-from arraycontext.container.traversal import (rec_map_array_container,
-                                              with_array_context)
+from pytools import memoize_method
+from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
+
+from arraycontext.container.traversal import (
+    rec_map_array_container, with_array_context)
+from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 from arraycontext.metadata import NameHint
 
+
 if TYPE_CHECKING:
-    import pytato
     import pyopencl as cl
+    import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
     import pyopencl as cl  # noqa: F811
+
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 # {{{ tag conversion
@@ -121,8 +129,8 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         super().__init__()
 
-        import pytato as pt
         import loopy as lp
+        import pytato as pt
         self._freeze_prg_cache: Dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
         self._dag_transform_cache: Dict[
                 pt.DictOfNamedArrays,
@@ -203,6 +211,9 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
     def permits_advanced_indexing(self):
         return True
 
+    def get_target(self):
+        return None
+
     # }}}
 
 # }}}
@@ -232,7 +243,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
     def __init__(
             self, queue: "cl.CommandQueue", allocator=None, *,
-            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None
+            use_memory_pool: Optional[bool] = None,
+            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None,
+
+            # do not use: only for testing
+            _force_svm_arg_limit: Optional[int] = None,
             ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
@@ -242,15 +257,56 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             representation. This interface should be considered
             unstable.
         """
-        import pytato as pt
+        if allocator is not None and use_memory_pool is not None:
+            raise TypeError("may not specify both allocator and use_memory_pool")
+
+        self.using_svm = None
+
+        if allocator is None:
+            from pyopencl.characterize import has_coarse_grain_buffer_svm
+            has_svm = has_coarse_grain_buffer_svm(queue.device)
+            if has_svm:
+                self.using_svm = True
+
+                from pyopencl.tools import SVMAllocator
+                allocator = SVMAllocator(queue.context, queue=queue)
+
+                if use_memory_pool:
+                    from pyopencl.tools import SVMPool
+                    allocator = SVMPool(allocator)
+            else:
+                self.using_svm = False
+
+                from pyopencl.tools import ImmediateAllocator
+                allocator = ImmediateAllocator(queue)
+
+                if use_memory_pool:
+                    from pyopencl.tools import MemoryPool
+                    allocator = MemoryPool(allocator)
+        else:
+            # Check whether the passed allocator allocates SVM
+            try:
+                from pyopencl import SVMPointer
+                mem = allocator(4)
+                if isinstance(mem, SVMPointer):
+                    self.using_svm = True
+                else:
+                    self.using_svm = False
+            except ImportError:
+                self.using_svm = False
+
         import pyopencl.array as cla
+        import pytato as pt
         super().__init__(compile_trace_callback=compile_trace_callback)
         self.queue = queue
+
         self.allocator = allocator
         self.array_types = (pt.Array, cla.Array)
 
         # unused, but necessary to keep the context alive
         self.context = self.queue.context
+
+        self._force_svm_arg_limit = _force_svm_arg_limit
 
     @property
     def _frozen_array_types(self) -> Tuple[Type, ...]:
@@ -263,6 +319,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             default_scalar: Optional[ScalarLike] = None,
             strict: bool = False) -> ArrayOrContainer:
         import pytato as pt
+
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
         if allowed_types is None:
@@ -295,13 +352,16 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     # {{{ ArrayContext interface
 
     def zeros_like(self, ary):
-        def _zeros_like(array):
-            return self.zeros(array.shape, array.dtype)
+        from warnings import warn
+        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
+            "working in 2023. Use actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
 
-        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import pytato as pt
+
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
         def _from_numpy(ary):
@@ -321,19 +381,64 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             self._rec_map_container(_to_numpy, self.freeze(array)),
             actx=None)
 
+    @memoize_method
+    def get_target(self):
+        import pyopencl as cl
+        import pyopencl.characterize as cl_char
+
+        dev = self.queue.device
+
+        if (
+                self._force_svm_arg_limit is not None
+                or (
+                    self.using_svm and dev.type & cl.device_type.GPU
+                    and cl_char.has_coarse_grain_buffer_svm(dev))):
+
+            if dev.max_parameter_size == 4352:
+                # Nvidia devices and PTXAS declare a limit of 4352 bytes,
+                # which is incorrect. The CUDA documentation at
+                # https://docs.nvidia.com/cuda/cuda-c-programming-guide/#function-parameters
+                # mentions a limit of 4KB, which is also incorrect.
+                # As far as I can tell, the actual limit is around 4080
+                # bytes, at least on a K40. Reducing the limit further
+                # in order to be on the safe side.
+
+                # Note that the naming convention isn't super consistent
+                # for Nvidia GPUs, so that we only use the maximum
+                # parameter size to determine if it is an Nvidia GPU.
+
+                limit = 4096-200
+
+                from warnings import warn
+                warn("Running on an Nvidia GPU, reducing the argument "
+                    f"size limit from 4352 to {limit}.")
+            else:
+                limit = dev.max_parameter_size
+
+            if self._force_svm_arg_limit is not None:
+                limit = self._force_svm_arg_limit
+
+            logger.info(f"limiting argument buffer size for {dev} to {limit} bytes")
+
+            from arraycontext.impl.pytato.utils import (
+                ArgSizeLimitingPytatoLoopyPyOpenCLTarget)
+            return ArgSizeLimitingPytatoLoopyPyOpenCLTarget(limit)
+        else:
+            return super().get_target()
+
     def freeze(self, array):
         if np.isscalar(array):
             return array
 
-        import pytato as pt
         import pyopencl.array as cla
+        import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
-        from arraycontext.impl.pytato.utils import (_normalize_pt_expr,
-                                                    get_cl_axes_from_pt_axes)
-        from arraycontext.impl.pyopencl.taggable_cl_array import (to_tagged_cl_array,
-                                                                  TaggableCLArray)
+        from arraycontext.impl.pyopencl.taggable_cl_array import (
+            TaggableCLArray, to_tagged_cl_array)
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
+        from arraycontext.impl.pytato.utils import (
+            _normalize_pt_expr, get_cl_axes_from_pt_axes)
 
         array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray, pt.Array]] = {}
         key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
@@ -381,6 +486,16 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
+        def _to_frozen(key: Tuple[Any, ...], ary) -> TaggableCLArray:
+            key_str = "_ary" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        if not key_to_pt_arrays:
+            # all cl arrays => no need to perform any codegen
+            return with_array_context(
+                    rec_keyed_map_array_container(_to_frozen, array),
+                    actx=None)
+
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 key_to_pt_arrays)
         normalized_expr, bound_arguments = _normalize_pt_expr(
@@ -412,11 +527,17 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                         transformed_dag, function_name)
 
             from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
+            opts = _DEFAULT_LOOPY_OPTIONS
+            assert opts.return_dict
+
             pt_prg = pt.generate_loopy(transformed_dag,
-                                       options=_DEFAULT_LOOPY_OPTIONS,
+                                       options=opts,
                                        cl_device=self.queue.device,
-                                       function_name=function_name)
-            pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
+                                       function_name=function_name,
+                                       target=self.get_target()
+                                       ).bind_to_context(self.context)
+            pt_prg = pt_prg.with_transformed_translation_unit(
+                    self.transform_loopy_program)
             self._freeze_prg_cache[normalized_expr] = pt_prg
         else:
             transformed_dag, function_name = (
@@ -438,18 +559,15 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                for k, v in out_dict.items()}
         }
 
-        def _to_frozen(key: Tuple[Any, ...], ary) -> TaggableCLArray:
-            key_str = "_ary" + _ary_container_key_stringifier(key)
-            return key_to_frozen_subary[key_str]
-
         return with_array_context(
                 rec_keyed_map_array_container(_to_frozen, array),
                 actx=None)
 
     def thaw(self, array):
         import pytato as pt
-        from .utils import get_pt_axes_from_cl_axes
+
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        from .utils import get_pt_axes_from_cl_axes
 
         def _thaw(ary):
             return pt.make_data_wrapper(ary.with_queue(self.queue),
@@ -478,8 +596,9 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     def call_loopy(self, program, **kwargs):
         import pytato as pt
-        from pytato.scalar_expr import SCALAR_CLASSES
         from pytato.loopy import call_loopy
+        from pytato.scalar_expr import SCALAR_CLASSES
+
         from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 
         entrypoint = program.default_entrypoint.name
@@ -516,6 +635,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pytato as pt
+
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
         if arg_names is None:
@@ -584,15 +704,16 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             representation. This interface should be considered
             unstable.
         """
+        import jax.numpy as jnp
+
         import pytato as pt
-        from jax.numpy import DeviceArray
         super().__init__(compile_trace_callback=compile_trace_callback)
-        self.array_types = (pt.Array, DeviceArray)
+        self.array_types = (pt.Array, jnp.ndarray)
 
     @property
     def _frozen_array_types(self) -> Tuple[Type, ...]:
-        from jax.numpy import DeviceArray
-        return (DeviceArray, )
+        import jax.numpy as jnp
+        return (jnp.ndarray, )
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
@@ -621,13 +742,16 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     # {{{ ArrayContext interface
 
     def zeros_like(self, ary):
-        def _zeros_like(array):
-            return self.zeros(array.shape, array.dtype)
+        from warnings import warn
+        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
+            "working in 2023. Use actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
 
-        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import jax
+
         import pytato as pt
 
         def _from_numpy(ary):
@@ -651,18 +775,19 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         if np.isscalar(array):
             return array
 
+        import jax.numpy as jnp
+
         import pytato as pt
 
-        from jax.numpy import DeviceArray
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
 
-        array_as_dict: Dict[str, Union[DeviceArray, pt.Array]] = {}
-        key_to_frozen_subary: Dict[str, DeviceArray] = {}
+        array_as_dict: Dict[str, Union[jnp.ndarray, pt.Array]] = {}
+        key_to_frozen_subary: Dict[str, jnp.ndarray] = {}
         key_to_pt_arrays: Dict[str, pt.Array] = {}
 
         def _record_leaf_ary_in_dict(key: Tuple[Any, ...],
-                                     ary: Union[DeviceArray, pt.Array]) -> None:
+                                     ary: Union[jnp.ndarray, pt.Array]) -> None:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             array_as_dict[key_str] = ary
 
@@ -671,7 +796,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         # {{{ remove any non pytato arrays from array_as_dict
 
         for key, subary in array_as_dict.items():
-            if isinstance(subary, DeviceArray):
+            if isinstance(subary, jnp.ndarray):
                 key_to_frozen_subary[key] = subary.block_until_ready()
             elif isinstance(subary, pt.DataWrapper):
                 # trivial freeze.
@@ -686,6 +811,16 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
+        def _to_frozen(key: Tuple[Any, ...], ary) -> jnp.ndarray:
+            key_str = "_ary" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        if not key_to_pt_arrays:
+            # all cl arrays => no need to perform any codegen
+            return with_array_context(
+                    rec_keyed_map_array_container(_to_frozen, array),
+                    actx=None)
+
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(key_to_pt_arrays)
         transformed_dag = self.transform_dag(pt_dict_of_named_arrays)
         pt_prg = pt.generate_jax(transformed_dag, jit=True)
@@ -697,10 +832,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             **{k: v.block_until_ready()
                for k, v in out_dict.items()}
         }
-
-        def _to_frozen(key: Tuple[Any, ...], ary) -> DeviceArray:
-            key_str = "_ary" + _ary_container_key_stringifier(key)
-            return key_to_frozen_subary[key_str]
 
         return with_array_context(
             rec_keyed_map_array_container(_to_frozen, array),
@@ -721,10 +852,9 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         return LazilyJAXCompilingFunctionCaller(self, f)
 
     def tag(self, tags: ToTagSetConvertible, array):
-        from jax.numpy import DeviceArray
-
         def _tag(ary):
-            if isinstance(ary, DeviceArray):
+            import jax.numpy as jnp
+            if isinstance(ary, jnp.ndarray):
                 return ary
             else:
                 return ary.tagged(_preprocess_array_tags(tags))
@@ -732,10 +862,9 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         return self._rec_map_container(_tag, array)
 
     def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
-        from jax.numpy import DeviceArray
-
         def _tag_axis(ary):
-            if isinstance(ary, DeviceArray):
+            import jax.numpy as jnp
+            if isinstance(ary, jnp.ndarray):
                 return ary
             else:
                 return ary.with_tagged_axis(iaxis, tags)
@@ -754,12 +883,12 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pytato as pt
-        from jax.numpy import DeviceArray
         if arg_names is None:
             arg_names = (None,) * len(args)
 
         def preprocess_arg(name, arg):
-            if isinstance(arg, DeviceArray):
+            import jax.numpy as jnp
+            if isinstance(arg, jnp.ndarray):
                 ary = self.thaw(arg)
             elif isinstance(arg, pt.Array):
                 ary = arg

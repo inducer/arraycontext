@@ -22,13 +22,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from arraycontext import PytatoPyOpenCLArrayContext
-from arraycontext import pytest_generate_tests_for_array_contexts
-from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
-from pytools.tag import Tag
+import logging
 
 import pytest
-import logging
+
+from pytools.tag import Tag
+
+from arraycontext import (
+    PytatoPyOpenCLArrayContext, pytest_generate_tests_for_array_contexts)
+from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -98,6 +102,92 @@ def test_tags_preserved_after_freeze(actx_factory):
     assert foo.tags_of_type(FooTag)
     assert foo.axes[0].tags_of_type(BarTag)
     assert foo.axes[1].tags_of_type(BazTag)
+
+
+def test_arg_size_limit(actx_factory):
+    ran_callback = False
+
+    def my_ctc(what, stage, ir):
+        if stage == "final":
+            assert ir.target.limit_arg_size_nbytes == 42
+            nonlocal ran_callback
+            ran_callback = True
+
+    def twice(x):
+        return 2 * x
+
+    actx = _PytatoPyOpenCLArrayContextForTests(
+        actx_factory().queue, compile_trace_callback=my_ctc, _force_svm_arg_limit=42)
+
+    f = actx.compile(twice)
+    f(99)
+
+    assert ran_callback
+
+
+@pytest.mark.parametrize("pass_allocator", ["auto_none", "auto_true", "auto_false",
+                                            "pass_buffer", "pass_svm",
+                                            "pass_buffer_pool", "pass_svm_pool"])
+def test_pytato_actx_allocator(actx_factory, pass_allocator):
+    base_actx = actx_factory()
+    alloc = None
+    use_memory_pool = None
+
+    if pass_allocator == "auto_none":
+        pass
+    elif pass_allocator == "auto_true":
+        use_memory_pool = True
+    elif pass_allocator == "auto_false":
+        use_memory_pool = False
+    elif pass_allocator == "pass_buffer":
+        from pyopencl.tools import ImmediateAllocator
+        alloc = ImmediateAllocator(base_actx.queue)
+    elif pass_allocator == "pass_svm":
+        from pyopencl.characterize import has_coarse_grain_buffer_svm
+        if not has_coarse_grain_buffer_svm(base_actx.queue.device):
+            pytest.skip("need SVM support for this test")
+        from pyopencl.tools import SVMAllocator
+        alloc = SVMAllocator(base_actx.queue.context, queue=base_actx.queue)
+    elif pass_allocator == "pass_buffer_pool":
+        from pyopencl.tools import ImmediateAllocator, MemoryPool
+        alloc = MemoryPool(ImmediateAllocator(base_actx.queue))
+    elif pass_allocator == "pass_svm_pool":
+        from pyopencl.characterize import has_coarse_grain_buffer_svm
+        if not has_coarse_grain_buffer_svm(base_actx.queue.device):
+            pytest.skip("need SVM support for this test")
+        from pyopencl.tools import SVMAllocator, SVMPool
+        alloc = SVMPool(SVMAllocator(base_actx.queue.context, queue=base_actx.queue))
+    else:
+        raise ValueError(f"unknown option {pass_allocator}")
+
+    actx = _PytatoPyOpenCLArrayContextForTests(base_actx.queue, allocator=alloc,
+                                               use_memory_pool=use_memory_pool)
+
+    def twice(x):
+        return 2 * x
+
+    f = actx.compile(twice)
+    res = actx.to_numpy(f(99))
+
+    assert res == 198
+
+    # Also test a case in which SVM is not available
+    if pass_allocator in ["auto_none", "auto_true", "auto_false"]:
+        from unittest.mock import patch
+
+        with patch("pyopencl.characterize.has_coarse_grain_buffer_svm",
+                    return_value=False):
+            actx = _PytatoPyOpenCLArrayContextForTests(base_actx.queue,
+                        allocator=alloc, use_memory_pool=use_memory_pool)
+
+            from pyopencl.tools import ImmediateAllocator, MemoryPool
+            assert isinstance(actx.allocator,
+                              MemoryPool if use_memory_pool else ImmediateAllocator)
+
+            f = actx.compile(twice)
+            res = actx.to_numpy(f(99))
+
+            assert res == 198
 
 
 if __name__ == "__main__":

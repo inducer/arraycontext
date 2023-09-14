@@ -29,8 +29,9 @@ THE SOFTWARE.
 
 import sys
 from dataclasses import dataclass
-from pytools.tag import Tag, UniqueTag
 from warnings import warn
+
+from pytools.tag import Tag, UniqueTag
 
 
 @dataclass(frozen=True)
@@ -52,8 +53,8 @@ class NameHint(UniqueTag):
 # {{{ deprecation handling
 
 try:
-    from meshmode.transform_metadata import FirstAxisIsElementsTag \
-            as _FirstAxisIsElementsTag
+    from meshmode.transform_metadata import (
+        FirstAxisIsElementsTag as _FirstAxisIsElementsTag)
 except ImportError:
     # placeholder in case meshmode is too old to have it.
     class _FirstAxisIsElementsTag(Tag):  # type: ignore[no-redef]

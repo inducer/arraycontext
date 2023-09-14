@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Union
 
@@ -28,31 +29,18 @@ import pytest
 
 from pytools.obj_array import make_obj_array
 
-from arraycontext import (
-        ArrayContext,
-        dataclass_array_container, with_container_arithmetic,
-        serialize_container, deserialize_container, with_array_context,
-        FirstAxisIsElementsTag,
-        PyOpenCLArrayContext,
-        PytatoPyOpenCLArrayContext,
-        EagerJAXArrayContext,
-        TorchArrayContext,
-        ArrayContainer,
-        to_numpy, tag_axes)
 from arraycontext import (  # noqa: F401
-        pytest_generate_tests_for_array_contexts,
-        )
-from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
-                                 _PytestPytatoPyOpenCLArrayContextFactory,
-                                 _PytestEagerJaxArrayContextFactory,
-                                 _PytestPytatoJaxArrayContextFactory,
-                                 _PytestPytatoPyOpenCLArrayContextFactory,
-                                 _PytestTorchArrayContextFactory,
-                                 #_PytestNumpyArrayContextFactory
-                                 )
+    ArrayContainer, ArrayContext, EagerJAXArrayContext, FirstAxisIsElementsTag,
+    PyOpenCLArrayContext, PytatoPyOpenCLArrayContext, TorchArrayContext,
+    dataclass_array_container,
+    deserialize_container, pytest_generate_tests_for_array_contexts,
+    serialize_container, tag_axes, with_array_context, with_container_arithmetic)
+from arraycontext.pytest import (
+    _PytestEagerJaxArrayContextFactory, _PytestPyOpenCLArrayContextFactoryWithClass,
+    _PytestPytatoJaxArrayContextFactory, _PytestPytatoPyOpenCLArrayContextFactory,
+    _PytestTorchArrayContextFactory)
 
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -383,6 +371,7 @@ def assert_close_to_numpy_in_containers(actx, op, args):
             ("abs", 1, np.complex128),
             ("sum", 1, np.float64),
             ("sum", 1, np.complex64),
+            ("isnan", 1, np.float64),
             ])
 def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
     actx = actx_factory()
@@ -508,8 +497,9 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
         return ary.imag
 
     import operator
+    from random import randrange, uniform
+
     from pytools import generate_nonnegative_integer_tuples_below as gnitb
-    from random import uniform, randrange
     for op_func, n_args, use_integers in [
             (operator.add, 2, False),
             (operator.sub, 2, False),
@@ -778,27 +768,27 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
 # {{{ array container classes for test
 
 
-def test_container_scalar_map(actx_factory):
+def test_container_map_on_device_scalar(actx_factory):
     actx = actx_factory()
 
+    expected_sizes = [1, 2, 4, 4, 4]
     arys = _get_test_containers(actx, shapes=0)
     arys += (np.pi,)
 
     from arraycontext import (
-            map_array_container, rec_map_array_container,
-            map_reduce_array_container, rec_map_reduce_array_container,
-            )
+        map_array_container, map_reduce_array_container, rec_map_array_container,
+        rec_map_reduce_array_container)
 
-    for ary in arys:
+    for size, ary in zip(expected_sizes, arys[:-1]):
         result = map_array_container(lambda x: x, ary)
-        assert result is not None
+        assert actx.to_numpy(actx.np.array_equal(result, ary))
         result = rec_map_array_container(lambda x: x, ary)
-        assert result is not None
+        assert actx.to_numpy(actx.np.array_equal(result, ary))
 
-        result = map_reduce_array_container(np.shape, lambda x: x, ary)
-        assert result is not None
-        result = rec_map_reduce_array_container(np.shape, lambda x: x, ary)
-        assert result is not None
+        result = map_reduce_array_container(sum, np.size, ary)
+        assert result == size
+        result = rec_map_reduce_array_container(sum, np.size, ary)
+        assert result == size
 
 
 def test_container_map(actx_factory):
@@ -931,6 +921,7 @@ def test_container_arithmetic(actx_factory):
         assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
 
     from functools import partial
+
     from arraycontext import rec_multimap_array_container
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
         rec_multimap_array_container(
@@ -983,8 +974,7 @@ def test_container_freeze_thaw(actx_factory):
     # {{{ check
 
     from arraycontext import (
-            get_container_context_opt,
-            get_container_context_recursively_opt)
+        get_container_context_opt, get_container_context_recursively_opt)
 
     assert get_container_context_opt(ary_of_dofs) is None
     assert get_container_context_opt(mat_of_dofs) is None
@@ -1087,7 +1077,7 @@ def test_flatten_array_container(actx_factory, shapes):
 
 
 def _checked_flatten(ary, actx, leaf_class=None):
-    from arraycontext import flatten, flat_size_and_dtype
+    from arraycontext import flat_size_and_dtype, flatten
     result = flatten(ary, actx, leaf_class=leaf_class)
 
     if leaf_class is None:
@@ -1160,9 +1150,8 @@ def test_numpy_conversion(actx_factory):
             enthalpy=np.array(np.random.rand()),
             )
 
-    from arraycontext import from_numpy, to_numpy
-    ac_actx = from_numpy(ac, actx)
-    ac_roundtrip = to_numpy(ac_actx, actx)
+    ac_actx = actx.from_numpy(ac)
+    ac_roundtrip = actx.to_numpy(ac_actx)
 
     assert np.allclose(ac.mass, ac_roundtrip.mass)
     assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
@@ -1170,13 +1159,13 @@ def test_numpy_conversion(actx_factory):
     from dataclasses import replace
     ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
     with pytest.raises(TypeError):
-        from_numpy(ac_with_cl, actx)
+        actx.from_numpy(ac_with_cl)
 
     with pytest.raises(TypeError):
-        from_numpy(ac_actx, actx)
+        actx.from_numpy(ac_actx)
 
     with pytest.raises(TypeError):
-        to_numpy(ac, actx)
+        actx.to_numpy(ac)
 
 # }}}
 
@@ -1241,7 +1230,6 @@ def scale_and_orthogonalize(alpha, vel):
 
 
 def test_actx_compile(actx_factory):
-    from arraycontext import (to_numpy, from_numpy)
     actx = actx_factory()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1249,17 +1237,16 @@ def test_actx_compile(actx_factory):
     v_x = np.random.rand(10)
     v_y = np.random.rand(10)
 
-    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+    vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
     scaled_speed = compiled_rhs(np.float64(3.14), vel)
 
-    result = to_numpy(scaled_speed, actx)
+    result = actx.to_numpy(scaled_speed)
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
 
 def test_actx_compile_python_scalar(actx_factory):
-    from arraycontext import (to_numpy, from_numpy)
     actx = actx_factory()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1267,20 +1254,44 @@ def test_actx_compile_python_scalar(actx_factory):
     v_x = np.random.rand(10)
     v_y = np.random.rand(10)
 
-    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+    vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
     scaled_speed = compiled_rhs(3.14, vel)
 
-    result = to_numpy(scaled_speed, actx)
+    result = actx.to_numpy(scaled_speed)
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
 
 def test_actx_compile_kwargs(actx_factory):
-    from arraycontext import (to_numpy, from_numpy)
     actx = actx_factory()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
+
+    v_x = np.random.rand(10)
+    v_y = np.random.rand(10)
+
+    vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
+
+    scaled_speed = compiled_rhs(3.14, vel=vel)
+
+    result = actx.to_numpy(scaled_speed)
+    np.testing.assert_allclose(result.u, -3.14*v_y)
+    np.testing.assert_allclose(result.v, 3.14*v_x)
+
+
+def test_actx_compile_with_tuple_output_keys(actx_factory):
+    # arraycontext.git<=3c9aee68 would fail due to a bug in output
+    # key stringification logic.
+    from arraycontext import from_numpy, to_numpy
+    actx = actx_factory()
+
+    def my_rhs(scale, vel):
+        result = np.empty((1, 1), dtype=object)
+        result[0, 0] = scale_and_orthogonalize(scale, vel)
+        return result
+
+    compiled_rhs = actx.compile(my_rhs)
 
     v_x = np.random.rand(10)
     v_y = np.random.rand(10)
@@ -1289,7 +1300,7 @@ def test_actx_compile_kwargs(actx_factory):
 
     scaled_speed = compiled_rhs(3.14, vel=vel)
 
-    result = to_numpy(scaled_speed, actx)
+    result = to_numpy(scaled_speed, actx)[0, 0]
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
@@ -1312,7 +1323,8 @@ def test_container_equality(actx_factory):
     dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
     assert dc != dc2
 
-    assert isinstance(bcast_dc_of_dofs == bcast_dc_of_dofs_2, MyContainerDOFBcast)
+    assert isinstance(actx.np.equal(bcast_dc_of_dofs, bcast_dc_of_dofs_2),
+                      MyContainerDOFBcast)
 
 # }}}
 
@@ -1356,6 +1368,7 @@ def test_leaf_array_type_broadcasting(actx_factory):
             return True
         else:
             import pyopencl as cl
+
             # See https://github.com/inducer/pyopencl/issues/498
             return cl.version.VERSION > (2021, 2, 5)
 
@@ -1542,7 +1555,7 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
     actx = actx_factory()
     u = actx.freeze(actx.zeros(10, dtype="float64")+1)
     np.testing.assert_allclose(actx.to_numpy(u), 1)
-    np.testing.assert_allclose(to_numpy(u, actx), 1)
+    np.testing.assert_allclose(actx.to_numpy(u), 1)
 
 
 def test_tagging(actx_factory):
@@ -1564,6 +1577,21 @@ def test_tagging(actx_factory):
     assert ary.tags_of_type(ExampleTag)
     assert ary.axes[0].tags_of_type(ExampleTag)
     assert not ary.axes[1].tags_of_type(ExampleTag)
+
+
+def test_compile_anonymous_function(actx_factory):
+    from functools import partial
+
+    # See https://github.com/inducer/grudge/issues/287
+    actx = actx_factory()
+    f = actx.compile(lambda x: 2*x+40)
+    np.testing.assert_allclose(
+        actx.to_numpy(f(1+actx.zeros((10, 4), "float64"))),
+        42)
+    f = actx.compile(partial(lambda x: 2*x+40))
+    np.testing.assert_allclose(
+        actx.to_numpy(f(1+actx.zeros((10, 4), "float64"))),
+        42)
 
 
 if __name__ == "__main__":

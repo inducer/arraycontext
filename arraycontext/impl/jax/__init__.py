@@ -32,15 +32,16 @@ from typing import Callable, Optional, Tuple
 import numpy as np
 
 from pytools.tag import ToTagSetConvertible
-from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLike
-from arraycontext.container.traversal import (with_array_context,
-                                              rec_map_array_container)
+
+from arraycontext.container.traversal import (
+    rec_map_array_container, with_array_context)
+from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 
 
 class EagerJAXArrayContext(ArrayContext):
     """
     A :class:`ArrayContext` that uses
-    :class:`jaxlib.xla_extension.DeviceArrayBase` instances for its base array
+    :class:`jax.Array` instances for its base array
     class and performs all array operations eagerly. See
     :class:`~arraycontext.PytatoJAXArrayContext` for a lazier version.
 
@@ -54,8 +55,8 @@ class EagerJAXArrayContext(ArrayContext):
     def __init__(self) -> None:
         super().__init__()
 
-        from jax.numpy import DeviceArray
-        self.array_types = (DeviceArray, )
+        import jax.numpy as jnp
+        self.array_types = (jnp.ndarray, )
 
     def _get_fake_numpy_namespace(self):
         from .fake_numpy import EagerJAXFakeNumpyNamespace
@@ -88,6 +89,11 @@ class EagerJAXArrayContext(ArrayContext):
     # {{{ ArrayContext interface
 
     def empty(self, shape, dtype):
+        from warnings import warn
+        warn(f"{type(self).__name__}.empty is deprecated and will stop "
+            "working in 2023. Prefer actx.zeros instead.",
+            DeprecationWarning, stacklevel=2)
+
         import jax.numpy as jnp
         return jnp.empty(shape=shape, dtype=dtype)
 
@@ -96,16 +102,23 @@ class EagerJAXArrayContext(ArrayContext):
         return jnp.zeros(shape=shape, dtype=dtype)
 
     def empty_like(self, ary):
+        from warnings import warn
+        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
+            "working in 2023. Prefer actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
+
         def _empty_like(array):
             return self.empty(array.shape, array.dtype)
 
         return self._rec_map_container(_empty_like, ary)
 
     def zeros_like(self, ary):
-        def _zeros_like(array):
-            return self.zeros(array.shape, array.dtype)
+        from warnings import warn
+        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
+            "working in 2023. Use actx.np.zeros_like instead.",
+            DeprecationWarning, stacklevel=2)
 
-        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         def _from_numpy(ary):
