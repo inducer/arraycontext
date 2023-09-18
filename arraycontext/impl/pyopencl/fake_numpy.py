@@ -107,6 +107,9 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return self._array_context._rec_map_container(_copy, ary)
 
+    def arange(self, *args, **kwargs):
+        return cl_array.arange(self._array_context.queue, *args, **kwargs)
+
     # }}}
 
     # {{{ array manipulation routines
@@ -359,7 +362,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
     # }}}
-
 
 # }}}
 
