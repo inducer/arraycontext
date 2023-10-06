@@ -42,7 +42,7 @@ def main():
 
             # https://github.com/inducer/arraycontext/pull/147
             "pytools>=2022.1.3",
-
+            "immutabledict",
             "loopy>=2019.1",
         ],
         extras_require={
