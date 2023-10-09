@@ -132,8 +132,8 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
 def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
                                            kwargs: Mapping[str, Any]
                                            ) -> \
-            Tuple[immutabledict[Tuple[Any, ...], Any],
-                  immutabledict[Tuple[Any, ...], AbstractInputDescriptor]]:
+            Tuple[Mapping[Tuple[Any, ...], Any],
+                  Mapping[Tuple[Any, ...], AbstractInputDescriptor]]:
     """
     Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Extracts
     mappings from argument id to argument values and from argument id to
@@ -257,7 +257,7 @@ class BaseLazilyCompilingFunctionCaller:
 
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
-    program_cache: Dict[immutabledict[Tuple[Any, ...], AbstractInputDescriptor],
+    program_cache: Dict[Mapping[Tuple[Any, ...], AbstractInputDescriptor],
                         "CompiledFunction"] = field(default_factory=lambda: {})
 
     # {{{ abstract interface
