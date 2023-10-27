@@ -1,0 +1,174 @@
+"""
+.. currentmodule:: arraycontext
+.. autoclass:: TorchArrayContext
+"""
+
+__copyright__ = """
+Copyright (C) 2021 University of Illinois Board of Trustees
+"""
+
+__license__ = """
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+"""
+
+from typing import Callable, Optional, Tuple
+
+import numpy as np
+from typing import Union, Sequence, Dict
+from pytools.tag import Tag, ToTagSetConvertible
+from arraycontext.context import ArrayContext, Array, ArrayOrContainer, ScalarLike
+from arraycontext.container.traversal import (with_array_context,
+                                              rec_map_array_container)
+
+
+class TorchArrayContext(ArrayContext):
+    """
+    A :class:`ArrayContext` that uses :class:`torch.Tensor` instances for its base array class.
+
+
+    .. automethod:: __init__
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        
+        from torch import Tensor
+        self.array_types = (Tensor, )
+
+    def _get_fake_numpy_namespace(self):
+        from .fake_numpy import TorchFakeNumpyNamespace
+        return TorchFakeNumpyNamespace(self)
+
+    def _rec_map_container(
+            self, func: Callable[[Array], Array], array: ArrayOrContainer,
+            allowed_types: Optional[Tuple[type, ...]] = None, *,
+            default_scalar: Optional[ScalarLike] = None,
+            strict: bool = False) -> ArrayOrContainer:
+        if allowed_types is None:
+            allowed_types = self.array_types
+
+        def _wrapper(ary):
+            if isinstance(ary, allowed_types):
+                return func(ary)
+            elif np.isscalar(ary):
+                if default_scalar is None:
+                    return ary
+                else:
+                    return np.array(ary).dtype.type(default_scalar)
+            else:
+                raise TypeError(
+                    f"{type(self).__name__}.{func.__name__[1:]} invoked with "
+                    f"an unsupported array type: got '{type(ary).__name__}', "
+                    f"but expected one of {allowed_types}")
+
+        return rec_map_array_container(_wrapper, array)
+    
+    # {{{ ArrayContext interface
+
+    def empty(self, shape, dtype):
+        import torch
+        return torch.empty(shape, dtype)
+    
+    def zeros(self, shape, dtype):
+        import torch
+        return torch.zeros(shape, dtype=dtype)
+
+    def empty_like(self, ary):
+        def _empty_like(array):
+            return self.empty(array.shape, array.dtype)
+
+        return self._rec_map_container(_empty_like, ary)
+    
+    def zeros_like(self, ary):
+        def _zeros_like(array):
+            return self.zeros(array.shape, array.dtype)
+
+        return self._rec_map_container(_zeros_like, ary, default_scalar=0)
+    
+    def from_numpy(self, array: np.ndarray):
+        def _from_numpy(ary):
+            import torch
+            return torch.from_numpy(array)
+        
+        return with_array_context(
+            self._rec_map_container(_from_numpy, array, allowed_types=(np.ndarray,)),
+            actx=self)
+
+    def to_numpy(self, array):
+        def _to_numpy(ary):
+            import torch
+            if array.dtype == torch.complex64 or array.dtype == torch.complex128:
+                return ary.resolve_conj().numpy()
+            else:
+                return ary.detach().numpy()
+        
+        return with_array_context(
+            self._rec_map_container(_to_numpy, array),
+            actx=None)
+
+    def freeze(self, array):
+        def _freeze(ary):
+            return ary
+        return with_array_context(self._rec_map_container(_freeze, array), actx=None)
+
+    def thaw(self, array):        
+        return with_array_context(array, actx=self)
+
+    def tag(self, tags: ToTagSetConvertible, array):
+        # Sorry, not capable.
+        return array
+
+    def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
+        # Sorry, not capable.
+        return array
+
+    def call_loopy(self, t_unit, **kwargs):
+        raise NotImplementedError(
+            "Calling loopy on Torch arrays is not supported. Maybe rewrite"
+            " the loopy kernel as numpy-flavored array operations using"
+            " ArrayContext.np.")
+
+    def einsum(self, spec, *args, arg_names=None, tagged=()):
+        import torch
+        if arg_names is not None:
+            from warnings import warn
+            warn("'arg_names' don't bear any significance in "
+                 f"{type(self).__name__}.", stacklevel=2)
+
+        return torch.einsum(spec, *args)
+
+    def clone(self):
+        return type(self)()
+
+    # }}}
+
+    # {{{ properties
+
+    @property
+    def permits_inplace_modification(self):
+        return False
+
+    @property
+    def supports_nonscalar_broadcasting(self):
+        return True
+
+    @property
+    def permits_advanced_indexing(self):
+        return True
+
+    # }}}

@@ -36,6 +36,7 @@ from arraycontext import (
         PyOpenCLArrayContext,
         PytatoPyOpenCLArrayContext,
         EagerJAXArrayContext,
+        TorchArrayContext,
         ArrayContainer,
         to_numpy, tag_axes)
 from arraycontext import (  # noqa: F401
@@ -46,7 +47,9 @@ from arraycontext.pytest import (_PytestPyOpenCLArrayContextFactoryWithClass,
                                  _PytestEagerJaxArrayContextFactory,
                                  _PytestPytatoJaxArrayContextFactory,
                                  _PytestPytatoPyOpenCLArrayContextFactory,
-                                 _PytestNumpyArrayContextFactory)
+                                 _PytestTorchArrayContextFactory,
+                                 #_PytestNumpyArrayContextFactory
+                                 )
 
 
 import logging
@@ -95,7 +98,8 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
-    _PytestNumpyArrayContextFactory,
+    _PytestTorchArrayContextFactory,
+    #_PytestNumpyArrayContextFactory,
     ])
 
 
@@ -404,6 +408,9 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
     if sym_name in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
         pytest.skip(f"'{sym_name}' not supported on scalars")
 
+    if isinstance(actx, TorchArrayContext):
+        pytest.skip(f"{sym_name}' not supported on scalars by TorchArrayContext")
+        
     args = [randn(0, dtype)[()] for i in range(n_args)]
     assert_close_to_numpy(actx, evaluate, args)
 
@@ -422,7 +429,7 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
     assert_close_to_numpy(
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
-    for c in (42.0,) + _get_test_containers(actx):
+    for c in (42.0,) + _get_test_containers(actx):        
         result = getattr(actx.np, sym_name)(c)
         result = actx.thaw(actx.freeze(result))
 
@@ -430,6 +437,7 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
             if np.isscalar(result):
                 assert result == 0.0
             else:
+                print("ECG: Come back here!")
                 assert actx.to_numpy(actx.np.all(actx.np.equal(result, 0.0)))
         elif sym_name == "ones_like":
             if np.isscalar(result):

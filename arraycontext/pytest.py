@@ -196,6 +196,26 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
         return "<PytatoJAXArrayContext>"
 
 
+class _PytestTorchArrayContextFactory(PytestArrayContextFactory):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    @classmethod
+    def is_available(cls) -> bool:
+        try:
+            import torch              # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    def __call__(self):
+        from arraycontext import TorchArrayContext
+        return TorchArrayContext()
+
+    def __str__(self):
+        return "<TorchArrayContext>"
+        
+
 # {{{ _PytestArrayContextFactory
 
 class _NumpyArrayContextForTests(NumpyArrayContext):
@@ -224,6 +244,7 @@ _ARRAY_CONTEXT_FACTORY_REGISTRY: \
                 "pytato:pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
                 "pytato:jax": _PytestPytatoJaxArrayContextFactory,
                 "eagerjax": _PytestEagerJaxArrayContextFactory,
+                "torch": _PytestTorchArrayContextFactory,
                 "numpy": _PytestNumpyArrayContextFactory,
                 }
 
