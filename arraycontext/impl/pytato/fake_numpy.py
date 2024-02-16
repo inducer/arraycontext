@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
+from typing import Any
 
 import numpy as np
 
@@ -100,6 +101,12 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return self._array_context._rec_map_container(
             _full_like, ary, default_scalar=fill_value)
 
+    def arange(self, *args: Any, **kwargs: Any):
+        return pt.arange(*args, **kwargs)
+
+    def full(self, shape, fill_value, dtype=None):
+        return pt.full(shape, fill_value, dtype)
+
     # }}}
 
     # {{{ array manipulation routines
@@ -167,7 +174,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         false = actx.from_numpy(np.int8(False))
 
         def rec_equal(x, y):
-            if type(x) != type(y):
+            if type(x) is not type(y):
                 return false
 
             try:

@@ -107,6 +107,9 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return self._array_context._rec_map_container(_copy, ary)
 
+    def arange(self, *args, **kwargs):
+        return cl_array.arange(self._array_context.queue, *args, **kwargs)
+
     # }}}
 
     # {{{ array manipulation routines
@@ -212,7 +215,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         false = actx.from_numpy(np.int8(False))
 
         def rec_equal(x, y):
-            if type(x) != type(y):
+            if type(x) is not type(y):
                 return false
 
             try:
@@ -359,7 +362,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
     # }}}
-
 
 # }}}
 

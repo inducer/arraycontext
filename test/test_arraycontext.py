@@ -1597,6 +1597,28 @@ def test_compile_anonymous_function(actx_factory):
         42)
 
 
+@pytest.mark.parametrize(
+        ("args", "kwargs"), [
+            ((1, 2, 10), {}),
+            ((1, 2, 10), {"endpoint": False}),
+            ((1, 2, 10), {"endpoint": True}),
+            ((2, -3, 20), {}),
+            ((1, 5j, 20), {"dtype": np.complex128}),
+            ((1, 5, 20), {"dtype": np.complex128}),
+            ((1, 5, 20), {"dtype": np.int32}),
+            ])
+def test_linspace(actx_factory, args, kwargs):
+    if "Jax" in actx_factory.__class__.__name__:
+        pytest.xfail("jax actx does not have arange")
+
+    actx = actx_factory()
+
+    actx_linspace = actx.to_numpy(actx.np.linspace(*args, **kwargs))
+    np_linspace = np.linspace(*args, **kwargs)
+
+    assert np.allclose(actx_linspace, np_linspace)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:

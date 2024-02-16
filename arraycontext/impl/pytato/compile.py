@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, FrozenSet, Mapping, Tuple, Type
 
 import numpy as np
-from pyrsistent import PMap, pmap
+from immutabledict import immutabledict
 
 import pytato as pt
 from pytools import ProcessLogger
@@ -131,11 +131,9 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
 
 def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
                                            kwargs: Mapping[str, Any]
-                                           ) -> "Tuple[PMap[Tuple[Any, ...],\
-                                                            Any],\
-                                                       PMap[Tuple[Any, ...],\
-                                                            AbstractInputDescriptor]\
-                                                       ]":
+                                           ) -> \
+            Tuple[Mapping[Tuple[Any, ...], Any],
+                  Mapping[Tuple[Any, ...], AbstractInputDescriptor]]:
     """
     Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Extracts
     mappings from argument id to argument values and from argument id to
@@ -171,7 +169,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
                              " either a scalar, pt.Array or an array container. Got"
                              f" '{arg}'.")
 
-    return pmap(arg_id_to_arg), pmap(arg_id_to_descr)
+    return immutabledict(arg_id_to_arg), immutabledict(arg_id_to_descr)
 
 
 def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
@@ -259,7 +257,7 @@ class BaseLazilyCompilingFunctionCaller:
 
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
-    program_cache: Dict["PMap[Tuple[Any, ...], AbstractInputDescriptor]",
+    program_cache: Dict[Mapping[Tuple[Any, ...], AbstractInputDescriptor],
                         "CompiledFunction"] = field(default_factory=lambda: {})
 
     # {{{ abstract interface
@@ -378,6 +376,8 @@ class BaseLazilyCompilingFunctionCaller:
 # {{{ LazilyPyOpenCLCompilingFunctionCaller
 
 class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
+    actx: PytatoPyOpenCLArrayContext
+
     @property
     def compiled_function_returning_array_container_class(
             self) -> Type["CompiledFunction"]:
@@ -391,8 +391,7 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         if prg_id is None:
             prg_id = self.f
 
-        import loopy as lp
-        from pytato.target.loopy import BoundPyOpenCLProgram
+        from pytato.target.loopy import BoundPyOpenCLExecutable
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_transform_dag", dict_of_named_arrays)
@@ -414,15 +413,17 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
                 prg_id, "pre_generate_loopy", pt_dict_of_named_arrays)
 
         with ProcessLogger(logger, f"generate_loopy for '{prg_id}'"):
+            from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
+            opts = _DEFAULT_LOOPY_OPTIONS
+            assert opts.return_dict
+
             pytato_program = pt.generate_loopy(
                     pt_dict_of_named_arrays,
-                    options=lp.Options(
-                        return_dict=True,
-                        no_numpy=True),
+                    options=opts,
                     function_name=_prg_id_to_kernel_name(prg_id),
                     target=self.actx.get_target(),
-                    )
-            assert isinstance(pytato_program, BoundPyOpenCLProgram)
+                    ).bind_to_context(self.actx.context)  # pylint: disable=no-member
+            assert isinstance(pytato_program, BoundPyOpenCLExecutable)
 
         self.actx._compile_trace_callback(
                 prg_id, "post_generate_loopy", pytato_program)
@@ -433,15 +434,14 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         with ProcessLogger(logger, f"transform_loopy_program for '{prg_id}'"):
 
             pytato_program = (pytato_program
-                              .with_transformed_program(
+                              .with_transformed_translation_unit(
                                   lambda x: x.with_kernel(
                                       x.default_entrypoint
                                       .tagged(FromArrayContextCompile()))))
 
             pytato_program = (pytato_program
-                              .with_transformed_program(self
-                                                        .actx
-                                                        .transform_loopy_program))
+                              .with_transformed_translation_unit(
+                                  self.actx.transform_loopy_program))
 
         self.actx._compile_trace_callback(
                 prg_id, "post_transform_loopy_program", pytato_program)

@@ -8,7 +8,8 @@ dependencies:
 - git
 - libhwloc=2
 - numpy
-- pocl
+# pocl 3.1 required for full SVM functionality
+- pocl>=3.1
 - mako
 - pyopencl
 - islpy

@@ -192,6 +192,7 @@ class Array(Protocol):
     .. attribute:: shape
     .. attribute:: size
     .. attribute:: dtype
+    .. attribute:: __getitem__
     """
 
     @property
@@ -204,6 +205,9 @@ class Array(Protocol):
 
     @property
     def dtype(self) -> "np.dtype[Any]":
+        ...
+
+    def __getitem__(self, index: Union[slice, int]) -> "Array":
         ...
 
 
@@ -438,6 +442,7 @@ class ArrayContext(ABC):
             options=_DEFAULT_LOOPY_OPTIONS,
             lang_version=MOST_RECENT_LANGUAGE_VERSION,
             tags=tagged,
+            default_order=lp.auto,
             default_offset=lp.auto,
         )
 

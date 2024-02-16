@@ -527,12 +527,17 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                         transformed_dag, function_name)
 
             from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
+            opts = _DEFAULT_LOOPY_OPTIONS
+            assert opts.return_dict
+
             pt_prg = pt.generate_loopy(transformed_dag,
-                                       options=_DEFAULT_LOOPY_OPTIONS,
+                                       options=opts,
                                        cl_device=self.queue.device,
                                        function_name=function_name,
-                                       target=self.get_target())
-            pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
+                                       target=self.get_target()
+                                       ).bind_to_context(self.context)
+            pt_prg = pt_prg.with_transformed_translation_unit(
+                    self.transform_loopy_program)
             self._freeze_prg_cache[normalized_expr] = pt_prg
         else:
             transformed_dag, function_name = (
