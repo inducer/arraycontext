@@ -238,7 +238,10 @@ class _PytestCupyArrayContextFactory(PytestArrayContextFactory):
         return CupyArrayContext()
 
     def __str__(self):
-        return "<CupyArrayContext>"
+        import cupy
+        d = cupy.cuda.runtime.getDeviceProperties(cupy.cuda.Device())
+        name = d["name"].decode("utf-8")
+        return f"<CupyArrayContext> on {cupy.cuda.Device()}:{name}"
 
 
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
