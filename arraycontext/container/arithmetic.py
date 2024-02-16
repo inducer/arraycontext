@@ -33,7 +33,6 @@ THE SOFTWARE.
 """
 
 from typing import Any, Callable, Optional, Tuple, Type, TypeVar, Union
-from warnings import warn
 
 import numpy as np
 
@@ -214,6 +213,15 @@ def with_container_arithmetic(
     if rel_comparison is None:
         raise TypeError("rel_comparison must be specified")
 
+    if bcast_numpy_array:
+        from warnings import warn
+        warn("'bcast_numpy_array=True' is deprecated and will be unsupported"
+             " from December 2021", DeprecationWarning, stacklevel=2)
+
+        if _bcast_actx_array_type:
+            raise ValueError("'bcast_numpy_array' and '_bcast_actx_array_type'"
+                             " cannot be both set.")
+
     if rel_comparison and eq_comparison is None:
         eq_comparison = True
 
@@ -265,6 +273,7 @@ def with_container_arithmetic(
 
         if cls_has_array_context_attr is None:
             if hasattr(cls, "array_context"):
+                from warnings import warn
                 cls_has_array_context_attr = _FailSafe
                 warn(f"{cls} has an .array_context attribute, but it does not "
                         "set _cls_has_array_context_attr to True when calling "
@@ -484,16 +493,17 @@ def with_container_arithmetic(
                     bcast_actx_ary_types = ()
 
                 gen(f"""
-                if {bool(outer_bcast_type_names)}:  # optimized away
-                    if isinstance(arg2,
-                                  {tup_str(outer_bcast_type_names
-                                           + bcast_actx_ary_types)}):
-                        return cls({bcast_same_cls_init_args})
                 if {numpy_pred("arg2")}:
                     result = np.empty_like(arg2, dtype=object)
                     for i in np.ndindex(arg2.shape):
                         result[i] = {op_str.format("arg1", "arg2[i]")}
                     return result
+
+                if {bool(outer_bcast_type_names)}:  # optimized away
+                    if isinstance(arg2,
+                                  {tup_str(outer_bcast_type_names
+                                           + bcast_actx_ary_types)}):
+                        return cls({bcast_same_cls_init_args})
                 return NotImplemented
                 """)
             gen(f"cls.__{dunder_name}__ = {fname}")
@@ -530,16 +540,16 @@ def with_container_arithmetic(
                     def {fname}(arg2, arg1):
                         # assert other.__cls__ is not cls
 
-                        if {bool(outer_bcast_type_names)}:  # optimized away
-                            if isinstance(arg1,
-                                          {tup_str(outer_bcast_type_names
-                                                   + bcast_actx_ary_types)}):
-                                return cls({bcast_init_args})
                         if {numpy_pred("arg1")}:
                             result = np.empty_like(arg1, dtype=object)
                             for i in np.ndindex(arg1.shape):
                                 result[i] = {op_str.format("arg1[i]", "arg2")}
                             return result
+                        if {bool(outer_bcast_type_names)}:  # optimized away
+                            if isinstance(arg1,
+                                          {tup_str(outer_bcast_type_names
+                                                   + bcast_actx_ary_types)}):
+                                return cls({bcast_init_args})
                         return NotImplemented
 
                     cls.__r{dunder_name}__ = {fname}""")
