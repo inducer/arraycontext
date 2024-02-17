@@ -30,13 +30,15 @@ import pytest
 from pytools.obj_array import make_obj_array
 
 from arraycontext import (  # noqa: F401
-    ArrayContainer, ArrayContext, EagerJAXArrayContext, FirstAxisIsElementsTag,
-    PyOpenCLArrayContext, PytatoPyOpenCLArrayContext, dataclass_array_container,
-    deserialize_container, pytest_generate_tests_for_array_contexts,
-    serialize_container, tag_axes, with_array_context, with_container_arithmetic)
+    ArrayContainer, ArrayContext, CupyArrayContext, EagerJAXArrayContext,
+    FirstAxisIsElementsTag, PyOpenCLArrayContext, PytatoPyOpenCLArrayContext,
+    dataclass_array_container, deserialize_container,
+    pytest_generate_tests_for_array_contexts, serialize_container, tag_axes,
+    with_array_context, with_container_arithmetic)
 from arraycontext.pytest import (
-    _PytestEagerJaxArrayContextFactory, _PytestPyOpenCLArrayContextFactoryWithClass,
-    _PytestPytatoJaxArrayContextFactory, _PytestPytatoPyOpenCLArrayContextFactory)
+    _PytestCupyArrayContextFactory, _PytestEagerJaxArrayContextFactory,
+    _PytestPyOpenCLArrayContextFactoryWithClass, _PytestPytatoJaxArrayContextFactory,
+    _PytestPytatoPyOpenCLArrayContextFactory)
 
 
 logger = logging.getLogger(__name__)
@@ -84,6 +86,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestCupyArrayContextFactory,
     ])
 
 
@@ -412,6 +415,11 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
     for c in (42.0,) + _get_test_containers(actx):
+        if (isinstance(actx, CupyArrayContext)
+              and isinstance(c, (int, float, complex))):
+            # CupyArrayContext does not support zeros_like/ones_like with
+            # Python scalars.
+            continue
         result = getattr(actx.np, sym_name)(c)
         result = actx.thaw(actx.freeze(result))
 
@@ -935,11 +943,13 @@ def test_container_arithmetic(actx_factory):
     with pytest.raises(TypeError):
         dc_of_dofs + ary_dof
 
-    bcast_result = ary_dof + bcast_dc_of_dofs
-    bcast_dc_of_dofs + ary_dof
+    if not isinstance(actx, CupyArrayContext):
+        # CupyArrayContext does not support operations between numpy and cupy arrays.
+        bcast_result = ary_dof + bcast_dc_of_dofs
+        bcast_dc_of_dofs + ary_dof
 
-    assert actx.to_numpy(actx.np.linalg.norm(bcast_result.mass
-                                             - 2*ary_of_dofs)) < 1e-8
+        assert actx.to_numpy(actx.np.linalg.norm(bcast_result.mass
+                                                - 2*ary_of_dofs)) < 1e-8
 
     mock_gradient = MyContainerDOFBcast(
             name="yo",
@@ -1129,6 +1139,9 @@ def test_flatten_with_leaf_class(actx_factory):
 
 def test_numpy_conversion(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("Irrelevant tests for CupyArrayContext. "
+                    "Also, CupyArrayContextdoes not support object arrays.")
 
     nelements = 42
     ac = MyContainer(
@@ -1219,6 +1232,8 @@ def scale_and_orthogonalize(alpha, vel):
 
 def test_actx_compile(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
 
@@ -1236,6 +1251,8 @@ def test_actx_compile(actx_factory):
 
 def test_actx_compile_python_scalar(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
 
@@ -1253,6 +1270,8 @@ def test_actx_compile_python_scalar(actx_factory):
 
 def test_actx_compile_kwargs(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
 
@@ -1273,6 +1292,8 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     # key stringification logic.
     from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
 
     def my_rhs(scale, vel):
         result = np.empty((1, 1), dtype=object)
@@ -1337,6 +1358,8 @@ class Foo:
 def test_leaf_array_type_broadcasting(actx_factory):
     # test support for https://github.com/inducer/arraycontext/issues/49
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext has no leaf array type broadcasting support")
 
     foo = Foo(DOFArray(actx, (actx.zeros(3, dtype=np.float64) + 41, )))
     bar = foo + 4
@@ -1550,6 +1573,9 @@ def test_tagging(actx_factory):
     if isinstance(actx, EagerJAXArrayContext):
         pytest.skip("Eager JAX has no tagging support")
 
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext has no tagging support")
+
     from pytools.tag import Tag
 
     class ExampleTag(Tag):
@@ -1595,6 +1621,9 @@ def test_linspace(actx_factory, args, kwargs):
         pytest.xfail("jax actx does not have arange")
 
     actx = actx_factory()
+
+    if isinstance(actx, CupyArrayContext) and kwargs.get("dtype") == np.complex128:
+        pytest.skip("CupyArrayContext does not support complex args to linspace")
 
     actx_linspace = actx.to_numpy(actx.np.linspace(*args, **kwargs))
     np_linspace = np.linspace(*args, **kwargs)

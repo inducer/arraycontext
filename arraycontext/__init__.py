@@ -50,6 +50,7 @@ from .context import (
     Array, ArrayContext, ArrayOrContainer, ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT, ArrayOrContainerT, ArrayT, Scalar, ScalarLike,
     tag_axes)
+from .impl.cupy import CupyArrayContext
 from .impl.jax import EagerJAXArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
@@ -106,7 +107,9 @@ __all__ = (
         "PytestArrayContextFactory",
         "PytestPyOpenCLArrayContextFactory",
         "pytest_generate_tests_for_array_contexts",
-        "pytest_generate_tests_for_pyopencl_array_context"
+        "pytest_generate_tests_for_pyopencl_array_context",
+
+        "CupyArrayContext",
         )
 
 
