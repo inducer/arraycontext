@@ -238,7 +238,7 @@ class _PytestCupyArrayContextFactory(PytestArrayContextFactory):
         return CupyArrayContext()
 
     def __str__(self):
-        import cupy
+        import cupy  # pylint: disable=import-error
         d = cupy.cuda.runtime.getDeviceProperties(cupy.cuda.Device())
         name = d["name"].decode("utf-8")
         return f"<CupyArrayContext> on {cupy.cuda.Device()}:{name}"
