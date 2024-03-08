@@ -216,6 +216,20 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     # }}}
 
+    def outline(self,
+                f: Callable[..., Any],
+                name: Optional[str] = None,
+                tags: FrozenSet[Tag] = frozenset()
+                ) -> Callable[..., Any]:
+        from pytato.tags import FunctionIdentifier
+
+        from .outline import OutlinedCall
+        name = name or getattr(f, "__name__", None)
+        if name is not None:
+            tags = tags | {FunctionIdentifier(name)}
+
+        return OutlinedCall(self, f, tags)
+
 # }}}
 
 
@@ -436,9 +450,9 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pyopencl.taggable_cl_array import (
             TaggableCLArray, to_tagged_cl_array)
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
         from arraycontext.impl.pytato.utils import (
-            _normalize_pt_expr, get_cl_axes_from_pt_axes)
+            _ary_container_key_stringifier, _normalize_pt_expr,
+            get_cl_axes_from_pt_axes)
 
         array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray, pt.Array]] = {}
         key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
@@ -780,7 +794,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
+        from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
 
         array_as_dict: Dict[str, Union[jnp.ndarray, pt.Array]] = {}
         key_to_frozen_subary: Dict[str, jnp.ndarray] = {}
