@@ -223,9 +223,15 @@ class OutlinedCall:
         else:
             ret_type = pt.function.ReturnType.DICT_OF_ARRAYS
 
+        used_placeholders = frozenset({
+            arg for arg in pt.transform.InputGatherer()(
+                pt.make_dict_of_named_arrays(unpacked_output))
+            if isinstance(arg, pt.Placeholder)})
+
         call_bindings = {
             placeholder.name: arg_id_to_arg[arg_id]
-            for arg_id, placeholder in arg_id_to_placeholder.items()}
+            for arg_id, placeholder in arg_id_to_placeholder.items()
+            if placeholder in used_placeholders}
 
         # pylint-disable-reason: pylint has a hard time with kw_only fields in
         # dataclasses
