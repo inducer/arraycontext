@@ -130,8 +130,8 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         from arraycontext import rec_multimap_reduce_array_container
 
         def _rec_vdot(ary1, ary2):
-            common_dtype = np.find_common_type((ary1.dtype, ary2.dtype), ())
-            if dtype not in [None, common_dtype]:
+            common_dtype = np.result_type(ary1, ary2)
+            if dtype not in (None, common_dtype):
                 raise NotImplementedError(
                     f"{type(self).__name__} cannot take dtype in vdot.")
 
