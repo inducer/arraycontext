@@ -45,7 +45,8 @@ THE SOFTWARE.
 import abc
 import sys
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Optional, Tuple, Type, Union)
+    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Hashable, Optional, Tuple, Type,
+    Union)
 
 import numpy as np
 
@@ -218,15 +219,16 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     def outline(self,
                 f: Callable[..., Any],
-                name: Optional[str] = None,
+                *,
+                id: Optional[Hashable] = None,
                 tags: FrozenSet[Tag] = frozenset()
                 ) -> Callable[..., Any]:
         from pytato.tags import FunctionIdentifier
 
         from .outline import OutlinedCall
-        name = name or getattr(f, "__name__", None)
-        if name is not None:
-            tags = tags | {FunctionIdentifier(name)}
+        id = id or getattr(f, "__name__", None)
+        if id is not None:
+            tags = tags | {FunctionIdentifier(id)}
 
         return OutlinedCall(self, f, tags)
 
