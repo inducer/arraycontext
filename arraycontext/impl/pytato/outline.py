@@ -54,7 +54,9 @@ def _get_arg_id_to_arg(args: Tuple[Any, ...],
 
     for kw, arg in itertools.chain(enumerate(args),
                                    kwargs.items()):
-        if np.isscalar(arg):
+        if arg is None:
+            pass
+        elif np.isscalar(arg):
             # do not make scalars as placeholders since we inline them.
             pass
         elif is_array_container_type(arg.__class__):
@@ -117,7 +119,9 @@ def _call_with_placeholders(
     Construct placeholders analogous to *args* and *kwargs* and call *f*.
     """
     def get_placeholder_replacement(arg, key):
-        if np.isscalar(arg):
+        if arg is None:
+            return None
+        elif np.isscalar(arg):
             return arg
         elif isinstance(arg, pt.Array):
             return arg_id_to_placeholder[key]
