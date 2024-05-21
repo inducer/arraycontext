@@ -39,9 +39,7 @@ def main():
         python_requires="~=3.8",
         install_requires=[
             "numpy",
-
-            # https://github.com/inducer/arraycontext/pull/147
-            "pytools>=2022.1.3",
+            "pytools>=2024.1.3",
             "immutabledict",
             "loopy>=2019.1",
         ],
