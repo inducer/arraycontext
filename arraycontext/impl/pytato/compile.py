@@ -39,7 +39,7 @@ import numpy as np
 from immutabledict import immutabledict
 
 import pytato as pt
-from pytools import ProcessLogger
+from pytools import ProcessLogger, to_identifier
 from pytools.tag import Tag
 
 from arraycontext.container import ArrayContainer, is_array_container_type
@@ -52,19 +52,15 @@ from arraycontext.impl.pytato import (
 logger = logging.getLogger(__name__)
 
 
-def _to_identifier(s: str) -> str:
-    return "".join(ch for ch in s if ch.isidentifier())
-
-
 def _prg_id_to_kernel_name(f: Any) -> str:
     if callable(f):
-        name = getattr(f, "__name__", "<anonymous>")
+        name = getattr(f, "__name__", "anonymous")
         if not name.isidentifier():
-            return "actx_compiled_" + _to_identifier(name)
+            return "actx_compiled_" + to_identifier(name)
         else:
             return name
     else:
-        return _to_identifier(str(f))
+        return to_identifier(str(f))
 
 
 class FromArrayContextCompile(Tag):
