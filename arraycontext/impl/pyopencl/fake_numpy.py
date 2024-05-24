@@ -354,7 +354,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def where(self, criterion, then, else_):
         def where_inner(inner_crit, inner_then, inner_else):
-            if isinstance(inner_crit, bool):
+            if isinstance(inner_crit, (bool, np.bool_)):
                 return inner_then if inner_crit else inner_else
             return cl_array.if_positive(inner_crit != 0, inner_then, inner_else,
                     queue=self._array_context.queue)

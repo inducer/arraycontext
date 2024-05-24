@@ -155,7 +155,7 @@ class BaseFakeNumpyNamespace:
             delta_actx = self._array_context.from_numpy(delta)
             # sequences with 0 items or 1 item with endpoint=True (i.e. div <= 0)
             # have an undefined step
-            step = np.NaN
+            step = np.nan
             # Multiply with delta to allow possible override of output class.
             y = y * delta_actx
 

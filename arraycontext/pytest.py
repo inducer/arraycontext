@@ -190,7 +190,7 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
             return False
 
     def __call__(self):
-        from jax.config import config
+        from jax import config
 
         from arraycontext import EagerJAXArrayContext
         config.update("jax_enable_x64", True)
@@ -215,7 +215,7 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
             return False
 
     def __call__(self):
-        from jax.config import config
+        from jax import config
 
         from arraycontext import PytatoJAXArrayContext
         config.update("jax_enable_x64", True)
