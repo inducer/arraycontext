@@ -124,7 +124,7 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                                               lambda subary: np.all(subary), a)
 
     def array_equal(self, a, b):
-        if type(a) != type(b):
+        if type(a) is not type(b):
             return False
         elif not is_array_container(a):
             if a.shape != b.shape:
