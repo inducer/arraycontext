@@ -140,4 +140,10 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                                                            np.logical_and),
                                                    self.array_equal, a, b)
 
+    def arange(self, *args, **kwargs):
+        return np.arange(*args, **kwargs)
+
+    def linspace(self, *args, **kwargs):
+        return np.linspace(*args, **kwargs)
+
 # vim: fdm=marker
