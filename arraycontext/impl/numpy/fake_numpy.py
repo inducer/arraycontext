@@ -147,4 +147,10 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 lambda ary: ary.reshape(newshape, order=order),
                 a)
 
+    def arange(self, *args, **kwargs):
+        return np.arange(*args, **kwargs)
+
+    def linspace(self, *args, **kwargs):
+        return np.linspace(*args, **kwargs)
+
 # vim: fdm=marker
