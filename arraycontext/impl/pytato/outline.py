@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from immutables import Map
+from immutabledict import immutabledict
 
 import pytato as pt
 from pytools.tag import Tag
@@ -47,7 +47,7 @@ from arraycontext.impl.pytato import _BasePytatoArrayContext
 
 def _get_arg_id_to_arg(args: tuple[Any, ...],
                        kwargs: Mapping[str, Any]
-                       ) -> Map[tuple[Any, ...], Any]:
+                       ) -> immutabledict[tuple[Any, ...], Any]:
     """
     Helper for :meth:`OulinedCall.__call__`. Extracts mappings from argument id
     to argument values. See
@@ -81,7 +81,7 @@ def _get_arg_id_to_arg(args: tuple[Any, ...],
                              " either a scalar, pt.Array or an array container. Got"
                              f" '{arg}'.")
 
-    return Map(arg_id_to_arg)
+    return immutabledict(arg_id_to_arg)
 
 
 def _get_input_arg_id_str(
@@ -99,14 +99,14 @@ def _get_output_arg_id_str(arg_id: tuple[Any, ...]) -> str:
 
 def _get_arg_id_to_placeholder(
         arg_id_to_arg: Mapping[tuple[Any, ...], Any],
-        prefix: str | None = None) -> Map[tuple[Any, ...], pt.Placeholder]:
+        prefix: str | None = None) -> immutabledict[tuple[Any, ...], pt.Placeholder]:
     """
     Helper for :meth:`OulinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
     for each argument in *arg_id_to_arg*. See
     :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
     representation.
     """
-    return Map({
+    return immutabledict({
         arg_id: pt.make_placeholder(
             _get_input_arg_id_str(arg_id, prefix=prefix),
             arg.shape,
@@ -245,7 +245,7 @@ class OutlinedCall:
         func_def = pt.function.FunctionDefinition(
             parameters=frozenset(call_bindings.keys()),
             return_type=ret_type,
-            returns=Map(unpacked_output),
+            returns=immutabledict(unpacked_output),
             tags=self.tags,
         )
 
