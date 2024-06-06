@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from immutables import Map
+from immutabledict import immutabledict
 
 import pytato as pt
 from pytools.tag import Tag
@@ -47,7 +47,7 @@ from arraycontext.impl.pytato import _BasePytatoArrayContext
 
 def _get_arg_id_to_arg(args: tuple[Any, ...],
                        kwargs: Mapping[str, Any]
-                       ) -> Map[tuple[Any, ...], Any]:
+                       ) -> immutabledict[tuple[Any, ...], Any]:
     """
     Helper for :meth:`OulinedCall.__call__`. Extracts mappings from argument id
     to argument values. See
@@ -81,7 +81,7 @@ def _get_arg_id_to_arg(args: tuple[Any, ...],
                              " either a scalar, pt.Array or an array container. Got"
                              f" '{arg}'.")
 
-    return Map(arg_id_to_arg)
+    return immutabledict(arg_id_to_arg)
 
 
 def _get_input_arg_id_str(
@@ -99,14 +99,14 @@ def _get_output_arg_id_str(arg_id: tuple[Any, ...]) -> str:
 
 def _get_arg_id_to_placeholder(
         arg_id_to_arg: Mapping[tuple[Any, ...], Any],
-        prefix: str | None = None) -> Map[tuple[Any, ...], pt.Placeholder]:
+        prefix: str | None = None) -> immutabledict[tuple[Any, ...], pt.Placeholder]:
     """
     Helper for :meth:`OulinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
     for each argument in *arg_id_to_arg*. See
     :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
     representation.
     """
-    return Map({
+    return immutabledict({
         arg_id: pt.make_placeholder(
             _get_input_arg_id_str(arg_id, prefix=prefix),
             arg.shape,
@@ -148,10 +148,10 @@ def _call_with_placeholders(
 
 
 def _unpack_output(
-        output: ArrayOrContainer) -> Map[str, pt.Array]:
+        output: ArrayOrContainer) -> immutabledict[str, pt.Array]:
     """Unpack any array containers in *output*."""
     if isinstance(output, pt.Array):
-        return Map({"_": output})
+        return immutabledict({"_": output})
     elif is_array_container_type(output.__class__):
         unpacked_output = {}
 
@@ -162,14 +162,14 @@ def _unpack_output(
 
         rec_keyed_map_array_container(_unpack_container, output)
 
-        return Map(unpacked_output)
+        return immutabledict(unpacked_output)
     else:
         raise NotImplementedError(type(output))
 
 
 def _pack_output(
         output_template: ArrayOrContainer,
-        unpacked_output: pt.Array | Map[str, pt.Array]
+        unpacked_output: pt.Array | immutabledict[str, pt.Array]
         ) -> ArrayOrContainer:
     """
     Pack *unpacked_output* into array containers according to *output_template*.
@@ -178,7 +178,7 @@ def _pack_output(
         assert isinstance(unpacked_output, pt.Array)
         return unpacked_output
     elif is_array_container_type(output_template.__class__):
-        assert isinstance(unpacked_output, Map)
+        assert isinstance(unpacked_output, immutabledict)
 
         def _pack_into_container(key: tuple[Any, ...], ary: pt.Array) -> pt.Array:
             key_str = _get_output_arg_id_str(key)
@@ -247,13 +247,13 @@ class OutlinedCall:
         func_def = pt.function.FunctionDefinition(
             parameters=frozenset(call_bindings.keys()),
             return_type=ret_type,
-            returns=Map(unpacked_output),
+            returns=immutabledict(unpacked_output),
             tags=self.tags,
         )
 
         call_site_output = func_def(**call_bindings)
 
-        assert isinstance(call_site_output, pt.Array | Map)
+        assert isinstance(call_site_output, pt.Array | immutabledict)
         return _pack_output(output, call_site_output)
 
 
