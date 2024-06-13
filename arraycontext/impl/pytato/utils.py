@@ -54,7 +54,7 @@ from pytato.array import (
 )
 from pytato.function import FunctionDefinition
 from pytato.target.loopy import LoopyPyOpenCLTarget
-from pytato.transform import ArrayOrNames, CopyMapper
+from pytato.transform import ArrayOrNames, CopyMapper, deduplicate
 from pytools import UniqueNameGenerator, memoize_method
 
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
@@ -130,6 +130,8 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
+    expr = deduplicate(expr)
+
     if get_num_call_sites(expr):
         raise NotImplementedError(
             "_normalize_pt_expr is not compatible with expressions that "
