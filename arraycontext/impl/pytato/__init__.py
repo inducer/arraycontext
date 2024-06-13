@@ -681,7 +681,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 # multiple placeholders with the same name that are not
                 # also the same object are not allowed, and this would produce
                 # a different Placeholder object of the same name.
-                if (not isinstance(ary, pt.Placeholder)
+                if (not isinstance(ary, (pt.Placeholder, pt.NamedArray))
                         and not ary.tags_of_type(NameHint)):
                     ary = ary.tagged(NameHint(name))
 
