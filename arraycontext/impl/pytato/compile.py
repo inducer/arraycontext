@@ -182,7 +182,8 @@ def _to_input_for_compiled(
     """
     from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
     if isinstance(ary, pt.Array):
-        dag = pt.make_dict_of_named_arrays({"_actx_out": ary})
+        dag = pt.transform.deduplicate(
+            pt.make_dict_of_named_arrays({"_actx_out": ary}))
         # Transform the DAG to give metadata inference a chance to do its job
         return actx.transform_dag(dag)["_actx_out"].expr
     elif isinstance(ary, TaggableCLArray):
