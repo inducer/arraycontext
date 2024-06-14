@@ -78,9 +78,12 @@ def _get_arg_id_to_arg(args: Tuple[Any, ...],
     return Map(arg_id_to_arg)
 
 
-def _get_input_arg_id_str(arg_id: Tuple[Any, ...]) -> str:
+def _get_input_arg_id_str(
+        arg_id: Tuple[Any, ...], prefix: Optional[str] = None) -> str:
+    if prefix is None:
+        prefix = ""
     from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
-    return f"_actx_in_{_ary_container_key_stringifier(arg_id)}"
+    return f"_actx_{prefix}_in_{_ary_container_key_stringifier(arg_id)}"
 
 
 def _get_output_arg_id_str(arg_id: Tuple[Any, ...]) -> str:
@@ -90,7 +93,7 @@ def _get_output_arg_id_str(arg_id: Tuple[Any, ...]) -> str:
 
 def _get_arg_id_to_placeholder(
         arg_id_to_arg: Mapping[Tuple[Any, ...], Any],
-    ) -> Map[Tuple[Any, ...], pt.Placeholder]:
+        prefix: Optional[str] = None) -> Map[Tuple[Any, ...], pt.Placeholder]:
     """
     Helper for :meth:`OulinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
     for each argument in *arg_id_to_arg*. See
@@ -99,7 +102,7 @@ def _get_arg_id_to_placeholder(
     """
     return Map({
         arg_id: pt.make_placeholder(
-            _get_input_arg_id_str(arg_id),
+            _get_input_arg_id_str(arg_id, prefix=prefix),
             arg.shape,
             arg.dtype)
         for arg_id, arg in arg_id_to_arg.items()})
@@ -184,6 +187,31 @@ class OutlinedCall:
 
     def __call__(self, *args: Any, **kwargs: Any) -> ArrayOrContainer:
         arg_id_to_arg = _get_arg_id_to_arg(args, kwargs)
+
+        if __debug__:
+            # Add a prefix to the names to distinguish them from any existing
+            # placeholders
+            arg_id_to_prefixed_placeholder = _get_arg_id_to_placeholder(
+                arg_id_to_arg, prefix="outlined_call")
+
+            prefixed_output = _call_with_placeholders(
+                self.f, args, kwargs, arg_id_to_prefixed_placeholder)
+            unpacked_prefixed_output = _unpack_output(prefixed_output)
+            if isinstance(unpacked_prefixed_output, pt.Array):
+                unpacked_prefixed_output = {"_": unpacked_prefixed_output}
+
+            prefixed_placeholders = frozenset(
+                arg_id_to_prefixed_placeholder.values())
+
+            found_placeholders = frozenset({
+                arg for arg in pt.transform.InputGatherer()(
+                    pt.make_dict_of_named_arrays(unpacked_prefixed_output))
+                if isinstance(arg, pt.Placeholder)})
+
+            extra_placeholders = found_placeholders - prefixed_placeholders
+            assert not extra_placeholders, \
+                "Found non-argument placeholder " \
+                f"'{next(iter(extra_placeholders)).name}' in outlined function."
 
         arg_id_to_placeholder = _get_arg_id_to_placeholder(arg_id_to_arg)
 
