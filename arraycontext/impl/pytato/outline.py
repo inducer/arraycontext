@@ -27,7 +27,7 @@ THE SOFTWARE.
 
 import itertools
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, FrozenSet, Mapping, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Mapping, Optional, Tuple, Union
 
 import numpy as np
 from immutables import Map
@@ -59,8 +59,11 @@ def _get_arg_id_to_arg(args: Tuple[Any, ...],
             pass
         elif is_array_container_type(arg.__class__):
             def id_collector(keys, ary):
-                arg_id = (kw,) + keys  # noqa: B023
-                arg_id_to_arg[arg_id] = ary  # noqa: B023
+                if np.isscalar(ary):
+                    pass
+                else:
+                    arg_id = (kw,) + keys  # noqa: B023
+                    arg_id_to_arg[arg_id] = ary  # noqa: B023
                 return ary
 
             rec_keyed_map_array_container(id_collector, arg)
@@ -75,28 +78,6 @@ def _get_arg_id_to_arg(args: Tuple[Any, ...],
     return Map(arg_id_to_arg)
 
 
-def _get_placeholder_replacement(arg, kw, arg_id_to_name):
-    """
-    Helper for :class:`OutlinedCall.__call__`. Returns the placeholder version
-    of an argument to :attr:`OutlinedCall.f`.
-    """
-    if np.isscalar(arg):
-        return arg
-    elif isinstance(arg, pt.Array):
-        name = arg_id_to_name[(kw,)]
-        return pt.make_placeholder(name, arg.shape, arg.dtype)
-    elif is_array_container_type(arg.__class__):
-        def _rec_to_placeholder(keys, ary):
-            name = arg_id_to_name[(kw,) + keys]
-            return pt.make_placeholder(name,
-                                       ary.shape,
-                                       ary.dtype)
-
-        return rec_keyed_map_array_container(_rec_to_placeholder, arg)
-    else:
-        raise NotImplementedError(type(arg))
-
-
 def _get_input_arg_id_str(arg_id: Tuple[Any, ...]) -> str:
     from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
     return f"_actx_in_{_ary_container_key_stringifier(arg_id)}"
@@ -107,6 +88,94 @@ def _get_output_arg_id_str(arg_id: Tuple[Any, ...]) -> str:
     return f"_actx_out_{_ary_container_key_stringifier(arg_id)}"
 
 
+def _get_arg_id_to_placeholder(
+        arg_id_to_arg: Mapping[Tuple[Any, ...], Any],
+    ) -> Map[Tuple[Any, ...], pt.Placeholder]:
+    """
+    Helper for :meth:`OulinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
+    for each argument in *arg_id_to_arg*. See
+    :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
+    representation.
+    """
+    return Map({
+        arg_id: pt.make_placeholder(
+            _get_input_arg_id_str(arg_id),
+            arg.shape,
+            arg.dtype)
+        for arg_id, arg in arg_id_to_arg.items()})
+
+
+def _call_with_placeholders(
+        f: Callable[..., Any],
+        args: Tuple[Any],
+        kwargs: Mapping[str, Any],
+        arg_id_to_placeholder: Mapping[Tuple[Any, ...], pt.Placeholder]) -> Any:
+    """
+    Construct placeholders analogous to *args* and *kwargs* and call *f*.
+    """
+    def get_placeholder_replacement(arg, key):
+        if np.isscalar(arg):
+            return arg
+        elif isinstance(arg, pt.Array):
+            return arg_id_to_placeholder[key]
+        elif is_array_container_type(arg.__class__):
+            def _rec_to_placeholder(keys, ary):
+                return get_placeholder_replacement(ary, key + keys)
+
+            return rec_keyed_map_array_container(_rec_to_placeholder, arg)
+        else:
+            raise NotImplementedError(type(arg))
+
+    pl_args = [get_placeholder_replacement(arg, (iarg,))
+               for iarg, arg in enumerate(args)]
+    pl_kwargs = {kw: get_placeholder_replacement(arg, (kw,))
+                 for kw, arg in kwargs.items()}
+
+    return f(*pl_args, **pl_kwargs)
+
+
+def _unpack_output(
+        output: ArrayOrContainer) -> Union[pt.Array, Dict[str, pt.Array]]:
+    """Unpack any array containers in *output*."""
+    if isinstance(output, pt.Array):
+        return output
+    elif is_array_container_type(output.__class__):
+        unpacked_output = {}
+
+        def _unpack_container(key, ary):
+            key = _get_output_arg_id_str(key)
+            unpacked_output[key] = ary
+            return ary
+
+        rec_keyed_map_array_container(_unpack_container, output)
+
+        return unpacked_output
+    else:
+        raise NotImplementedError(type(output))
+
+
+def _pack_output(
+        output_template: ArrayOrContainer,
+        unpacked_output: Union[
+            pt.Array,
+            Tuple[pt.Array, ...],
+            Mapping[str, pt.Array]]
+        ) -> ArrayOrContainer:
+    """
+    Pack *unpacked_output* into array containers according to *output_template*.
+    """
+    if isinstance(output_template, pt.Array):
+        return unpacked_output
+    elif is_array_container_type(output_template.__class__):
+        def _pack_into_container(key, ary):
+            key = _get_output_arg_id_str(key)
+            return unpacked_output[key]
+
+        return rec_keyed_map_array_container(_pack_into_container, output_template)
+    else:
+        raise NotImplementedError(type(output_template))
+
+
 @dataclass(frozen=True)
 class OutlinedCall:
     actx: _BasePytatoArrayContext
@@ -115,62 +184,35 @@ class OutlinedCall:
 
     def __call__(self, *args: Any, **kwargs: Any) -> ArrayOrContainer:
         arg_id_to_arg = _get_arg_id_to_arg(args, kwargs)
-        input_id_to_name_in_function = {arg_id: _get_input_arg_id_str(arg_id)
-                                       for arg_id in arg_id_to_arg}
 
-        pl_args = [_get_placeholder_replacement(arg, iarg,
-                                                input_id_to_name_in_function)
-                   for iarg, arg in enumerate(args)]
-        pl_kwargs = {kw: _get_placeholder_replacement(arg, kw,
-                                                      input_id_to_name_in_function)
-                     for kw, arg in kwargs.items()}
+        arg_id_to_placeholder = _get_arg_id_to_placeholder(arg_id_to_arg)
 
-        output = self.f(*pl_args, **pl_kwargs)
-
-        if isinstance(output, pt.Array):
-            returns = {"_": output}
+        output = _call_with_placeholders(self.f, args, kwargs, arg_id_to_placeholder)
+        unpacked_output = _unpack_output(output)
+        if isinstance(unpacked_output, pt.Array):
+            unpacked_output = {"_": unpacked_output}
             ret_type = pt.function.ReturnType.ARRAY
-        elif is_array_container_type(output.__class__):
-            returns = {}
-
-            def _unpack_container(key, ary):
-                key = _get_output_arg_id_str(key)
-                returns[key] = ary
-                return ary
-
-            rec_keyed_map_array_container(_unpack_container, output)
-            ret_type = pt.function.ReturnType.DICT_OF_ARRAYS
         else:
-            raise NotImplementedError(type(output))
+            ret_type = pt.function.ReturnType.DICT_OF_ARRAYS
+
+        call_bindings = {
+            placeholder.name: arg_id_to_arg[arg_id]
+            for arg_id, placeholder in arg_id_to_placeholder.items()}
 
         # pylint-disable-reason: pylint has a hard time with kw_only fields in
         # dataclasses
 
         # pylint: disable=unexpected-keyword-arg
         func_def = pt.function.FunctionDefinition(
-            parameters=frozenset(input_id_to_name_in_function.values()),
+            parameters=frozenset(call_bindings.keys()),
             return_type=ret_type,
-            returns=Map(returns),
+            returns=Map(unpacked_output),
             tags=self.tags,
         )
 
-        call_parameters = {input_id_to_name_in_function[arg_id]: arg
-                           for arg_id, arg in arg_id_to_arg.items()}
-        call_site_output = func_def(**call_parameters)
+        call_site_output = func_def(**call_bindings)
 
-        if isinstance(output, pt.Array):
-            return call_site_output
-        elif is_array_container_type(output.__class__):
-            def _pack_into_container(key, ary):
-                key = _get_output_arg_id_str(key)
-                return call_site_output[key]
-
-            call_site_output_as_container = rec_keyed_map_array_container(
-                _pack_into_container,
-                output)
-            return call_site_output_as_container
-        else:
-            raise NotImplementedError(type(output))
+        return _pack_output(output, call_site_output)
 
 
 # vim: foldmethod=marker
