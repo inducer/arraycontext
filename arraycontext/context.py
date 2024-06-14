@@ -530,6 +530,15 @@ class ArrayContext(ABC):
         """
         return f
 
+    # FIXME: Think about making this a standalone function? Would make it easier to
+    # pass arguments when used as a decorator, e.g.:
+    #     @outline(actx, id=...)
+    #     def func(...):
+    # vs.
+    #     outline = partial(actx.outline, id=...)
+    #
+    #     @outline
+    #     def func(...):
     def outline(self,
                 f: Callable[..., Any],
                 *,
