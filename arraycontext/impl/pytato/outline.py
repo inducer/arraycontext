@@ -1,6 +1,7 @@
 """
 .. autoclass:: OutlinedCall
 """
+# FIXME: University copyright?
 __copyright__ = """
 Copyright (C) 2023 Kaushik Kulkarni
 """
