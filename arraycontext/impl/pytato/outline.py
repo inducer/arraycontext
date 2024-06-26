@@ -206,14 +206,15 @@ class OutlinedCall:
 
             prefixed_output = _call_with_placeholders(
                 self.f, args, kwargs, arg_id_to_prefixed_placeholder)
-            unpacked_prefixed_output = _unpack_output(prefixed_output)
+            unpacked_prefixed_output = pt.transform.Deduplicator()(
+                pt.make_dict_of_named_arrays(
+                    _unpack_output(prefixed_output)))
 
             prefixed_placeholders = frozenset(
                 arg_id_to_prefixed_placeholder.values())
 
             found_placeholders = frozenset({
-                arg for arg in pt.transform.InputGatherer()(
-                    pt.make_dict_of_named_arrays(unpacked_prefixed_output))
+                arg for arg in pt.transform.InputGatherer()(unpacked_prefixed_output)
                 if isinstance(arg, pt.Placeholder)})
 
             extra_placeholders = found_placeholders - prefixed_placeholders
@@ -224,7 +225,9 @@ class OutlinedCall:
         arg_id_to_placeholder = _get_arg_id_to_placeholder(arg_id_to_arg)
 
         output = _call_with_placeholders(self.f, args, kwargs, arg_id_to_placeholder)
-        unpacked_output = _unpack_output(output)
+        unpacked_output = pt.transform.Deduplicator()(
+            pt.make_dict_of_named_arrays(
+                _unpack_output(output)))
         if len(unpacked_output) == 1 and "_" in unpacked_output:
             ret_type = pt.function.ReturnType.ARRAY
         else:
@@ -232,7 +235,7 @@ class OutlinedCall:
 
         used_placeholders = frozenset({
             arg for arg in pt.transform.InputGatherer()(
-                pt.make_dict_of_named_arrays(unpacked_output))
+                unpacked_output)
             if isinstance(arg, pt.Placeholder)})
 
         call_bindings = {
@@ -247,7 +250,7 @@ class OutlinedCall:
         func_def = pt.function.FunctionDefinition(
             parameters=frozenset(call_bindings.keys()),
             return_type=ret_type,
-            returns=immutabledict(unpacked_output),
+            returns=immutabledict(unpacked_output._data),
             tags=self.tags,
         )
 
