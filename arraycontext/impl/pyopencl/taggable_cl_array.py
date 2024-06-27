@@ -99,6 +99,10 @@ class TaggableCLArray(cla.Array, Taggable):
         self.tags = tags
         self.axes = axes
 
+    def __repr__(self) -> str:
+        return (f"{type(self).__name__}(shape={self.shape}, dtype={self.dtype}, "
+                f"tags={self.tags}, axes={self.axes})")
+
     def copy(self, queue=cla._copy_queue):
         ary = super().copy(queue=queue)
         return type(self)(None, tags=self.tags, axes=self.axes,
