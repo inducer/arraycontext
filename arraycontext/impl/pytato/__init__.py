@@ -45,7 +45,8 @@ THE SOFTWARE.
 import abc
 import sys
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Optional, Tuple, Type, Union)
+    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Hashable, Optional, Tuple, Type,
+    Union)
 
 import numpy as np
 
@@ -215,6 +216,21 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         return None
 
     # }}}
+
+    def outline(self,
+                f: Callable[..., Any],
+                *,
+                id: Optional[Hashable] = None,
+                tags: FrozenSet[Tag] = frozenset()
+                ) -> Callable[..., Any]:
+        from pytato.tags import FunctionIdentifier
+
+        from .outline import OutlinedCall
+        id = id or getattr(f, "__name__", None)
+        if id is not None:
+            tags = tags | {FunctionIdentifier(id)}
+
+        return OutlinedCall(self, f, tags)
 
 # }}}
 
@@ -436,9 +452,9 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pyopencl.taggable_cl_array import (
             TaggableCLArray, to_tagged_cl_array)
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
         from arraycontext.impl.pytato.utils import (
-            _normalize_pt_expr, get_cl_axes_from_pt_axes)
+            _ary_container_key_stringifier, _normalize_pt_expr,
+            get_cl_axes_from_pt_axes)
 
         array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray, pt.Array]] = {}
         key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
@@ -665,7 +681,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 # multiple placeholders with the same name that are not
                 # also the same object are not allowed, and this would produce
                 # a different Placeholder object of the same name.
-                if (not isinstance(ary, pt.Placeholder)
+                if (not isinstance(ary, (pt.Placeholder, pt.NamedArray))
                         and not ary.tags_of_type(NameHint)):
                     ary = ary.tagged(NameHint(name))
 
@@ -780,7 +796,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
+        from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
 
         array_as_dict: Dict[str, Union[jnp.ndarray, pt.Array]] = {}
         key_to_frozen_subary: Dict[str, jnp.ndarray] = {}
