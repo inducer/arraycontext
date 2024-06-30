@@ -344,7 +344,7 @@ def pytest_generate_tests_for_array_contexts(
             return
 
         arg_values, ids = cl_tools.get_pyopencl_fixture_arg_values()
-        empty_arg_dict = {k: None for k in arg_values[0]}
+        empty_arg_dict = dict.fromkeys(arg_values[0])
 
         # }}}
 
