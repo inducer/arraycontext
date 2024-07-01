@@ -10,6 +10,7 @@ JIT-compile and execute the array expressions.
 Following :mod:`pytato`-based array context are provided:
 
 .. autoclass:: PytatoPyOpenCLArrayContext
+.. autoclass:: PytatoPyOpenCLArrayContextUQ
 .. autoclass:: PytatoJAXArrayContext
 
 
@@ -50,13 +51,14 @@ from typing import (
 import numpy as np
 
 from pytools import memoize_method
-from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
+from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
 
 from arraycontext.container.traversal import (
     rec_map_array_container, with_array_context)
 from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 from arraycontext.metadata import NameHint
 
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     import pyopencl as cl
@@ -680,6 +682,97 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         return type(self)(self.queue, self.allocator)
 
     # }}}
+
+# }}}
+
+
+@dataclass(frozen=True)
+class UQAxisTag(UniqueTag):
+    """
+        A tag for acting on axes of arrays.
+    """
+    uq_instance_num: str
+
+
+# {{{ PytatoPyOpenCLArrayContextUQ
+
+
+class PytatoPyOpenCLArrayContextUQ(PytatoPyOpenCLArrayContext):
+    """
+    A derived class for PytatoPyOpenCLArrayContext updated for the
+    purpose of enabling parameter studies and uncertainty quantification.
+
+    .. automethod:: __init__
+
+    .. automethod:: transform_dag
+
+    .. automethod:: compile
+    """
+    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    # TODO: Update to a new compiler potentially
+        from .compile import LazilyPyOpenCLCompilingFunctionCaller
+        return LazilyPyOpenCLCompilingFunctionCaller(self, f)
+
+    def transform_dag(self, dag: "pytato.DictOfNamedArrays"
+                      ) -> "pytato.DictOfNamedArrays":
+        import pytato as pt
+    # TODO: This gets called before generating the placeholders
+        dag = pt.transform.materialize_with_mpms(dag)
+        return dag
+
+    def pack_for_uq(self,*args):
+        """
+            Args is a list of variable names and the realized input data that needs
+            to be packed for a parameter study or uncertainty quantification.
+
+            Args needs to be in the format
+                ["v", v0, v1, v2, ..., vN, "w", w0, w1, w2, ..., wM, \dots]
+
+                where "v" and "w" would be the variable names in your program.
+                If you want to include a constant just pass the var name and then
+                the value in the next argument.
+
+            Returns a dictionary of {var name: stacked array}
+        """
+        from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
+
+        assert len(args) > 0
+        out = {}
+        curr_var = str(args[0])
+
+        num_calls = 0
+
+        for ind in range(1, len(args)):
+            val = args[ind]
+            if isinstance(val, str):
+                # Done with previous.
+                if val in out.keys():
+                    raise ValueError("Repeated definitions of variable: " + str(val) \
+                                   + " Defined Variables: " + list(out.keys()))
+                out[curr_var] = PytatoFakeNumpyNamespace.stack(self, out[curr_var])
+
+                if out[curr_var].shape[0] > 1:
+                    # Tag the outer axis as uncertain.
+                    tag_name = str(num_calls) + " var: " + str(curr_var)
+                    out[curr_var] = out[curr_var].with_tagged_axis(0, [UQAxisTag(tag_name)])
+                    num_calls += 1
+                curr_var = val
+
+            elif curr_var in out.keys():
+                out[curr_var].append(val)
+            else:
+                out[curr_var] = [val]
+
+        # Handle the last variable group.
+        out[curr_var] = PytatoFakeNumpyNamespace.stack(self, out[curr_var])
+
+        if out[curr_var].shape[0] > 1:
+            # Tag the outer axis as uncertain.
+            tag_name = str(num_calls) + " var: " + str(curr_var)
+            out[curr_var] = out[curr_var].with_tagged_axis(0, [UQAxisTag(tag_name)])
+            num_calls += 1
+
+        return out
 
 # }}}
 
