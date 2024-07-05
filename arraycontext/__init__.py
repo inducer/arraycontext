@@ -81,9 +81,6 @@ from .impl.jax import EagerJAXArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
 from .loopy import make_loopy_program
-
-# deprecated, remove in 2022.
-from .metadata import _FirstAxisIsElementsTag
 from .pytest import (
     PytestArrayContextFactory,
     PytestPyOpenCLArrayContextFactory,
@@ -170,12 +167,6 @@ _depr_name_to_replacement_and_obj = {
         "get_container_context": (
             "get_container_context_opt",
             get_container_context_opt, 2022),
-        "FirstAxisIsElementsTag": (
-            "meshmode.transform_metadata.FirstAxisIsElementsTag",
-            _FirstAxisIsElementsTag, 2022),
-        "_acf": ("<no replacement yet>", _deprecated_acf, 2022),
-        "DeviceArray": ("Array", Array, 2023),
-        "DeviceScalar": ("Scalar", Scalar, 2023),
         }
 
 

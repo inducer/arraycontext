@@ -324,32 +324,10 @@ class PyOpenCLArrayContext(ArrayContext):
                     "to create this kernel?")
 
         all_inames = default_entrypoint.all_inames()
-        # FIXME: This could be much smarter.
+
         inner_iname = None
 
-        # import with underscore to avoid DeprecationWarning
-        from arraycontext.metadata import _FirstAxisIsElementsTag
-
-        if (len(default_entrypoint.instructions) == 1
-                and isinstance(default_entrypoint.instructions[0], lp.Assignment)
-                and any(isinstance(tag, _FirstAxisIsElementsTag)
-                    # FIXME: Firedrake branch lacks kernel tags
-                    for tag in getattr(default_entrypoint, "tags", ()))):
-            stmt, = default_entrypoint.instructions
-
-            out_inames = [v.name for v in stmt.assignee.index_tuple]
-            assert out_inames
-            outer_iname = out_inames[0]
-            if len(out_inames) >= 2:
-                inner_iname = out_inames[1]
-
-        elif "iel" in all_inames:
-            outer_iname = "iel"
-
-            if "idof" in all_inames:
-                inner_iname = "idof"
-
-        elif "i0" in all_inames:
+        if "i0" in all_inames:
             outer_iname = "i0"
 
             if "i1" in all_inames:
