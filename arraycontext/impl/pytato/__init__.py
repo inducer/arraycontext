@@ -45,15 +45,23 @@ THE SOFTWARE.
 import abc
 import sys
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Optional, Tuple, Type, Union)
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import numpy as np
 
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 from arraycontext.metadata import NameHint
 
@@ -63,7 +71,7 @@ if TYPE_CHECKING:
     import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
-    import pyopencl as cl  # noqa: F811
+    import pyopencl as cl
 
 import logging
 
@@ -90,7 +98,7 @@ def _preprocess_array_tags(tags: ToTagSetConvertible) -> FrozenSet[Tag]:
                     f"arraycontext.metadata.NameHint('{name_hint.name}') "
                     "to pytato.tags.PrefixNamed, "
                     f"PrefixNamed('{prefix_named.prefix}') "
-                    "was already present.")
+                    "was already present.", stacklevel=1)
 
         tags = (
                 (tags | frozenset({PrefixNamed(name_hint.name)}))
@@ -411,17 +419,20 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
                 from warnings import warn
                 warn("Running on an Nvidia GPU, reducing the argument "
-                    f"size limit from 4352 to {limit}.")
+                    f"size limit from 4352 to {limit}.", stacklevel=1)
             else:
                 limit = dev.max_parameter_size
 
             if self._force_svm_arg_limit is not None:
                 limit = self._force_svm_arg_limit
 
-            logger.info(f"limiting argument buffer size for {dev} to {limit} bytes")
+            logger.info(
+                    "limiting argument buffer size for %s to %d bytes",
+                    dev, limit)
 
             from arraycontext.impl.pytato.utils import (
-                ArgSizeLimitingPytatoLoopyPyOpenCLTarget)
+                ArgSizeLimitingPytatoLoopyPyOpenCLTarget,
+            )
             return ArgSizeLimitingPytatoLoopyPyOpenCLTarget(limit)
         else:
             return super().get_target()
@@ -435,10 +446,14 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pyopencl.taggable_cl_array import (
-            TaggableCLArray, to_tagged_cl_array)
+            TaggableCLArray,
+            to_tagged_cl_array,
+        )
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
         from arraycontext.impl.pytato.utils import (
-            _normalize_pt_expr, get_cl_axes_from_pt_axes)
+            _normalize_pt_expr,
+            get_cl_axes_from_pt_axes,
+        )
 
         array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray, pt.Array]] = {}
         key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
@@ -608,7 +623,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         processed_kwargs = {}
 
         for kw, arg in sorted(kwargs.items()):
-            if isinstance(arg, (pt.Array,) + SCALAR_CLASSES):
+            if isinstance(arg, (pt.Array, *SCALAR_CLASSES)):
                 pass
             elif isinstance(arg, TaggableCLArray):
                 arg = self.thaw(arg)

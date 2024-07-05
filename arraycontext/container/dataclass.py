@@ -96,7 +96,9 @@ def dataclass_array_container(cls: type) -> type:
             # * `_BaseGenericAlias` catches `List`, `Tuple`, etc.
             # * `_SpecialForm` catches `Any`, `Literal`, etc.
             from typing import (  # type: ignore[attr-defined]
-                _BaseGenericAlias, _SpecialForm)
+                _BaseGenericAlias,
+                _SpecialForm,
+            )
             if isinstance(f.type, (_BaseGenericAlias, _SpecialForm)):
                 # NOTE: anything except a Union is not allowed
                 raise TypeError(

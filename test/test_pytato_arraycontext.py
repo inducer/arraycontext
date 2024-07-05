@@ -29,7 +29,9 @@ import pytest
 from pytools.tag import Tag
 
 from arraycontext import (
-    PytatoPyOpenCLArrayContext, pytest_generate_tests_for_array_contexts)
+    PytatoPyOpenCLArrayContext,
+    pytest_generate_tests_for_array_contexts,
+)
 from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
 
 
