@@ -26,8 +26,15 @@ THE SOFTWARE.
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Set, Tuple
 
 from pytato.array import (
-    AbstractResultWithNamedArrays, Array, Axis as PtAxis, DataWrapper,
-    DictOfNamedArrays, Placeholder, SizeParam, make_placeholder)
+    AbstractResultWithNamedArrays,
+    Array,
+    Axis as PtAxis,
+    DataWrapper,
+    DictOfNamedArrays,
+    Placeholder,
+    SizeParam,
+    make_placeholder,
+)
 from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import CopyMapper
 from pytools import UniqueNameGenerator, memoize_method

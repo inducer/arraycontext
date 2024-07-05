@@ -27,7 +27,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import sys
 from dataclasses import dataclass
 from warnings import warn
 
@@ -54,25 +53,23 @@ class NameHint(UniqueTag):
 
 try:
     from meshmode.transform_metadata import (
-        FirstAxisIsElementsTag as _FirstAxisIsElementsTag)
+        FirstAxisIsElementsTag as _FirstAxisIsElementsTag,
+    )
 except ImportError:
     # placeholder in case meshmode is too old to have it.
     class _FirstAxisIsElementsTag(Tag):  # type: ignore[no-redef]
         pass
 
 
-if sys.version_info >= (3, 7):
-    def __getattr__(name):
-        if name == "FirstAxisIsElementsTag":
-            warn(f"'arraycontext.{name}' is deprecated. "
-                    f"Use 'meshmode.transform_metadata.{name}' instead. "
-                    f"'arraycontext.{name}' will continue to work until 2022.",
-                    DeprecationWarning, stacklevel=2)
-            return _FirstAxisIsElementsTag
-        else:
-            raise AttributeError(name)
-else:
-    FirstAxisIsElementsTag = _FirstAxisIsElementsTag
+def __getattr__(name):
+    if name == "FirstAxisIsElementsTag":
+        warn(f"'arraycontext.{name}' is deprecated. "
+                f"Use 'meshmode.transform_metadata.{name}' instead. "
+                f"'arraycontext.{name}' will continue to work until 2022.",
+                DeprecationWarning, stacklevel=2)
+        return _FirstAxisIsElementsTag
+    else:
+        raise AttributeError(name)
 
 # }}}
 

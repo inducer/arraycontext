@@ -339,17 +339,17 @@ def get_container_context_recursively(ary: ArrayContainer) -> Optional[ArrayCont
 # FYI: This doesn't, and never should, make arraycontext directly depend on pymbolic.
 # (Though clearly there exists a dependency via loopy.)
 
-def _serialize_multivec_as_container(mv: "MultiVector") -> Iterable[Tuple[Any, Any]]:
+def _serialize_multivec_as_container(mv: MultiVector) -> Iterable[Tuple[Any, Any]]:
     return list(mv.data.items())
 
 
-def _deserialize_multivec_as_container(template: "MultiVector",
-        iterable: Iterable[Tuple[Any, Any]]) -> "MultiVector":
+def _deserialize_multivec_as_container(template: MultiVector,
+        iterable: Iterable[Tuple[Any, Any]]) -> MultiVector:
     from pymbolic.geometric_algebra import MultiVector
     return MultiVector(dict(iterable), space=template.space)
 
 
-def _get_container_context_opt_from_multivec(mv: "MultiVector") -> None:
+def _get_container_context_opt_from_multivec(mv: MultiVector) -> None:
     return None
 
 

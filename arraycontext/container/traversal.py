@@ -75,11 +75,21 @@ from warnings import warn
 import numpy as np
 
 from arraycontext.container import (
-    ArrayContainer, NotAnArrayContainerError, deserialize_container,
-    get_container_context_recursively_opt, serialize_container)
+    ArrayContainer,
+    NotAnArrayContainerError,
+    deserialize_container,
+    get_container_context_recursively_opt,
+    serialize_container,
+)
 from arraycontext.context import (
-    Array, ArrayContext, ArrayOrContainer, ArrayOrContainerOrScalar,
-    ArrayOrContainerT, ArrayT, ScalarLike)
+    Array,
+    ArrayContext,
+    ArrayOrContainer,
+    ArrayOrContainerOrScalar,
+    ArrayOrContainerT,
+    ArrayT,
+    ScalarLike,
+)
 
 
 # {{{ array container traversal helpers
@@ -383,9 +393,9 @@ def keyed_map_array_container(
     """
     try:
         iterable = serialize_container(ary)
-    except NotAnArrayContainerError:
+    except NotAnArrayContainerError as err:
         raise ValueError(
-                f"Non-array container type has no key: {type(ary).__name__}")
+                f"Non-array container type has no key: {type(ary).__name__}") from err
     else:
         return deserialize_container(ary, [
             (key, f(key, subary)) for key, subary in iterable
@@ -410,7 +420,7 @@ def rec_keyed_map_array_container(
             return cast(ArrayOrContainerT, f(keys, cast(ArrayT, _ary)))
         else:
             return deserialize_container(_ary, [
-                (key, rec(keys + (key,), subary)) for key, subary in iterable
+                (key, rec((*keys, key), subary)) for key, subary in iterable
                 ])
 
     return rec((), ary)
@@ -423,7 +433,7 @@ def rec_keyed_map_array_container(
 def map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[[Any], Any],
-        ary: ArrayOrContainerT) -> "Array":
+        ary: ArrayOrContainerT) -> Array:
     """Perform a map-reduce over array containers.
 
     :param reduce_func: callable used to reduce over the components of *ary*
@@ -699,7 +709,7 @@ def flatten(
 
             if subary_c.dtype != common_dtype:
                 raise ValueError("arrays in container have different dtypes: "
-                        f"got {subary_c.dtype}, expected {common_dtype}")
+                        f"got {subary_c.dtype}, expected {common_dtype}") from None
 
             try:
                 flat_subary = actx.np.ravel(subary_c, order="C")
@@ -785,12 +795,13 @@ def unflatten(
 
             if (offset + template_subary_c.size) > ary.size:
                 raise ValueError("'template' and 'ary' sizes do not match: "
-                    "'template' is too large")
+                    "'template' is too large") from None
 
             if strict:
                 if template_subary_c.dtype != ary.dtype:
                     raise ValueError("'template' dtype does not match 'ary': "
-                            f"got {template_subary_c.dtype}, expected {ary.dtype}")
+                            f"got {template_subary_c.dtype}, expected {ary.dtype}"
+                        ) from None
             else:
                 # NOTE: still require that *template* has a uniform dtype
                 if common_dtype is None:
@@ -799,7 +810,7 @@ def unflatten(
                     if common_dtype != template_subary_c.dtype:
                         raise ValueError("arrays in 'template' have different "
                                 f"dtypes: got {template_subary_c.dtype}, but "
-                                f"expected {common_dtype}.")
+                                f"expected {common_dtype}.") from None
 
             # }}}
 
@@ -833,7 +844,7 @@ def unflatten(
                     raise ValueError(
                             # Mypy has a point: nobody promised a .strides attribute.
                             f"strides do not match template: got {subary.strides}, "
-                            f"expected {template_subary_c.strides}")
+                            f"expected {template_subary_c.strides}") from None
 
             # }}}
 
@@ -863,7 +874,7 @@ def unflatten(
 
 
 def flat_size_and_dtype(
-        ary: ArrayOrContainer) -> "Tuple[int, Optional[np.dtype[Any]]]":
+        ary: ArrayOrContainer) -> Tuple[int, Optional[np.dtype[Any]]]:
     """
     :returns: a tuple ``(size, dtype)`` that would be the length and
         :class:`numpy.dtype` of the one-dimensional array returned by
@@ -884,7 +895,7 @@ def flat_size_and_dtype(
 
             if subary_c.dtype != common_dtype:
                 raise ValueError("arrays in container have different dtypes: "
-                        f"got {subary_c.dtype}, expected {common_dtype}")
+                        f"got {subary_c.dtype}, expected {common_dtype}") from None
 
             return subary_c.size
         else:

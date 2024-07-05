@@ -35,8 +35,7 @@ import numpy as np
 
 from pytools.tag import ToTagSetConvertible
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 
 
@@ -132,16 +131,18 @@ class PyOpenCLArrayContext(ArrayContext):
                 warn("PyOpenCLArrayContext created without an allocator on a GPU. "
                      "This can lead to high numbers of memory allocations. "
                      "Please consider using a pyopencl.tools.MemoryPool. "
-                     "Run with allocator=False to disable this warning.")
+                     "Run with allocator=False to disable this warning.",
+                     stacklevel=2)
 
             if __debug__:
                 # Use "running on GPU" as a proxy for "they care about speed".
                 warn("You are using the PyOpenCLArrayContext on a GPU, but you "
                         "are running Python in debug mode. Use 'python -O' for "
-                        "a noticeable speed improvement.")
+                        "a noticeable speed improvement.",
+                        stacklevel=2)
 
         self._loopy_transform_cache: \
-                Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
+                Dict[lp.TranslationUnit, lp.TranslationUnit] = {}
 
         # TODO: Ideally this should only be `(TaggableCLArray,)`, but
         # that would break the logic in the downstream users.
