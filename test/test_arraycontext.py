@@ -28,12 +28,12 @@ import numpy as np
 import pytest
 
 from pytools.obj_array import make_obj_array
+from pytools.tag import Tag
 
 from arraycontext import (
     ArrayContainer,
     ArrayContext,
     EagerJAXArrayContext,
-    FirstAxisIsElementsTag,
     PyOpenCLArrayContext,
     PytatoPyOpenCLArrayContext,
     dataclass_array_container,
@@ -735,8 +735,7 @@ def test_array_context_einsum_array_manipulation(actx_factory, spec):
     rng = np.random.default_rng()
 
     mat = actx.from_numpy(rng.normal(size=(10, 10)))
-    res = actx.to_numpy(actx.einsum(spec, mat,
-                                    tagged=(FirstAxisIsElementsTag())))
+    res = actx.to_numpy(actx.einsum(spec, mat))
     ans = np.einsum(spec, actx.to_numpy(mat))
     assert np.allclose(res, ans)
 
@@ -752,8 +751,7 @@ def test_array_context_einsum_array_matmatprods(actx_factory, spec):
 
     mat_a = actx.from_numpy(rng.normal(size=(5, 5)))
     mat_b = actx.from_numpy(rng.normal(size=(5, 5)))
-    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b,
-                                    tagged=(FirstAxisIsElementsTag())))
+    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b))
     ans = np.einsum(spec, actx.to_numpy(mat_a), actx.to_numpy(mat_b))
     assert np.allclose(res, ans)
 
@@ -768,8 +766,7 @@ def test_array_context_einsum_array_tripleprod(actx_factory, spec):
     mat_a = actx.from_numpy(rng.normal(size=(7, 5)))
     mat_b = actx.from_numpy(rng.normal(size=(5, 7)))
     vec = actx.from_numpy(rng.normal(size=(7)))
-    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b, vec,
-                                    tagged=(FirstAxisIsElementsTag())))
+    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b, vec))
     ans = np.einsum(spec,
                     actx.to_numpy(mat_a),
                     actx.to_numpy(mat_b),
@@ -1523,6 +1520,11 @@ def test_actx_compile_on_pure_array_return(actx_factory):
 
 # {{{ test_taggable_cl_array_tags
 
+@dataclass(frozen=True)
+class MySampleTag(Tag):
+    pass
+
+
 def test_taggable_cl_array_tags(actx_factory):
     actx = actx_factory()
     if not isinstance(actx, PyOpenCLArrayContext):
@@ -1535,10 +1537,10 @@ def test_taggable_cl_array_tags(actx_factory):
 
     from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
     tagged_ary = to_tagged_cl_array(ary, axes=None,
-                                    tags=frozenset((FirstAxisIsElementsTag(),)))
+                                    tags=frozenset((MySampleTag(),)))
 
     assert tagged_ary.base_data is ary.base_data
-    assert tagged_ary.tags == frozenset((FirstAxisIsElementsTag(),))
+    assert tagged_ary.tags == frozenset((MySampleTag(),))
 
     # }}}
 
@@ -1550,7 +1552,7 @@ def test_taggable_cl_array_tags(actx_factory):
 
     assert tagged_ary.base_data is ary.base_data
     assert tagged_ary.tags == frozenset(
-        (FirstAxisIsElementsTag(), ElementwiseMapKernelTag())
+        (MySampleTag(), ElementwiseMapKernelTag())
     )
 
     # }}}
