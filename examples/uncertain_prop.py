@@ -19,7 +19,6 @@ print(a)
 print("========================================================")
 print(b)
 print("========================================================")
-breakpoint()
 
 # Eq: z = x + y
 # Assumptions: x and y are independently uncertain.
@@ -37,13 +36,13 @@ y2 = np.random.random((15,5))
 actx = PytatoPyOpenCLArrayContextUQ
 
 out = actx.pack_for_uq(actx,"x", x, x1, x2, "y", y, y1, y2)
-print("===============out======================")
+print("===============OUT======================")
 print(out)
+
+x = out["x"]
+y = out["y"]
 
 breakpoint()
 
-
-
-
-
+x + y
 

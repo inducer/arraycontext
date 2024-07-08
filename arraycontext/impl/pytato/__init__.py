@@ -720,7 +720,7 @@ class PytatoPyOpenCLArrayContextUQ(PytatoPyOpenCLArrayContext):
         dag = pt.transform.materialize_with_mpms(dag)
         return dag
 
-    def pack_for_uq(self,*args):
+    def pack_for_uq(self,*args) -> dict:
         """
             Args is a list of variable names and the realized input data that needs
             to be packed for a parameter study or uncertainty quantification.
@@ -773,6 +773,38 @@ class PytatoPyOpenCLArrayContextUQ(PytatoPyOpenCLArrayContext):
             num_calls += 1
 
         return out
+
+
+    def unpack(self, data):
+        """
+            Revert data to a sequence of outputs under the assumption that a specific variable
+            is held constant.
+
+            ::arg:: data multidimensional array tagged with dimensions that are varying.
+            UQAxisTag will tag each specific axis that we are going to slice.
+        """
+
+        ndim = len(data.axes)
+
+        out = {}
+
+
+        for i in range(ndim):
+            axis_tags = data.axes[i].tags_of_type(UQAxisTag)
+            if axis_tags:
+                # Now we need to split this data.
+                for j in range(len(data.axis[i])):
+                    the_slice = [slice(None)] * ndim
+                    the_slice[i] = j
+                    if i in out.keys():
+                        out[i].append(data[the_slice])
+                    else:
+                        out[i] = data[the_slice]
+                    #yield data[the_slice]
+
+
+        return out
+
 
 # }}}
 
