@@ -160,8 +160,17 @@ THE SOFTWARE.
 
 from abc import ABC, abstractmethod
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Protocol, Tuple, TypeVar,
-    Union)
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Mapping,
+    Optional,
+    Protocol,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 

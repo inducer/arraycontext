@@ -383,7 +383,7 @@ def with_container_arithmetic(
             if not t:
                 return "()"
             else:
-                return "(%s,)" % ", ".join(t)
+                return "({},)".format(", ".join(t))
 
         gen(f"cls._outer_bcast_types = {tup_str(outer_bcast_type_names)}")
         gen(f"cls._bcast_numpy_array = {bcast_numpy_array}")

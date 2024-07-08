@@ -33,8 +33,7 @@ import numpy as np
 
 from pytools.tag import ToTagSetConvertible
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 
 

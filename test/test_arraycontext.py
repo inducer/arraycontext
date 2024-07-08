@@ -28,15 +28,28 @@ import numpy as np
 import pytest
 
 from pytools.obj_array import make_obj_array
+from pytools.tag import Tag
 
-from arraycontext import (  # noqa: F401
-    ArrayContainer, ArrayContext, EagerJAXArrayContext, FirstAxisIsElementsTag,
-    PyOpenCLArrayContext, PytatoPyOpenCLArrayContext, dataclass_array_container,
-    deserialize_container, pytest_generate_tests_for_array_contexts,
-    serialize_container, tag_axes, with_array_context, with_container_arithmetic)
+from arraycontext import (
+    ArrayContainer,
+    ArrayContext,
+    EagerJAXArrayContext,
+    PyOpenCLArrayContext,
+    PytatoPyOpenCLArrayContext,
+    dataclass_array_container,
+    deserialize_container,
+    pytest_generate_tests_for_array_contexts,
+    serialize_container,
+    tag_axes,
+    with_array_context,
+    with_container_arithmetic,
+)
 from arraycontext.pytest import (
-    _PytestEagerJaxArrayContextFactory, _PytestPyOpenCLArrayContextFactoryWithClass,
-    _PytestPytatoJaxArrayContextFactory, _PytestPytatoPyOpenCLArrayContextFactory)
+    _PytestEagerJaxArrayContextFactory,
+    _PytestPyOpenCLArrayContextFactoryWithClass,
+    _PytestPytatoJaxArrayContextFactory,
+    _PytestPytatoPyOpenCLArrayContextFactory,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -133,7 +146,7 @@ class DOFArray:
         return self.data[i]
 
     def __repr__(self):
-        return f"DOFArray({repr(self.data)})"
+        return f"DOFArray({self.data!r})"
 
     @classmethod
     def _serialize_init_arrays_code(cls, instance_name):
@@ -182,7 +195,7 @@ def _deserialize_dof_container(  # type: ignore[misc]
 
 @with_array_context.register(DOFArray)
 # https://github.com/python/mypy/issues/13040
-def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type: ignore[misc]  # noqa: E501
+def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type: ignore[misc]
     return type(ary)(actx, ary.data)
 
 # }}}
@@ -411,7 +424,7 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
     assert_close_to_numpy(
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
-    for c in (42.0,) + _get_test_containers(actx):
+    for c in (42.0, *_get_test_containers(actx)):
         result = getattr(actx.np, sym_name)(c)
         result = actx.thaw(actx.freeze(result))
 
@@ -434,32 +447,36 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
 # {{{ array manipulations
 
 def test_actx_stack(actx_factory):
+    rng = np.random.default_rng()
+
     actx = actx_factory()
 
     ndofs = 5000
-    args = [np.random.randn(ndofs) for i in range(10)]
+    args = [rng.normal(size=ndofs) for i in range(10)]
 
     assert_close_to_numpy_in_containers(
             actx, lambda _np, *_args: _np.stack(_args), args)
 
 
 def test_actx_concatenate(actx_factory):
+    rng = np.random.default_rng()
     actx = actx_factory()
 
     ndofs = 5000
-    args = [np.random.randn(ndofs) for i in range(10)]
+    args = [rng.normal(size=ndofs) for i in range(10)]
 
     assert_close_to_numpy(
             actx, lambda _np, *_args: _np.concatenate(_args), args)
 
 
 def test_actx_reshape(actx_factory):
+    rng = np.random.default_rng()
     actx = actx_factory()
 
     for new_shape in [(3, 2), (3, -1), (6,), (-1,)]:
         assert_close_to_numpy(
                 actx, lambda _np, *_args: _np.reshape(*_args),
-                (np.random.randn(2, 3), new_shape))
+                (rng.normal(size=(2, 3)), new_shape))
 
 
 def test_actx_ravel(actx_factory):
@@ -478,6 +495,7 @@ def test_actx_ravel(actx_factory):
 # {{{ arithmetic same as numpy
 
 def test_dof_array_arithmetic_same_as_numpy(actx_factory):
+    rng = np.random.default_rng()
     actx = actx_factory()
 
     ndofs = 50_000
@@ -499,12 +517,12 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
             (operator.truediv, 2, False),
             (operator.pow, 2, False),
             # FIXME pyopencl.Array doesn't do mod.
-            #(operator.mod, 2, True),
-            #(operator.mod, 2, False),
-            #(operator.imod, 2, True),
-            #(operator.imod, 2, False),
+            # (operator.mod, 2, True),
+            # (operator.mod, 2, False),
+            # (operator.imod, 2, True),
+            # (operator.imod, 2, False),
             # FIXME: Two outputs
-            #(divmod, 2, False),
+            # (divmod, 2, False),
 
             (operator.iadd, 2, False),
             (operator.isub, 2, False),
@@ -559,9 +577,9 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
                 op_func_actx = op_func
 
             args = [
-                    (0.5+np.random.rand(ndofs)
+                    (0.5+rng.uniform(size=ndofs)
                         if not use_integers else
-                        np.random.randint(3, 200, ndofs))
+                        rng.integers(3, 200, size=ndofs))
 
                     if is_array_flag else
                     (uniform(0.5, 2)
@@ -631,9 +649,10 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory):
 
 @pytest.mark.parametrize("op", ["sum", "min", "max"])
 def test_reductions_same_as_numpy(actx_factory, op):
+    rng = np.random.default_rng()
     actx = actx_factory()
 
-    ary = np.random.randn(3000)
+    ary = rng.normal(size=3000)
     np_red = getattr(np, op)(ary)
     actx_red = getattr(actx.np, op)(actx.from_numpy(ary))
     actx_red = actx.to_numpy(actx_red)
@@ -713,10 +732,10 @@ def test_array_equal(actx_factory):
 ])
 def test_array_context_einsum_array_manipulation(actx_factory, spec):
     actx = actx_factory()
+    rng = np.random.default_rng()
 
-    mat = actx.from_numpy(np.random.randn(10, 10))
-    res = actx.to_numpy(actx.einsum(spec, mat,
-                                    tagged=(FirstAxisIsElementsTag())))
+    mat = actx.from_numpy(rng.normal(size=(10, 10)))
+    res = actx.to_numpy(actx.einsum(spec, mat))
     ans = np.einsum(spec, actx.to_numpy(mat))
     assert np.allclose(res, ans)
 
@@ -728,11 +747,11 @@ def test_array_context_einsum_array_manipulation(actx_factory, spec):
 ])
 def test_array_context_einsum_array_matmatprods(actx_factory, spec):
     actx = actx_factory()
+    rng = np.random.default_rng()
 
-    mat_a = actx.from_numpy(np.random.randn(5, 5))
-    mat_b = actx.from_numpy(np.random.randn(5, 5))
-    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b,
-                                    tagged=(FirstAxisIsElementsTag())))
+    mat_a = actx.from_numpy(rng.normal(size=(5, 5)))
+    mat_b = actx.from_numpy(rng.normal(size=(5, 5)))
+    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b))
     ans = np.einsum(spec, actx.to_numpy(mat_a), actx.to_numpy(mat_b))
     assert np.allclose(res, ans)
 
@@ -742,12 +761,12 @@ def test_array_context_einsum_array_matmatprods(actx_factory, spec):
 ])
 def test_array_context_einsum_array_tripleprod(actx_factory, spec):
     actx = actx_factory()
+    rng = np.random.default_rng()
 
-    mat_a = actx.from_numpy(np.random.randn(7, 5))
-    mat_b = actx.from_numpy(np.random.randn(5, 7))
-    vec = actx.from_numpy(np.random.randn(7))
-    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b, vec,
-                                    tagged=(FirstAxisIsElementsTag())))
+    mat_a = actx.from_numpy(rng.normal(size=(7, 5)))
+    mat_b = actx.from_numpy(rng.normal(size=(5, 7)))
+    vec = actx.from_numpy(rng.normal(size=(7)))
+    res = actx.to_numpy(actx.einsum(spec, mat_a, mat_b, vec))
     ans = np.einsum(spec,
                     actx.to_numpy(mat_a),
                     actx.to_numpy(mat_b),
@@ -768,8 +787,11 @@ def test_container_map_on_device_scalar(actx_factory):
     arys += (np.pi,)
 
     from arraycontext import (
-        map_array_container, map_reduce_array_container, rec_map_array_container,
-        rec_map_reduce_array_container)
+        map_array_container,
+        map_reduce_array_container,
+        rec_map_array_container,
+        rec_map_reduce_array_container,
+    )
 
     for size, ary in zip(expected_sizes, arys[:-1]):
         result = map_array_container(lambda x: x, ary)
@@ -785,7 +807,7 @@ def test_container_map_on_device_scalar(actx_factory):
 
 def test_container_map(actx_factory):
     actx = actx_factory()
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, _bcast_dc_of_dofs = \
             _get_test_containers(actx)
 
     # {{{ check
@@ -838,7 +860,7 @@ def test_container_map(actx_factory):
 
 def test_container_multimap(actx_factory):
     actx = actx_factory()
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, _bcast_dc_of_dofs = \
             _get_test_containers(actx)
 
     # {{{ check
@@ -960,13 +982,15 @@ def test_container_arithmetic(actx_factory):
 
 def test_container_freeze_thaw(actx_factory):
     actx = actx_factory()
-    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, bcast_dc_of_dofs = \
+    ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs, _bcast_dc_of_dofs = \
             _get_test_containers(actx)
 
     # {{{ check
 
     from arraycontext import (
-        get_container_context_opt, get_container_context_recursively_opt)
+        get_container_context_opt,
+        get_container_context_recursively_opt,
+    )
 
     assert get_container_context_opt(ary_of_dofs) is None
     assert get_container_context_opt(mat_of_dofs) is None
@@ -1129,13 +1153,14 @@ def test_flatten_with_leaf_class(actx_factory):
 
 def test_numpy_conversion(actx_factory):
     actx = actx_factory()
+    rng = np.random.default_rng()
 
     nelements = 42
     ac = MyContainer(
             name="test_numpy_conversion",
-            mass=np.random.rand(nelements, nelements),
-            momentum=make_obj_array([np.random.rand(nelements) for _ in range(3)]),
-            enthalpy=np.array(np.random.rand()),
+            mass=rng.uniform(size=(nelements, nelements)),
+            momentum=make_obj_array([rng.uniform(size=nelements) for _ in range(3)]),
+            enthalpy=np.array(rng.uniform()),
             )
 
     ac_actx = actx.from_numpy(ac)
@@ -1219,11 +1244,12 @@ def scale_and_orthogonalize(alpha, vel):
 
 def test_actx_compile(actx_factory):
     actx = actx_factory()
+    rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
 
-    v_x = np.random.rand(10)
-    v_y = np.random.rand(10)
+    v_x = rng.uniform(size=10)
+    v_y = rng.uniform(size=10)
 
     vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
@@ -1236,11 +1262,12 @@ def test_actx_compile(actx_factory):
 
 def test_actx_compile_python_scalar(actx_factory):
     actx = actx_factory()
+    rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
 
-    v_x = np.random.rand(10)
-    v_y = np.random.rand(10)
+    v_x = rng.uniform(size=10)
+    v_y = rng.uniform(size=10)
 
     vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
@@ -1253,11 +1280,12 @@ def test_actx_compile_python_scalar(actx_factory):
 
 def test_actx_compile_kwargs(actx_factory):
     actx = actx_factory()
+    rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
 
-    v_x = np.random.rand(10)
-    v_y = np.random.rand(10)
+    v_x = rng.uniform(size=10)
+    v_y = rng.uniform(size=10)
 
     vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
@@ -1273,6 +1301,7 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     # key stringification logic.
     from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
+    rng = np.random.default_rng()
 
     def my_rhs(scale, vel):
         result = np.empty((1, 1), dtype=object)
@@ -1281,8 +1310,8 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
 
     compiled_rhs = actx.compile(my_rhs)
 
-    v_x = np.random.rand(10)
-    v_y = np.random.rand(10)
+    v_x = rng.uniform(size=10)
+    v_y = rng.uniform(size=10)
 
     vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
 
@@ -1300,9 +1329,9 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
 def test_container_equality(actx_factory):
     actx = actx_factory()
 
-    ary_dof, _, _, dc_of_dofs, bcast_dc_of_dofs = \
+    ary_dof, _, _, _dc_of_dofs, bcast_dc_of_dofs = \
             _get_test_containers(actx)
-    _, _, _, dc_of_dofs_2, bcast_dc_of_dofs_2 = \
+    _, _, _, _dc_of_dofs_2, bcast_dc_of_dofs_2 = \
             _get_test_containers(actx)
 
     # MyContainer sets eq_comparison to False, so equality comparison should
@@ -1491,6 +1520,11 @@ def test_actx_compile_on_pure_array_return(actx_factory):
 
 # {{{ test_taggable_cl_array_tags
 
+@dataclass(frozen=True)
+class MySampleTag(Tag):
+    pass
+
+
 def test_taggable_cl_array_tags(actx_factory):
     actx = actx_factory()
     if not isinstance(actx, PyOpenCLArrayContext):
@@ -1503,10 +1537,10 @@ def test_taggable_cl_array_tags(actx_factory):
 
     from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
     tagged_ary = to_tagged_cl_array(ary, axes=None,
-                                    tags=frozenset((FirstAxisIsElementsTag(),)))
+                                    tags=frozenset((MySampleTag(),)))
 
     assert tagged_ary.base_data is ary.base_data
-    assert tagged_ary.tags == frozenset((FirstAxisIsElementsTag(),))
+    assert tagged_ary.tags == frozenset((MySampleTag(),))
 
     # }}}
 
@@ -1518,7 +1552,7 @@ def test_taggable_cl_array_tags(actx_factory):
 
     assert tagged_ary.base_data is ary.base_data
     assert tagged_ary.tags == frozenset(
-        (FirstAxisIsElementsTag(), ElementwiseMapKernelTag())
+        (MySampleTag(), ElementwiseMapKernelTag())
     )
 
     # }}}

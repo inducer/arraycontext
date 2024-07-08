@@ -100,7 +100,7 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
         # holding a reference to the context to keep it alive in turn.
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
-        ctx, queue = self.get_command_queue()
+        _ctx, queue = self.get_command_queue()
 
         alloc = None
 
@@ -111,7 +111,8 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
             from warnings import warn
             warn("Disabling SVM due to memory leak "
                  "in Nvidia CL when running pytest. "
-                 "See https://github.com/inducer/arraycontext/issues/196")
+                 "See https://github.com/inducer/arraycontext/issues/196",
+                 stacklevel=1)
 
         return self.actx_class(
                 queue,
@@ -119,11 +120,9 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
                 force_device_scalars=self.force_device_scalars)
 
     def __str__(self):
-        return ("<%s for <pyopencl.Device '%s' on '%s'>>" %
-                (
-                    self.actx_class.__name__,
-                    self.device.name.strip(),
-                    self.device.platform.name.strip()))
+        return (f"<{self.actx_class.__name__} "
+            f"for <pyopencl.Device '{self.device.name.strip()}' "
+            f"on '{self.device.platform.name.strip()}'>>")
 
 
 class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
@@ -154,7 +153,7 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
         # holding a reference to the context to keep it alive in turn.
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
-        ctx, queue = self.get_command_queue()
+        _ctx, queue = self.get_command_queue()
 
         alloc = None
 
@@ -165,15 +164,15 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
             from warnings import warn
             warn("Disabling SVM due to memory leak "
                  "in Nvidia CL when running pytest. "
-                 "See https://github.com/inducer/arraycontext/issues/196")
+                 "See https://github.com/inducer/arraycontext/issues/196",
+                 stacklevel=1)
 
         return self.actx_class(queue, allocator=alloc)
 
     def __str__(self):
-        return ("<PytatoPyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>>" %
-                (
-                    self.device.name.strip(),
-                    self.device.platform.name.strip()))
+        return ("<PytatoPyOpenCLArrayContext for "
+                f"<pyopencl.Device '{self.device.name.strip()}' "
+                f"on '{self.device.platform.name.strip()}'>>")
 
 
 class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):

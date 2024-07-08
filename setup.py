@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 
 def main():
-    from setuptools import setup, find_packages
+    from setuptools import find_packages, setup
 
     version_dict = {}
     init_filename = "arraycontext/version.py"
     exec(
-        compile(open(init_filename, "r").read(), init_filename, "exec"), version_dict
+        compile(open(init_filename).read(), init_filename, "exec"), version_dict
     )
 
     setup(
         name="arraycontext",
         version=version_dict["VERSION_TEXT"],
         description="Choose your favorite numpy-workalike",
-        long_description=open("README.rst", "rt").read(),
+        long_description=open("README.rst").read(),
         author="Andreas Kloeckner",
         author_email="inform@tiker.net",
         license="MIT",

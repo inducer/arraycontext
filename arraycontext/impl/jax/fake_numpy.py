@@ -28,10 +28,11 @@ import numpy as np
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-    rec_map_array_container, rec_map_reduce_array_container,
-    rec_multimap_array_container)
-from arraycontext.fake_numpy import (
-    BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace)
+    rec_map_array_container,
+    rec_map_reduce_array_container,
+    rec_multimap_array_container,
+)
+from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace
 
 
 class EagerJAXFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -102,7 +103,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         if order in "AK":
             from warnings import warn
             warn(f"ravel with order='{order}' not supported by JAX,"
-                 " using order=C.")
+                 " using order=C.", stacklevel=1)
             order = "C"
 
         return rec_map_array_container(

@@ -27,6 +27,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import ClassVar, Mapping
+
 import numpy as np
 
 import loopy as lp
@@ -70,9 +72,9 @@ def get_default_entrypoint(t_unit):
     except AttributeError:
         try:
             return t_unit.root_kernel
-        except AttributeError:
+        except AttributeError as err:
             raise TypeError("unable to find default entry point for loopy "
-                    "translation unit")
+                    "translation unit") from err
 
 
 def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
@@ -109,14 +111,14 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                         lp.GlobalArg("inp%d" % i,
                                      dtype=None, shape=lp.auto, offset=lp.auto)
                         for i in range(nargs)] + [...],
-                name="actx_special_%s" % c_name,
+                name=f"actx_special_{c_name}",
                 tags=(ElementwiseMapKernelTag(),))
 
     return get(c_name, nargs, naxes)
 
 
 class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
-    _numpy_to_c_arc_functions = {
+    _numpy_to_c_arc_functions: ClassVar[Mapping[str, str]] = {
             "arcsin": "asin",
             "arccos": "acos",
             "arctan": "atan",
@@ -127,7 +129,7 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
             "arctanh": "atanh",
             }
 
-    _c_to_numpy_arc_functions = {c_name: numpy_name
+    _c_to_numpy_arc_functions: ClassVar[Mapping[str, str]] = {c_name: numpy_name
             for numpy_name, c_name in _numpy_to_c_arc_functions.items()}
 
     def __getattr__(self, name):
