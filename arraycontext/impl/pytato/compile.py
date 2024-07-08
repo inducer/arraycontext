@@ -577,7 +577,7 @@ def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
 
 class CompiledFunction(abc.ABC):
     """
-    A callable which captures the :class:`pytato.target.BoundProgram`  resulting
+    A callable which captures the :class:`pytato.target.BoundProgram` resulting
     from calling :attr:`~BaseLazilyCompilingFunctionCaller.f` with a given set of
     input types, and generating :mod:`loopy` IR from it.
 
