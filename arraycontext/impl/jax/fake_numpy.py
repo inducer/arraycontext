@@ -23,8 +23,9 @@ THE SOFTWARE.
 """
 from functools import partial, reduce
 
-import jax.numpy as jnp
 import numpy as np
+
+import jax.numpy as jnp
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
