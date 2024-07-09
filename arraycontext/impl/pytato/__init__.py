@@ -720,7 +720,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             unstable.
         """
         import jax.numpy as jnp
-
         import pytato as pt
         super().__init__(compile_trace_callback=compile_trace_callback)
         self.array_types = (pt.Array, jnp.ndarray)
@@ -766,7 +765,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
     def from_numpy(self, array):
         import jax
-
         import pytato as pt
 
         def _from_numpy(ary):
@@ -791,7 +789,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             return array
 
         import jax.numpy as jnp
-
         import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
