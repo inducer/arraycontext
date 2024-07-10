@@ -22,7 +22,7 @@ print("========================================================")
 # Eq: z = x + y
 # Assumptions: x and y are independently uncertain.
 
-
+# Experimental setup
 base_shape = (15, 5)
 x = np.random.random(base_shape)
 x1 = np.random.random(base_shape)
@@ -50,8 +50,6 @@ packy = pack_for_parameter_study(actx,"y",tuple([4]), y, y1, y2, y3)
 output_x = unpack_parameter_study(packx, "x")
 
 print(packx)
-breakpoint()
-
 
 def rhs(param1, param2):
     return param1 + param2
@@ -66,7 +64,9 @@ assert output.shape == (3,4,15,5) # Distinct parameter studies.
 
 output_x = unpack_parameter_study(output, "x")
 output_y = unpack_parameter_study(output, "y")
-assert len(output_x) == 3
-assert output_x[0].shape == (4,15,5)
-assert len(output_y) == 4
+assert len(output_x) == 1 # Number of parameter studies involving "x"
+assert len(output_x[0]) == 3 # Number of inputs in the 0th parameter study
+assert output_x[0][0].shape == (4,15,5) # All outputs across every other parameter study.
+assert len(output_y) == 1
+assert len(output_y[0]) == 4
 assert output_y[0].shape == (3,15,5)

@@ -114,6 +114,9 @@ class ParamStudyPytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContext):
         out = super().transform_dag(ary)
         return out
 
+    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+        return ParamStudyLazyPyOpenCLFunctionCaller(self, f)
+
 
 # }}}
 
@@ -153,10 +156,10 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
             for arg_id in arg_id_to_arg}
 
         output_template = self.f(
-                *[_get_f_placeholder_args(arg, iarg,
+                *[_get_f_placeholder_args_for_param_study(arg, iarg,
                                           input_id_to_name_in_program, self.actx)
                     for iarg, arg in enumerate(args)],
-                **{kw: _get_f_placeholder_args(arg, kw,
+                **{kw: _get_f_placeholder_args_for_param_study(arg, kw,
                                                input_id_to_name_in_program,
                                                self.actx)
                     for kw, arg in kwargs.items()})
@@ -227,14 +230,17 @@ def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
         raise NotImplementedError(type(ary))
 
 
-def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
+def _get_f_placeholder_args_for_param_study(arg, kw, arg_id_to_name, actx):
     """
-    Helper for :class:`BaseLazilyCompilingFunctionCaller.__call__`. Returns the
-    placeholder version of an argument to
-    :attr:`BaseLazilyCompilingFunctionCaller.f`.
+    Helper for :class:`BaseLazilyCompilingFunctionCaller.__call__`. 
+    Returns the placeholder version of an argument to
+    :attr:`ParamStudyLazyPyOpenCLFunctionCaller.f`. Note this will modify the
+    shape of the placeholder to remove any parameter study axes until the trace
+    can be completed.
     """
     if np.isscalar(arg):
         name = arg_id_to_name[(kw,)]
+        breakpoint()
         return pt.make_placeholder(name, (), np.dtype(type(arg)))
     elif isinstance(arg, pt.Array):
         name = arg_id_to_name[(kw,)]
@@ -292,7 +298,7 @@ def pack_for_parameter_study(actx: ArrayContext, yourvarname: str,
     return out
 
 
-def unpack_parameter_study(data: ArrayT, varname: str) -> Sequence[ArrayT]:
+def unpack_parameter_study(data: ArrayT, varname: str) -> Mapping[int, ArrayT]:
     """
         Split the data array along the axes which vary according to a ParameterStudyAxisTag
         whose variable name is varname.
@@ -310,7 +316,11 @@ def unpack_parameter_study(data: ArrayT, varname: str) -> Sequence[ArrayT]:
                 the_slice = [slice(None)] * ndim
                 the_slice[i] = j
                 the_slice = tuple(the_slice)
-                out[tuple([i,j])] = data[the_slice]
+                if i in out.keys():
+                    out[i].append(data[the_slice])
+                else:
+                    out[i] = [data[the_slice]]
+
                 #yield data[the_slice]
 
     return out
