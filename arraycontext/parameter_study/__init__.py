@@ -283,7 +283,6 @@ def pack_for_parameter_study(actx: ArrayContext, yourvarname: str,
     orig_shape = args[0].shape
     out = actx.np.stack(args)
     outshape = tuple([newshape] + [val for val in orig_shape])
-    breakpoint()
 
     if len(newshape) > 1:
         # Reshape the object
@@ -307,13 +306,11 @@ def unpack_parameter_study(data: ArrayT, varname: str) -> Sequence[ArrayT]:
         if axis_tags:
             # Now we need to split this data.
             breakpoint()
-            for j in range(len(data.axis[i])):
+            for j in range(data.shape[i]):
                 the_slice = [slice(None)] * ndim
                 the_slice[i] = j
-                if i in out.keys():
-                    out[i].append(data[the_slice])
-                else:
-                    out[i] = data[the_slice]
+                the_slice = tuple(the_slice)
+                out[tuple([i,j])] = data[the_slice]
                 #yield data[the_slice]
 
     return out
