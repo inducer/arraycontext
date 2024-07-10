@@ -58,9 +58,12 @@ from typing import (
 )
 
 import numpy as np
+import pytato as pt
 
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
+
+from dataclasses import dataclass
 
 from arraycontext.container.traversal import rec_map_array_container, with_array_context
 
@@ -68,10 +71,9 @@ from arraycontext.context import ArrayT, ArrayContext
 from arraycontext.metadata import NameHint
 from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
 from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
-from arraycontext.impl.pytato.compile import LazilyPyOpenCLCompilingFunctionCaller
-
-
-from dataclasses import dataclass
+from arraycontext.impl.pytato.compile import (LazilyPyOpenCLCompilingFunctionCaller,
+                                             _get_arg_id_to_arg_and_arg_id_to_descr,
+                                                      _to_input_for_compiled)
 
 if TYPE_CHECKING:
     import pyopencl as cl
@@ -89,6 +91,11 @@ logger = logging.getLogger(__name__)
 class ParameterStudyAxisTag(UniqueTag):
     """
         A tag for acting on axes of arrays.
+        To enable multiple parameter studies on the same variable name
+        specify a different axis number and potentially a different size.
+
+        Currently does not allow multiple variables of different names to be in
+        the same parameter study.
     """
     user_variable_name: str
     axis_num: int
@@ -109,11 +116,6 @@ class ParamStudyPytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContext):
     .. automethod:: compile
     """
 
-    def transform_dag(self, ary):
-        # This going to be called before the compiler or freeze.
-        out = super().transform_dag(ary)
-        return out
-
     def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
         return ParamStudyLazyPyOpenCLFunctionCaller(self, f)
 
@@ -131,12 +133,12 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
-        Returns the result of :attr:`~BaseLazilyCompilingFunctionCaller.f`'s
+        Returns the result of :attr:`~ParamStudyLazyPyOpenCLFunctionCaller.f`'s
         function application on *args*.
 
-        Before applying :attr:`~BaseLazilyCompilingFunctionCaller.f`, it is compiled
+        Before applying :attr:`~ParamStudyLazyPyOpenCLFunctionCaller.f`, it is compiled
         to a :mod:`pytato` DAG that would apply
-        :attr:`~BaseLazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
+        :attr:`~ParamStudyLazyPyOpenCLFunctionCaller.f` with *args* in a lazy-sense.
         The intermediary pytato DAG for *args* is memoized in *self*.
         """
         arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
@@ -147,6 +149,7 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         except KeyError:
             pass
         else:
+            # On a cache hit we do not need to modify anything.
             return compiled_f(arg_id_to_arg)
 
         dict_of_named_arrays = {}
@@ -184,6 +187,11 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         rec_keyed_map_array_container(_as_dict_of_named_arrays,
                                       output_template)
 
+        myMapper = ExpansionMapper(dict_of_named_arrays) # Get the dependencies
+        dict_of_named_arrays = myMapper(dict_of_named_arrays) # Update the arrays.
+
+        # Use the normal compiler now.
+
         compiled_func = self._dag_to_compiled_func(
                 pt.make_dict_of_named_arrays(dict_of_named_arrays),
                 input_id_to_name_in_program=input_id_to_name_in_program,
@@ -193,50 +201,17 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         self.program_cache[arg_id_to_descr] = compiled_func
         return compiled_func(arg_id_to_arg)
 
-
-def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
-    """
-    Preprocess *ary* before turning it into a :class:`pytato.array.Placeholder`
-    in :meth:`LazilyCompilingFunctionCaller.__call__`.
-
-    Preprocessing here refers to:
-
-    - Metadata Inference that is supplied via *actx*\'s
-      :meth:`PytatoPyOpenCLArrayContext.transform_dag`.
-    """
-    import pyopencl.array as cla
-
-    from arraycontext.impl.pyopencl.taggable_cl_array import (
-        TaggableCLArray,
-        to_tagged_cl_array,
-    )
-    if isinstance(ary, pt.Array):
-        dag = pt.make_dict_of_named_arrays({"_actx_out": ary})
-        # Transform the DAG to give metadata inference a chance to do its job
-        return actx.transform_dag(dag)["_actx_out"].expr
-    elif isinstance(ary, TaggableCLArray):
-        return ary
-    elif isinstance(ary, cla.Array):
-        from warnings import warn
-        warn("Passing pyopencl.array.Array to a compiled callable"
-             " is deprecated and will stop working in 2023."
-             " Use `to_tagged_cl_array` to convert the array to"
-             " TaggableCLArray", DeprecationWarning, stacklevel=2)
-
-        return to_tagged_cl_array(ary,
-                                  axes=None,
-                                  tags=frozenset())
-    else:
-        raise NotImplementedError(type(ary))
-
-
 def _get_f_placeholder_args_for_param_study(arg, kw, arg_id_to_name, actx):
     """
     Helper for :class:`BaseLazilyCompilingFunctionCaller.__call__`. 
     Returns the placeholder version of an argument to
-    :attr:`ParamStudyLazyPyOpenCLFunctionCaller.f`. Note this will modify the
-    shape of the placeholder to remove any parameter study axes until the trace
+    :attr:`ParamStudyLazyPyOpenCLFunctionCaller.f`.
+    
+    Note this will modify the shape of the placeholder to
+    remove any parameter study axes until the trace
     can be completed.
+
+    They will be added back after the trace is complete.
     """
     if np.isscalar(arg):
         name = arg_id_to_name[(kw,)]
@@ -298,10 +273,13 @@ def pack_for_parameter_study(actx: ArrayContext, yourvarname: str,
     return out
 
 
-def unpack_parameter_study(data: ArrayT, varname: str) -> Mapping[int, ArrayT]:
+def unpack_parameter_study(data: ArrayT, varname: str) -> Dict[int, Sequence[ArrayT]]:
     """
         Split the data array along the axes which vary according to a ParameterStudyAxisTag
         whose variable name is varname.
+
+        output[i] corresponds to the values associated with the ith parameter study that
+        uses the variable name :arg: `varname`.
     """
 
     ndim = len(data.axes)
