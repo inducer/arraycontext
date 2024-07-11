@@ -266,20 +266,20 @@ def with_container_arithmetic(
         if cls_has_array_context_attr is None:
             if hasattr(cls, "array_context"):
                 cls_has_array_context_attr = _FailSafe
-                warn(f"{cls} has an .array_context attribute, but it does not "
-                        "set _cls_has_array_context_attr to True when calling "
-                        "with_container_arithmetic. This is being interpreted "
-                        "as .array_context being permitted to fail. Tolerating "
+                warn(f"{cls} has an 'array_context' attribute, but it does not "
+                        "set '_cls_has_array_context_attr' to 'True' when calling "
+                        "'with_container_arithmetic'. This is being interpreted "
+                        "as 'array_context' being permitted to fail. Tolerating "
                         "these failures comes at a substantial cost. It is "
                         "deprecated and will stop working in 2023. "
-                        "Having a working .array_context attribute is desirable "
+                        "Having a working 'array_context' attribute is desirable "
                         "to enable arithmetic with other array types supported "
-                        "by the array context."
-                        f"If {cls}.array_context will not fail, pass "
-                        "_cls_has_array_context_attr=True. "
+                        "by the array context. "
+                        f"If '{cls.__name__}.array_context' will not fail, pass "
+                        "'_cls_has_array_context_attr=True'. "
                         "If you do not want container arithmetic to make "
                         "use of the array context, set "
-                        "_cls_has_array_context_attr=False.",
+                        "'_cls_has_array_context_attr=False'.",
                         stacklevel=2)
 
         if bcast_actx_array_type is None:
