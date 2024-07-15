@@ -20,6 +20,7 @@ actx = ParamStudyPytatoPyOpenCLArrayContext(queue)
 # Assumptions: x and y are undergoing independent parameter studies.
 base_shape = (15, 5)
 def rhs(param1, param2):
+    return param1 + param2
     return pt.transpose(param1)
     return pt.roll(param1, shift=3, axis=1) 
     return param1.reshape(np.prod(base_shape)) 

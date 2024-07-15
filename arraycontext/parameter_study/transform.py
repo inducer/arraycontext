@@ -186,7 +186,6 @@ class ExpansionMapper(CopyMapper):
 
     def map_placeholder(self, expr: Placeholder) -> Array:
         # This is where we could introduce extra axes.
-        breakpoint()
         correct_shape = expr.shape
         correct_axes = expr.axes
         if expr.name in self.actual_input_shapes.keys():
@@ -202,6 +201,51 @@ class ExpansionMapper(CopyMapper):
                            non_equality_tags=expr.non_equality_tags)
     def map_index_lambda(self, expr: IndexLambda) -> Array:
         # TODO: Fix
+        # Update bindings first.
+        new_bindings: Mapping[str, Array] = { name: self.rec(bnd) 
+                                             for name, bnd in sorted(expr.bindings.items())}
+
+        # Determine the new parameter studies that are being conducted.
+        from pytools import unique
+        from pytools.obj_array import flat_obj_array
+
+        all_axis_tags: Set[Tag] = set()
+        for name, bnd in sorted(new_bindings.items()):
+            axis_tags_for_bnd: Set[Tag] = set()
+            for i in range(len(bnd.axes)):
+                axis_tags_for_bnd = axis_tags_for_bnd.union(bnd.axes[i].tags_of_type(ParameterStudyAxisTag))
+            breakpoint()
+            all_axis_tags = all_axis_tags.union(axis_tags_for_bnd)
+
+        # Freeze the set now.
+        all_axis_tags = frozenset(all_axis_tags)
+
+
+        breakpoint()
+        active_studies: Sequence[ParameterStudyAxisTag] = list(unique(all_axis_tags))
+        axes: Optional[Tuple[Axis]] = tuple([])
+        study_to_axis_number: Mapping[ParameterStudyAxisTag, int] = {}
+
+
+        count = 0
+        new_shape: List[int] = [0 for i in 
+                                       range(len(active_studies) + len(expr.shape))]
+        new_axes: List[Axis] = [Axis() for i in range(len(new_shape))]
+
+        for study in active_studies:
+            if isinstance(study, ParameterStudyAxisTag):
+                # Just defensive programming
+                study_to_axis_number[type(study)] = count
+                new_shape[count] = study.axis_size  #  We are recording the size of each parameter study.
+                new_axes[count] = new_axes[count].tagged([study])
+                count += 1
+
+        for i in range(len(expr.shape)):
+            new_shape[count] = expr.shape[i]
+            count += 1
+        new_shape: Tuple[int] = tuple(new_shape)
+
+        breakpoint()
         return super().map_index_lambda(expr)
 
 # {{{ ParamStudyPytatoPyOpenCLArrayContext
@@ -291,14 +335,12 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         rec_keyed_map_array_container(_as_dict_of_named_arrays,
                                       output_template)
 
-        breakpoint()
         input_shapes = {input_id_to_name_in_program[i]: arg_id_to_descr[i].shape for i in arg_id_to_descr.keys()}
         input_axes = {input_id_to_name_in_program[i]: arg_id_to_arg[i].axes for i in arg_id_to_descr.keys()}
         myMapper = ExpansionMapper(input_shapes, input_axes) # Get the dependencies
         dict_of_named_arrays = pt.make_dict_of_named_arrays(dict_of_named_arrays)
 
         dict_of_named_arrays = myMapper(dict_of_named_arrays) # Update the arrays.
-        breakpoint()
 
         # Use the normal compiler now.
 
