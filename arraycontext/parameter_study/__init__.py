@@ -4,19 +4,22 @@
 A :mod:`pytato`-based array context defers the evaluation of an array until its
 frozen. The execution contexts for the evaluations are specific to an
 :class:`~arraycontext.ArrayContext` type. For ex.
-:class:`~arraycontext.PytatoPyOpenCLArrayContext` uses :mod:`pyopencl` to
-JIT-compile and execute the array expressions.
+:class:`~arraycontext.ParamStudyPytatoPyOpenCLArrayContext`
+uses :mod:`pyopencl` to JIT-compile and execute the array expressions.
 
 Following :mod:`pytato`-based array context are provided:
 
 .. autoclass:: ParamStudyPytatoPyOpenCLArrayContext
+
+The compiled function is stored as.
 .. autoclass:: ParamStudyLazyPyOpenCLFunctionCaller
 
 
-Compiling a Python callable (Internal)
+Compiling a Python callable (Internal) for multiple distinct instances of
+execution.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: arraycontext.impl.pytato.compile
+.. automodule:: arraycontext.parameter_study
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -55,6 +58,7 @@ from typing import (
     Type,
     Union,
     Sequence,
+    List,
 )
 
 import numpy as np
@@ -65,15 +69,22 @@ from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
 
 from dataclasses import dataclass
 
-from arraycontext.container.traversal import rec_map_array_container, with_array_context
+from arraycontext.container.traversal import (rec_map_array_container,
+                                              with_array_context, rec_keyed_map_array_container)
+
+from arraycontext.container import ArrayContainer, is_array_container_type
 
 from arraycontext.context import ArrayT, ArrayContext
 from arraycontext.metadata import NameHint
-from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
-from arraycontext.impl.pytato.fake_numpy import PytatoFakeNumpyNamespace
+from arraycontext import PytatoPyOpenCLArrayContext
 from arraycontext.impl.pytato.compile import (LazilyPyOpenCLCompilingFunctionCaller,
                                              _get_arg_id_to_arg_and_arg_id_to_descr,
-                                                      _to_input_for_compiled)
+                                                      _to_input_for_compiled,
+                                              _ary_container_key_stringifier)
+
+from arraycontext.parameter_study.transform import ExpansionMapper, ParameterStudyAxisTag
+
+# from arraycontext.parameter_study.transform import ExpansionMapper
 
 if TYPE_CHECKING:
     import pyopencl as cl
@@ -87,160 +98,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@dataclass(frozen=True)
-class ParameterStudyAxisTag(UniqueTag):
-    """
-        A tag for acting on axes of arrays.
-        To enable multiple parameter studies on the same variable name
-        specify a different axis number and potentially a different size.
 
-        Currently does not allow multiple variables of different names to be in
-        the same parameter study.
-    """
-    user_variable_name: str
-    axis_num: int
-    axis_size: int
-
-# {{{ ParamStudyPytatoPyOpenCLArrayContext
-
-
-class ParamStudyPytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContext):
-    """
-    A derived class for PytatoPyOpenCLArrayContext updated for the
-    purpose of enabling parameter studies and uncertainty quantification.
-
-    .. automethod:: __init__
-
-    .. automethod:: transform_dag
-
-    .. automethod:: compile
-    """
-
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
-        return ParamStudyLazyPyOpenCLFunctionCaller(self, f)
-
-
-# }}}
-
-
-class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller):
-    """
-    Record a side-effect-free callable :attr:`f` which is initially designed for
-    to be called multiple times with different data. This class will update the
-    signature to allow :attr:`f` to be called once with the data for multiple
-    instances.
-    """
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Returns the result of :attr:`~ParamStudyLazyPyOpenCLFunctionCaller.f`'s
-        function application on *args*.
-
-        Before applying :attr:`~ParamStudyLazyPyOpenCLFunctionCaller.f`, it is compiled
-        to a :mod:`pytato` DAG that would apply
-        :attr:`~ParamStudyLazyPyOpenCLFunctionCaller.f` with *args* in a lazy-sense.
-        The intermediary pytato DAG for *args* is memoized in *self*.
-        """
-        arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
-            args, kwargs)
-
-        try:
-            compiled_f = self.program_cache[arg_id_to_descr]
-        except KeyError:
-            pass
-        else:
-            # On a cache hit we do not need to modify anything.
-            return compiled_f(arg_id_to_arg)
-
-        dict_of_named_arrays = {}
-        output_id_to_name_in_program = {}
-        input_id_to_name_in_program = {
-            arg_id: f"_actx_in_{_ary_container_key_stringifier(arg_id)}"
-            for arg_id in arg_id_to_arg}
-
-        output_template = self.f(
-                *[_get_f_placeholder_args_for_param_study(arg, iarg,
-                                          input_id_to_name_in_program, self.actx)
-                    for iarg, arg in enumerate(args)],
-                **{kw: _get_f_placeholder_args_for_param_study(arg, kw,
-                                               input_id_to_name_in_program,
-                                               self.actx)
-                    for kw, arg in kwargs.items()})
-
-        self.actx._compile_trace_callback(self.f, "post_trace", output_template)
-
-        if (not (is_array_container_type(output_template.__class__)
-                 or isinstance(output_template, pt.Array))):
-            # TODO: We could possibly just short-circuit this interface if the
-            # returned type is a scalar. Not sure if it's worth it though.
-            raise NotImplementedError(
-                f"Function '{self.f.__name__}' to be compiled "
-                "did not return an array container or pt.Array,"
-                f" but an instance of '{output_template.__class__}' instead.")
-
-        def _as_dict_of_named_arrays(keys, ary):
-            name = "_pt_out_" + _ary_container_key_stringifier(keys)
-            output_id_to_name_in_program[keys] = name
-            dict_of_named_arrays[name] = ary
-            return ary
-
-        rec_keyed_map_array_container(_as_dict_of_named_arrays,
-                                      output_template)
-
-        myMapper = ExpansionMapper(dict_of_named_arrays) # Get the dependencies
-        dict_of_named_arrays = myMapper(dict_of_named_arrays) # Update the arrays.
-
-        # Use the normal compiler now.
-
-        compiled_func = self._dag_to_compiled_func(
-                pt.make_dict_of_named_arrays(dict_of_named_arrays),
-                input_id_to_name_in_program=input_id_to_name_in_program,
-                output_id_to_name_in_program=output_id_to_name_in_program,
-                output_template=output_template)
-
-        self.program_cache[arg_id_to_descr] = compiled_func
-        return compiled_func(arg_id_to_arg)
-
-def _get_f_placeholder_args_for_param_study(arg, kw, arg_id_to_name, actx):
-    """
-    Helper for :class:`BaseLazilyCompilingFunctionCaller.__call__`. 
-    Returns the placeholder version of an argument to
-    :attr:`ParamStudyLazyPyOpenCLFunctionCaller.f`.
-    
-    Note this will modify the shape of the placeholder to
-    remove any parameter study axes until the trace
-    can be completed.
-
-    They will be added back after the trace is complete.
-    """
-    if np.isscalar(arg):
-        name = arg_id_to_name[(kw,)]
-        breakpoint()
-        return pt.make_placeholder(name, (), np.dtype(type(arg)))
-    elif isinstance(arg, pt.Array):
-        name = arg_id_to_name[(kw,)]
-        # Transform the DAG to give metadata inference a chance to do its job
-        arg = _to_input_for_compiled(arg, actx)
-        return pt.make_placeholder(name, arg.shape, arg.dtype,
-                                   axes=arg.axes,
-                                   tags=arg.tags)
-    elif is_array_container_type(arg.__class__):
-        def _rec_to_placeholder(keys, ary):
-            name = arg_id_to_name[(kw, *keys)]
-            # Transform the DAG to give metadata inference a chance to do its job
-            ary = _to_input_for_compiled(ary, actx)
-            return pt.make_placeholder(name,
-                                       ary.shape,
-                                       ary.dtype,
-                                       axes=ary.axes,
-                                       tags=ary.tags)
-
-        return rec_keyed_map_array_container(_rec_to_placeholder, arg)
-    else:
-        raise NotImplementedError(type(arg))
-
-
-def pack_for_parameter_study(actx: ArrayContext, yourvarname: str,
+def pack_for_parameter_study(actx: ArrayContext, study_name_tag: ParameterStudyAxisTag,
                              newshape: Tuple[int, ...],
                              *args: ArrayT) -> ArrayT:
     """
@@ -248,57 +107,54 @@ def pack_for_parameter_study(actx: ArrayContext, yourvarname: str,
         to be packed for a parameter study or uncertainty quantification.
 
         Args needs to be in the format
-            ["v", v0, v1, v2, ..., vN, "w", w0, w1, w2, ..., wM, \dots]
-
-            where "v" and "w" would be the variable names in your program.
-            If you want to include a constant just pass the var name and then
-            the value in the next argument.
-
-        Returns a dictionary of {var name: stacked array}
+            [v0, v1, v2, ..., vN] where N is the total number of instances you want to
+            try. Note these may be across multiple parameter studies on the same inputs.
     """
 
     assert len(args) > 0
     assert len(args) == np.prod(newshape)
 
-    out = {}
     orig_shape = args[0].shape
     out = actx.np.stack(args)
-    outshape = tuple([newshape] + [val for val in orig_shape])
+    outshape = tuple([newshape] + list(orig_shape))
 
     if len(newshape) > 1:
         # Reshape the object
         out = out.reshape(outshape)
     for i in range(len(newshape)):
-        out = out.with_tagged_axis(i, [ParameterStudyAxisTag(yourvarname, i, newshape[i])])
+        out = out.with_tagged_axis(i, [study_name_tag(i, newshape[i])])
     return out
 
 
-def unpack_parameter_study(data: ArrayT, varname: str) -> Dict[int, Sequence[ArrayT]]:
+def unpack_parameter_study(data: ArrayT,
+                           study_name_tag: ParameterStudyAxisTag) -> Dict[int,
+                                                                          List[ArrayT]]:
     """
         Split the data array along the axes which vary according to a ParameterStudyAxisTag
-        whose variable name is varname.
+        whose name tag is an instance study_name_tag.
 
         output[i] corresponds to the values associated with the ith parameter study that
-        uses the variable name :arg: `varname`.
+        uses the variable name :arg: `study_name_tag`.
     """
 
-    ndim = len(data.axes)
-    out = {}
+    ndim: int = len(data.axes)
+    out: Dict[int, List[ArrayT]] = {}
 
     for i in range(ndim):
-        axis_tags = data.axes[i].tags_of_type(ParameterStudyAxisTag)
+        axis_tags = data.axes[i].tags_of_type(study_name_tag)
         if axis_tags:
             # Now we need to split this data.
             breakpoint()
             for j in range(data.shape[i]):
-                the_slice = [slice(None)] * ndim
-                the_slice[i] = j
-                the_slice = tuple(the_slice)
+                tmp: List[slice] = [slice(None)] * ndim
+                tmp[i] = j
+                the_slice: Tuple[slice] = tuple(tmp)
+                # Needs to be a tuple of slices not list of slices.
                 if i in out.keys():
                     out[i].append(data[the_slice])
                 else:
                     out[i] = [data[the_slice]]
 
-                #yield data[the_slice]
+                # yield data[the_slice]
 
     return out

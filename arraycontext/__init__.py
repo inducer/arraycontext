@@ -88,7 +88,8 @@ from .pytest import (
     pytest_generate_tests_for_pyopencl_array_context,
 )
 from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
-from .parameter_study import ParamStudyPytatoPyOpenCLArrayContext, pack_for_parameter_study, unpack_parameter_study
+from .parameter_study import pack_for_parameter_study, unpack_parameter_study
+from .parameter_study.transform import ParamStudyPytatoPyOpenCLArrayContext
 
 __all__ = (
     "Array",
