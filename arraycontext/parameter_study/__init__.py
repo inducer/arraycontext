@@ -115,14 +115,15 @@ def pack_for_parameter_study(actx: ArrayContext, study_name_tag: ParameterStudyA
     assert len(args) == np.prod(newshape)
 
     orig_shape = args[0].shape
-    out = actx.np.stack(args)
-    outshape = tuple([newshape] + list(orig_shape))
+    out = actx.np.stack(args, axis=args[0].ndim)
+    outshape = tuple(list(orig_shape) + [newshape] )
 
-    if len(newshape) > 1:
-        # Reshape the object
-        out = out.reshape(outshape)
-    for i in range(len(newshape)):
-        out = out.with_tagged_axis(i, [study_name_tag(i, newshape[i])])
+    #if len(newshape) > 1:
+    #    # Reshape the object
+    #    out = out.reshape(outshape)
+    
+    for i in range(len(orig_shape), len(outshape)):
+        out = out.with_tagged_axis(i, [study_name_tag(i - len(orig_shape), newshape[i-len(orig_shape)])])
     return out
 
 
@@ -140,6 +141,7 @@ def unpack_parameter_study(data: ArrayT,
     ndim: int = len(data.axes)
     out: Dict[int, List[ArrayT]] = {}
 
+    study_count = 0
     for i in range(ndim):
         axis_tags = data.axes[i].tags_of_type(study_name_tag)
         if axis_tags:
@@ -150,11 +152,12 @@ def unpack_parameter_study(data: ArrayT,
                 tmp[i] = j
                 the_slice: Tuple[slice] = tuple(tmp)
                 # Needs to be a tuple of slices not list of slices.
-                if i in out.keys():
-                    out[i].append(data[the_slice])
+                if study_count in out.keys():
+                    out[study_count].append(data[the_slice])
                 else:
-                    out[i] = [data[the_slice]]
-
+                    out[study_count] = [data[the_slice]]
+            if study_count in out.keys():
+                study_count += 1
                 # yield data[the_slice]
 
     return out

@@ -646,7 +646,10 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
         # FIXME Kernels (for now) allocate tons of memory in temporaries. If we
         # race too far ahead with enqueuing, there is a distinct risk of
         # running out of memory. This mitigates that risk a bit, for now.
-        evt.wait()
+        if isinstance(evt, list):
+            [_evt.wait() for _evt in evt]
+        else:
+            evt.wait()
 
         def to_output_template(keys, _):
             name_in_program = self.output_id_to_name_in_program[keys]

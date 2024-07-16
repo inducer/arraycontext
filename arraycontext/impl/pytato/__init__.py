@@ -563,7 +563,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         evt, out_dict = pt_prg(self.queue,
                 allocator=self.allocator,
                 **bound_arguments)
-        evt.wait()
+        if isinstance(evt, list):
+            [_evt.wait() for _evt in evt]
+        else:
+            evt.wait()
         assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
         key_to_frozen_subary = {

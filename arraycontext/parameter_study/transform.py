@@ -50,7 +50,13 @@ from typing import (
 
 import numpy as np
 import pytato as pt
+import loopy as lp
 from immutabledict import immutabledict
+
+
+from pytato.scalar_expr import IdentityMapper
+import pymbolic.primitives as prim
+
 
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
@@ -129,6 +135,7 @@ class ExpansionMapper(CopyMapper):
 
 
     def map_stack(self, expr: Stack) -> Array:
+        # TODO: Fix
         return super().map_stack(expr)
 
     def map_concatenate(self, expr: Concatenate) -> Array:
@@ -149,7 +156,6 @@ class ExpansionMapper(CopyMapper):
         new_array = self.rec(expr.array)
         prepend_shape, new_axes = self.does_single_predecessor_require_rewrite_of_this_operation(expr.array,
                                                                                                  new_array)
-        breakpoint()
         axis_permute = tuple([expr.axis_permutation[i] + len(prepend_shape) for i
                               in range(len(expr.axis_permutation))])
         # Include the axes we are adding to the system.
@@ -199,8 +205,8 @@ class ExpansionMapper(CopyMapper):
                            axes=correct_axes,
                            tags=expr.tags,
                            non_equality_tags=expr.non_equality_tags)
+
     def map_index_lambda(self, expr: IndexLambda) -> Array:
-        # TODO: Fix
         # Update bindings first.
         new_bindings: Mapping[str, Array] = { name: self.rec(bnd) 
                                              for name, bnd in sorted(expr.bindings.items())}
@@ -210,43 +216,77 @@ class ExpansionMapper(CopyMapper):
         from pytools.obj_array import flat_obj_array
 
         all_axis_tags: Set[Tag] = set()
+        studies_by_variable: Mapping[str, Mapping[Tag, bool]] = {}
         for name, bnd in sorted(new_bindings.items()):
             axis_tags_for_bnd: Set[Tag] = set()
+            studies_by_variable[name] = {}
             for i in range(len(bnd.axes)):
                 axis_tags_for_bnd = axis_tags_for_bnd.union(bnd.axes[i].tags_of_type(ParameterStudyAxisTag))
-            breakpoint()
+            for tag in axis_tags_for_bnd:
+                studies_by_variable[name][tag] = 1
             all_axis_tags = all_axis_tags.union(axis_tags_for_bnd)
 
         # Freeze the set now.
         all_axis_tags = frozenset(all_axis_tags)
 
-
-        breakpoint()
         active_studies: Sequence[ParameterStudyAxisTag] = list(unique(all_axis_tags))
         axes: Optional[Tuple[Axis]] = tuple([])
         study_to_axis_number: Mapping[ParameterStudyAxisTag, int] = {}
 
-
         count = 0
-        new_shape: List[int] = [0 for i in 
-                                       range(len(active_studies) + len(expr.shape))]
-        new_axes: List[Axis] = [Axis() for i in range(len(new_shape))]
+        new_shape = expr.shape
+        new_axes  = expr.axes
 
         for study in active_studies:
             if isinstance(study, ParameterStudyAxisTag):
                 # Just defensive programming
-                study_to_axis_number[type(study)] = count
-                new_shape[count] = study.axis_size  #  We are recording the size of each parameter study.
-                new_axes[count] = new_axes[count].tagged([study])
-                count += 1
+                # The active studies are added to the end of the bindings.
+                study_to_axis_number[study] = len(new_shape)
+                new_shape = new_shape + (study.axis_size,)
+                new_axes = new_axes + (Axis(tags=frozenset((study,))),)
+                #  This assumes that the axis only has 1 tag,
+                #  because there should be no dependence across instances.
 
-        for i in range(len(expr.shape)):
-            new_shape[count] = expr.shape[i]
-            count += 1
-        new_shape: Tuple[int] = tuple(new_shape)
+        # Now we need to update the expressions.
+        scalar_expr = ParamAxisExpander()(expr.expr, studies_by_variable, study_to_axis_number)
 
-        breakpoint()
-        return super().map_index_lambda(expr)
+        return IndexLambda(expr=scalar_expr,
+                           bindings=type(expr.bindings)(new_bindings),
+                           shape=new_shape,
+                           var_to_reduction_descr=expr.var_to_reduction_descr,
+                           dtype=expr.dtype,
+                           axes=new_axes,
+                           tags=expr.tags,
+                           non_equality_tags=expr.non_equality_tags)
+
+
+class ParamAxisExpander(IdentityMapper):
+
+    def map_subscript(self, expr: prim.Subscript, studies_by_variable: Mapping[str, Mapping[ParameterStudyAxisTag, bool]],
+                      study_to_axis_number: Mapping[ParameterStudyAxisTag, int]):
+        # We know that we are not changing the variable that we are indexing into.
+        # This is stored in the aggregate member of the class Subscript.
+
+        # We only need to modify the indexing which is stored in the index member.
+        name = expr.aggregate.name
+        if name in studies_by_variable.keys():
+            #  These are the single instance information.
+            index = self.rec(expr.index, studies_by_variable,
+                             study_to_axis_number)
+            
+            new_vars: Tuple[prim.Variable] = tuple([])
+
+            for key, val in sorted(study_to_axis_number.items(), key=lambda item: item[1]):
+                if key in studies_by_variable[name]:
+                    new_vars = new_vars + (prim.Variable(f"_{study_to_axis_number[key]}"),)
+
+            if isinstance(index, tuple):
+                index = index + new_vars
+            else:
+                index = tuple(index) + new_vars
+            return type(expr)(aggregate=expr.aggregate, index=index)
+        return expr
+
 
 # {{{ ParamStudyPytatoPyOpenCLArrayContext
 
@@ -266,6 +306,10 @@ class ParamStudyPytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContext):
     def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
         return ParamStudyLazyPyOpenCLFunctionCaller(self, f)
 
+
+    def transform_loopy_program(self, t_unit: lp.TranslationUnit) -> lp.TranslationUnit:
+        # Update in a subclass if you want.
+        return t_unit
 
 # }}}
 
@@ -338,18 +382,21 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         input_shapes = {input_id_to_name_in_program[i]: arg_id_to_descr[i].shape for i in arg_id_to_descr.keys()}
         input_axes = {input_id_to_name_in_program[i]: arg_id_to_arg[i].axes for i in arg_id_to_descr.keys()}
         myMapper = ExpansionMapper(input_shapes, input_axes) # Get the dependencies
+        breakpoint()
+
         dict_of_named_arrays = pt.make_dict_of_named_arrays(dict_of_named_arrays)
 
+        breakpoint()
         dict_of_named_arrays = myMapper(dict_of_named_arrays) # Update the arrays.
 
         # Use the normal compiler now.
-
-        compiled_func = self._dag_to_compiled_func(
-                pt.make_dict_of_named_arrays(dict_of_named_arrays),
+        
+        compiled_func = self._dag_to_compiled_func(dict_of_named_arrays,
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_id_to_name_in_program=output_id_to_name_in_program,
                 output_template=output_template)
 
+        breakpoint()
         self.program_cache[arg_id_to_descr] = compiled_func
         return compiled_func(arg_id_to_arg)
 
@@ -364,20 +411,15 @@ def _cut_if_in_param_study(name, arg) -> Array:
     """
     ndim: int = len(arg.shape)
     newshape = []
-    update_tags: set = set() 
     update_axes = []
     for i in range(ndim):
         axis_tags = arg.axes[i].tags_of_type(ParameterStudyAxisTag)
-        if axis_tags:
-            # We need to remove those tags.
-            update_tags.add(axis_tags)
-        else:
+        if not axis_tags:
             update_axes.append(arg.axes[i])
             newshape.append(arg.shape[i])
     
-    update_tags.update(arg.tags)
     update_axes = tuple(update_axes)
-    update_tags = list(update_tags)[0] # Return just the frozenset.
+    update_tags: FrozenSet[Tag] = arg.tags
     return pt.make_placeholder(name, newshape, arg.dtype, axes=update_axes,
                                tags=update_tags)
 
