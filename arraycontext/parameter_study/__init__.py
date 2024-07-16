@@ -59,10 +59,14 @@ from typing import (
     Union,
     Sequence,
     List,
+    Iterable,
+    Mapping,
 )
 
 import numpy as np
 import pytato as pt
+
+from pytato.array import Array
 
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
@@ -74,7 +78,7 @@ from arraycontext.container.traversal import (rec_map_array_container,
 
 from arraycontext.container import ArrayContainer, is_array_container_type
 
-from arraycontext.context import ArrayT, ArrayContext
+from arraycontext.context import ArrayContext
 from arraycontext.metadata import NameHint
 from arraycontext import PytatoPyOpenCLArrayContext
 from arraycontext.impl.pytato.compile import (LazilyPyOpenCLCompilingFunctionCaller,
@@ -99,9 +103,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def pack_for_parameter_study(actx: ArrayContext, study_name_tag: ParameterStudyAxisTag,
+def pack_for_parameter_study(actx: ArrayContext,
+                             study_name_tag_type: Type[ParameterStudyAxisTag],
                              newshape: Tuple[int, ...],
-                             *args: ArrayT) -> ArrayT:
+                             *args: Array) -> Array:
     """
         Args is a list of variable names and the realized input data that needs
         to be packed for a parameter study or uncertainty quantification.
@@ -115,7 +120,7 @@ def pack_for_parameter_study(actx: ArrayContext, study_name_tag: ParameterStudyA
     assert len(args) == np.prod(newshape)
 
     orig_shape = args[0].shape
-    out = actx.np.stack(args, axis=args[0].ndim)
+    out = actx.np.stack(args, axis=len(args[0].shape))
     outshape = tuple(list(orig_shape) + [newshape] )
 
     #if len(newshape) > 1:
@@ -123,34 +128,34 @@ def pack_for_parameter_study(actx: ArrayContext, study_name_tag: ParameterStudyA
     #    out = out.reshape(outshape)
     
     for i in range(len(orig_shape), len(outshape)):
-        out = out.with_tagged_axis(i, [study_name_tag(i - len(orig_shape), newshape[i-len(orig_shape)])])
+        out = out.with_tagged_axis(i, [study_name_tag_type(i - len(orig_shape), newshape[i-len(orig_shape)])])
     return out
 
 
-def unpack_parameter_study(data: ArrayT,
-                           study_name_tag: ParameterStudyAxisTag) -> Dict[int,
-                                                                          List[ArrayT]]:
+def unpack_parameter_study(data: Array,
+                           study_name_tag_type: Type[ParameterStudyAxisTag]) -> Mapping[int,
+                                                                          List[Array]]:
     """
         Split the data array along the axes which vary according to a ParameterStudyAxisTag
-        whose name tag is an instance study_name_tag.
+        whose name tag is an instance study_name_tag_type.
 
         output[i] corresponds to the values associated with the ith parameter study that
-        uses the variable name :arg: `study_name_tag`.
+        uses the variable name :arg: `study_name_tag_type`.
     """
 
-    ndim: int = len(data.axes)
-    out: Dict[int, List[ArrayT]] = {}
+    ndim: int = len(data.shape)
+    out: Dict[int, List[Array]] = {}
 
     study_count = 0
     for i in range(ndim):
-        axis_tags = data.axes[i].tags_of_type(study_name_tag)
+        axis_tags = data.axes[i].tags_of_type(study_name_tag_type)
         if axis_tags:
             # Now we need to split this data.
             breakpoint()
             for j in range(data.shape[i]):
-                tmp: List[slice] = [slice(None)] * ndim
+                tmp: List[Any] = [slice(None)] * ndim
                 tmp[i] = j
-                the_slice: Tuple[slice] = tuple(tmp)
+                the_slice = tuple(tmp)
                 # Needs to be a tuple of slices not list of slices.
                 if study_count in out.keys():
                     out[study_count].append(data[the_slice])
