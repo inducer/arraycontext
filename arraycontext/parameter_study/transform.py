@@ -71,12 +71,12 @@ from arraycontext.container.traversal import (rec_map_array_container,
 from arraycontext.container import ArrayContainer, is_array_container_type
 
 from arraycontext.context import ArrayT, ArrayContext
-from arraycontext.metadata import NameHint
 from arraycontext import PytatoPyOpenCLArrayContext
 from arraycontext.impl.pytato.compile import (LazilyPyOpenCLCompilingFunctionCaller,
                                              _get_arg_id_to_arg_and_arg_id_to_descr,
                                                       _to_input_for_compiled,
-                                              _ary_container_key_stringifier)
+                                              _ary_container_key_stringifier,
+                                              LeafArrayDescriptor,)
 
 
 from pytato.transform import CopyMapper
@@ -109,7 +109,7 @@ class ExpansionMapper(CopyMapper):
     #def __init__(self, dependency_map: Dict[Array,Tag]):
         #    super().__init__()
     #    self.depends = dependency_map
-    def __init__(self, actual_input_shapes: Mapping[str, Tuple[int,...]],
+    def __init__(self, actual_input_shapes: Mapping[str,ShapeType],
                  actual_input_axes: Mapping[str, FrozenSet[Axis]]):
         super().__init__()
         self.actual_input_shapes = actual_input_shapes
@@ -391,10 +391,10 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         #input_axes = {input_id_to_name_in_program[i]: arg_id_to_arg[i].axes for i in arg_id_to_descr.keys()}
         input_shapes = {}
         input_axes = {}
-        for i in arg_id_to_descr.keys():
-            if hasattr(arg_id_to_descr[i], "shape"):
-                input_shapes[input_id_to_name_in_program[i]] = arg_id_to_descr[i].shape
-            input_axes[input_id_to_name_in_program[i]] = arg_id_to_arg[i].axes
+        for key,val in arg_id_to_descr.items():
+            if isinstance(val, LeafArrayDescriptor):
+                input_shapes[input_id_to_name_in_program[key]] = val.shape
+            input_axes[input_id_to_name_in_program[key]] = arg_id_to_arg[key].axes
         myMapper = ExpansionMapper(input_shapes, input_axes) # Get the dependencies
         breakpoint()
 

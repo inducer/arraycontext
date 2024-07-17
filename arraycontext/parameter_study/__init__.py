@@ -45,7 +45,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import abc
 import sys
 from typing import (
     TYPE_CHECKING,
@@ -69,7 +68,7 @@ import pytato as pt
 from pytato.array import Array
 
 from pytools import memoize_method
-from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
+from pytools.tag import UniqueTag
 
 from dataclasses import dataclass
 
