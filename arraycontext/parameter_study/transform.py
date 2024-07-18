@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+
 """
 .. currentmodule:: arraycontext
 
@@ -32,63 +34,52 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import abc
-import sys
+from dataclasses import dataclass
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     FrozenSet,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    Sequence,
-    List,
     Mapping,
+    Sequence,
     Set,
+    Tuple,
 )
 
 import numpy as np
-import pytato as pt
-import loopy as lp
+import pymbolic.primitives as prim
 from immutabledict import immutabledict
 
-
-from pytato.scalar_expr import IdentityMapper
-import pymbolic.primitives as prim
-
-
-from pytools import memoize_method
-from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
-
-from dataclasses import dataclass
-
-from arraycontext.container.traversal import (rec_map_array_container,
-                                              with_array_context, rec_keyed_map_array_container)
-
-from arraycontext.container import ArrayContainer, is_array_container_type
-
-from arraycontext.context import ArrayT, ArrayContext
-from arraycontext import PytatoPyOpenCLArrayContext
-from arraycontext.impl.pytato.compile import (LazilyPyOpenCLCompilingFunctionCaller,
-                                             _get_arg_id_to_arg_and_arg_id_to_descr,
-                                                      _to_input_for_compiled,
-                                              _ary_container_key_stringifier,
-                                              LeafArrayDescriptor,)
-
-
-from pytato.transform import CopyMapper
-
+import loopy as lp
+import pytato as pt
 from pytato.array import (
-        Array, IndexLambda, Placeholder, Stack, Roll, AxisPermutation,
-        DataWrapper, SizeParam, DictOfNamedArrays, AbstractResultWithNamedArrays,
-        Reshape, Concatenate, NamedArray, IndexRemappingBase, Einsum,
-        InputArgumentBase, AdvancedIndexInNoncontiguousAxes, IndexBase, DataInterface,
-        Axis, ShapeType)
+    Array,
+    Axis,
+    AxisPermutation,
+    Concatenate,
+    IndexBase,
+    IndexLambda,
+    Placeholder,
+    Reshape,
+    Roll,
+    ShapeType,
+    Stack,
+)
+from pytato.scalar_expr import IdentityMapper
+from pytato.transform import CopyMapper
+from pytools.tag import Tag, UniqueTag
 
-from pytato.utils import broadcast_binary_op
+from arraycontext import PytatoPyOpenCLArrayContext
+from arraycontext.container import is_array_container_type
+from arraycontext.container.traversal import rec_keyed_map_array_container
+from arraycontext.impl.pytato.compile import (
+    LazilyPyOpenCLCompilingFunctionCaller,
+    LeafArrayDescriptor,
+    _ary_container_key_stringifier,
+    _get_arg_id_to_arg_and_arg_id_to_descr,
+    _to_input_for_compiled,
+)
+
 
 @dataclass(frozen=True)
 class ParameterStudyAxisTag(UniqueTag):
@@ -100,31 +91,31 @@ class ParameterStudyAxisTag(UniqueTag):
         Currently does not allow multiple variables of different names to be in
         the same parameter study.
     """
-    #user_param_study_tag: Tag 
+    # user_param_study_tag: Tag
     axis_num: int
     axis_size: int
 
+
 class ExpansionMapper(CopyMapper):
 
-    #def __init__(self, dependency_map: Dict[Array,Tag]):
+    # def __init__(self, dependency_map: Dict[Array,Tag]):
         #    super().__init__()
     #    self.depends = dependency_map
-    def __init__(self, actual_input_shapes: Mapping[str,ShapeType],
+    def __init__(self, actual_input_shapes: Mapping[str, ShapeType],
                  actual_input_axes: Mapping[str, FrozenSet[Axis]]):
         super().__init__()
         self.actual_input_shapes = actual_input_shapes
         self.actual_input_axes = actual_input_axes
 
-
     def does_single_predecessor_require_rewrite_of_this_operation(self, curr_expr: Array,
                                           new_expr: Array) -> Tuple[ShapeType,
-                                                                    Tuple[Axis,...]]:
+                                                                    Tuple[Axis, ...]]:
         # Initialize with something for the typing.
-        shape_to_append: ShapeType= (-1,)
-        new_axes: Tuple[Axis,...] = (Axis(tags=frozenset()),)
+        shape_to_append: ShapeType = (-1,)
+        new_axes: Tuple[Axis, ...] = (Axis(tags=frozenset()),)
         if curr_expr.shape == new_expr.shape:
             return shape_to_append, new_axes
-        
+
         # Now we may need to change.
         changed = False
         for i in range(len(new_expr.axes)):
@@ -142,21 +133,13 @@ class ExpansionMapper(CopyMapper):
         # Remove initialized extraneous data
         return shape_to_append[1:], new_axes[1:]
 
-
-    def map_stack(self, expr: Stack) -> Array:
-        # TODO: Fix
-        return super().map_stack(expr)
-
-    def map_concatenate(self, expr: Concatenate) -> Array:
-        return super().map_concatenate(expr)
-
     def map_roll(self, expr: Roll) -> Array:
         new_array = self.rec(expr.array)
-        _, new_axes =self.does_single_predecessor_require_rewrite_of_this_operation(expr.array,
+        _, new_axes = self.does_single_predecessor_require_rewrite_of_this_operation(expr.array,
                                                                                                 new_array)
         return Roll(array=new_array,
                     shift=expr.shift,
-                    axis=expr.axis, 
+                    axis=expr.axis,
                     axes=expr.axes + new_axes,
                     tags=expr.tags,
                     non_equality_tags=expr.non_equality_tags)
@@ -167,8 +150,7 @@ class ExpansionMapper(CopyMapper):
                                                                                                  new_array)
         # Include the axes we are adding to the system.
         axis_permute = expr.axis_permutation + tuple([i + len(expr.axis_permutation)
-                                             for i in range(len(postpend_shape))]) 
-
+                                             for i in range(len(postpend_shape))])
 
         return AxisPermutation(array=new_array,
                                axis_permutation=axis_permute,
@@ -185,14 +167,14 @@ class ExpansionMapper(CopyMapper):
                           # May need to modify indices
                           axes=expr.axes + new_axes,
                           tags=expr.tags,
-                          non_equality_tags = expr.non_equality_tags)
+                          non_equality_tags=expr.non_equality_tags)
 
     def map_reshape(self, expr: Reshape) -> Array:
         new_array = self.rec(expr.array)
         postpend_shape, new_axes = self.does_single_predecessor_require_rewrite_of_this_operation(expr.array,
-                                                                                                 new_array) 
+                                                                                                 new_array)
         return Reshape(new_array,
-                       newshape = self.rec_idx_or_size_tuple(expr.newshape + postpend_shape),
+                       newshape=self.rec_idx_or_size_tuple(expr.newshape + postpend_shape),
                        order=expr.order,
                        axes=expr.axes + new_axes,
                        tags=expr.tags,
@@ -214,16 +196,101 @@ class ExpansionMapper(CopyMapper):
                            tags=expr.tags,
                            non_equality_tags=expr.non_equality_tags)
 
+    # {{{ Operations with multiple predecessors.
+
+    def map_stack(self, expr: Stack) -> Array:
+        # TODO: Fix
+        single_instance_input_shape = expr.arrays[0].shape
+        new_arrays = tuple(self.rec(arr) for arr in expr.arrays)
+
+        new_axes_for_end: Tuple[Axis,...] = ()
+        active_studies: Set[ParameterStudyAxisTag] = set()
+        studies_by_array: Dict[Array, Tuple[ParameterStudyAxisTag,...]] = {}
+
+
+        for ind, array in enumerate(new_arrays):
+            for axis in array.axes:
+                axis_tags = axis.tags_of_type(ParameterStudyAxisTag)
+                if axis_tags:
+                    axis_tags = list(axis_tags)
+                    assert len(axis_tags) == 1
+                    if array in studies_by_array.keys():
+                        studies_by_array[array] = studies_by_array[array] + (axis_tags[0],)
+                    else:
+                        studies_by_array[array] = (axis_tags[0],)
+
+
+                    if axis_tags[0] not in active_studies:
+                        active_studies.add(axis_tags[0])
+                        new_axes_for_end = new_axes_for_end + (axis,)
+        breakpoint()
+
+        study_to_axis_number: Dict[ParameterStudyAxisTag, int] = {}
+
+        new_shape_of_predecessors = single_instance_input_shape
+        new_axes  = expr.axes
+
+        for study in active_studies:
+            if isinstance(study, ParameterStudyAxisTag):
+                # Just defensive programming
+                # The active studies are added to the end of the bindings.
+                study_to_axis_number[study] = len(new_shape_of_predecessors)
+                new_shape_of_predecessors = new_shape_of_predecessors + (study.axis_size,)
+                new_axes = new_axes + (Axis(tags=frozenset((study,))),)
+                #  This assumes that the axis only has 1 tag,
+                #  because there should be no dependence across instances.
+
+        # This is going to be expensive.
+
+        # Now we need to update the expressions.
+        # Now that we have the appropriate shape, we need to update the input arrays to match.
+        cp_map = CopyMapper()
+        corrected_new_arrays: Tuple[Array, ...] = ()
+        for ind, array in enumerate(new_arrays):
+            tmp = cp_map(array) # Get a copy of the array.
+            if len(array.axes) < len(new_axes):
+                # We need to grow the array to the new size.
+                for study in active_studies:
+                    if study not in studies_by_array[array]:
+                        build:List[Array] = [cp_map(tmp) for _ in range(study.axis_size)]
+                        tmp = Stack(arrays=tuple(build), axis=len(tmp.axes),
+                                    axes=tmp.axes + (Axis(tags=frozenset((study,))),),
+                                    tags=tmp.tags, non_equality_tags=tmp.non_equality_tags)
+            elif len(array.axes) > len(new_axes):
+                raise ValueError(f"Input array is too big. Expected at most: {len(new_axes)} Found: {len(array.axes)} axes.")
+
+            # Now we need to correct to the appropriate shape with an axis permutation.
+            # These are known to be in the right place.
+            permute: Tuple[Axis,...] = tuple([i for i in range(len(single_instance_input_shape))])
+            
+            for iaxis, axis in enumerate(tmp.axes):
+                axis_tags = list(axis.tags_of_type(ParameterStudyAxisTag))
+                if axis_tags:
+                    assert len(axis_tags) == 1
+                    permute = permute + (study_to_axis_number[axis_tags[0]],)
+            assert len(permute) == len(new_shape_of_predecessors)
+            corrected_new_arrays = corrected_new_arrays + (AxisPermutation(tmp, permute, tags=tmp.tags,
+                                                            axes=tmp.axes, non_equality_tags=tmp.non_equality_tags),)
+
+
+        out = Stack(arrays=corrected_new_arrays, axis=expr.axis, axes=expr.axes + new_axes_for_end,
+                    tags=expr.tags, non_equality_tags=expr.non_equality_tags)
+        breakpoint() 
+
+        return out 
+
+    def map_concatenate(self, expr: Concatenate) -> Array:
+        return super().map_concatenate(expr)
+
     def map_index_lambda(self, expr: IndexLambda) -> Array:
         # Update bindings first.
-        new_bindings: Dict[str, Array] = { name: self.rec(bnd) 
+        new_bindings: Dict[str, Array] = {name: self.rec(bnd)
                                              for name, bnd in sorted(expr.bindings.items())}
 
         # Determine the new parameter studies that are being conducted.
         from pytools import unique
-        from pytools.obj_array import flat_obj_array
 
-        all_axis_tags: Tuple[ParameterStudyAxisTag,...] = ()
+        all_axis_tags: Tuple[ParameterStudyAxisTag, ...] = ()
         studies_by_variable: Dict[str, Dict[UniqueTag, bool]] = {}
         for name, bnd in sorted(new_bindings.items()):
             axis_tags_for_bnd: Set[Tag] = set()
@@ -233,15 +300,12 @@ class ExpansionMapper(CopyMapper):
             for tag in axis_tags_for_bnd:
                 if isinstance(tag, ParameterStudyAxisTag):
                     # Defense
-                    studies_by_variable[name][tag] = True 
+                    studies_by_variable[name][tag] = True
                     all_axis_tags = all_axis_tags + (tag,)
 
-
         active_studies: Sequence[ParameterStudyAxisTag] = list(unique(all_axis_tags))
-        axes: Tuple[Axis, ...] = ()
         study_to_axis_number: Dict[ParameterStudyAxisTag, int] = {}
 
-        count = 0
         new_shape = expr.shape
         new_axes  = expr.axes
 
@@ -267,6 +331,8 @@ class ExpansionMapper(CopyMapper):
                            tags=expr.tags,
                            non_equality_tags=expr.non_equality_tags)
 
+    # }}} Operations with multiple predecessors.
+
 
 class ParamAxisExpander(IdentityMapper):
 
@@ -281,7 +347,7 @@ class ParamAxisExpander(IdentityMapper):
             #  These are the single instance information.
             index = self.rec(expr.index, studies_by_variable,
                              study_to_axis_number)
-            
+
             new_vars: Tuple[prim.Variable, ...] = ()
 
             for key, val in sorted(study_to_axis_number.items(), key=lambda item: item[1]):
@@ -314,13 +380,11 @@ class ParamStudyPytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContext):
     def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
         return ParamStudyLazyPyOpenCLFunctionCaller(self, f)
 
-
     def transform_loopy_program(self, t_unit: lp.TranslationUnit) -> lp.TranslationUnit:
         # Update in a subclass if you want.
         return t_unit
 
 # }}}
-
 
 
 class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller):
@@ -387,15 +451,15 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         rec_keyed_map_array_container(_as_dict_of_named_arrays,
                                       output_template)
 
-        #input_shapes = {input_id_to_name_in_program[i]: arg_id_to_descr[i].shape for i in arg_id_to_descr.keys() if hasattr(arg_id_to_descr[i], "shape")}
-        #input_axes = {input_id_to_name_in_program[i]: arg_id_to_arg[i].axes for i in arg_id_to_descr.keys()}
+        # input_shapes = {input_id_to_name_in_program[i]: arg_id_to_descr[i].shape for i in arg_id_to_descr.keys() if hasattr(arg_id_to_descr[i], "shape")}
+        # input_axes = {input_id_to_name_in_program[i]: arg_id_to_arg[i].axes for i in arg_id_to_descr.keys()}
         input_shapes = {}
         input_axes = {}
-        for key,val in arg_id_to_descr.items():
+        for key, val in arg_id_to_descr.items():
             if isinstance(val, LeafArrayDescriptor):
                 input_shapes[input_id_to_name_in_program[key]] = val.shape
             input_axes[input_id_to_name_in_program[key]] = arg_id_to_arg[key].axes
-        myMapper = ExpansionMapper(input_shapes, input_axes) # Get the dependencies
+        myMapper = ExpansionMapper(input_shapes, input_axes)  # Get the dependencies
         breakpoint()
 
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(dict_of_named_arrays)
@@ -403,9 +467,9 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         breakpoint()
 
         # Use the normal compiler now.
-        
-        compiled_func = self._dag_to_compiled_func(myMapper(pt_dict_of_named_arrays), # Update the arrays
-                                                   #pt_dict_of_named_arrays,
+
+        compiled_func = self._dag_to_compiled_func(myMapper(pt_dict_of_named_arrays),  # Update the arrays
+                                                   # pt_dict_of_named_arrays,
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_id_to_name_in_program=output_id_to_name_in_program,
                 output_template=output_template)
@@ -431,10 +495,11 @@ def _cut_if_in_param_study(name, arg) -> Array:
         if not axis_tags:
             update_axes = update_axes + (arg.axes[i],)
             newshape.append(arg.shape[i])
-    update_axes = update_axes[1:] # remove the first one that was placed there for typing.
+    update_axes = update_axes[1:]  # remove the first one that was placed there for typing.
     update_tags: FrozenSet[Tag] = arg.tags
     return pt.make_placeholder(name, newshape, arg.dtype, axes=update_axes,
                                tags=update_tags)
+
 
 def _get_f_placeholder_args_for_param_study(arg, kw, arg_id_to_name, actx):
     """
