@@ -54,9 +54,12 @@ import loopy as lp
 import pytato as pt
 from pytato.array import (
     Array,
+    AxesT,
     Axis,
     AxisPermutation,
     Concatenate,
+    Einsum,
+    EinsumElementwiseAxis,
     IndexBase,
     IndexLambda,
     Placeholder,
@@ -109,10 +112,10 @@ class ExpansionMapper(CopyMapper):
 
     def does_single_predecessor_require_rewrite_of_this_operation(self, curr_expr: Array,
                                           new_expr: Array) -> Tuple[ShapeType,
-                                                                    Tuple[Axis, ...]]:
+                                                                    AxesT]:
         # Initialize with something for the typing.
         shape_to_append: ShapeType = (-1,)
-        new_axes: Tuple[Axis, ...] = (Axis(tags=frozenset()),)
+        new_axes: AxesT = (Axis(tags=frozenset()),)
         if curr_expr.shape == new_expr.shape:
             return shape_to_append, new_axes
 
@@ -198,15 +201,14 @@ class ExpansionMapper(CopyMapper):
 
     # {{{ Operations with multiple predecessors.
 
-    def map_stack(self, expr: Stack) -> Array:
-        # TODO: Fix
-        single_instance_input_shape = expr.arrays[0].shape
-        new_arrays = tuple(self.rec(arr) for arr in expr.arrays)
+    def _get_active_studies_from_multiple_predecessors(self, new_arrays: Tuple[Array, ...]) -> Tuple[Tuple[Axis, ...],
+                                                                                                     Set[ParameterStudyAxisTag],
+                                                                                                     Dict[Array,
+                                                                                                          Tuple[ParameterStudyAxisTag, ...]]]:
 
-        new_axes_for_end: Tuple[Axis,...] = ()
+        new_axes_for_end: Tuple[Axis, ...] = ()
         active_studies: Set[ParameterStudyAxisTag] = set()
-        studies_by_array: Dict[Array, Tuple[ParameterStudyAxisTag,...]] = {}
-
+        studies_by_array: Dict[Array, Tuple[ParameterStudyAxisTag, ...]] = {}
 
         for ind, array in enumerate(new_arrays):
             for axis in array.axes:
@@ -219,11 +221,18 @@ class ExpansionMapper(CopyMapper):
                     else:
                         studies_by_array[array] = (axis_tags[0],)
 
-
                     if axis_tags[0] not in active_studies:
                         active_studies.add(axis_tags[0])
                         new_axes_for_end = new_axes_for_end + (axis,)
-        breakpoint()
+
+        return new_axes_for_end, active_studies, studies_by_array
+
+    def map_stack(self, expr: Stack) -> Array:
+        # TODO: Fix
+        single_instance_input_shape = expr.arrays[0].shape
+        new_arrays = tuple(self.rec(arr) for arr in expr.arrays)
+
+        new_axes_for_end, active_studies, studies_by_array = self._get_active_studies_from_multiple_predecessors(new_arrays)
 
         study_to_axis_number: Dict[ParameterStudyAxisTag, int] = {}
 
@@ -247,13 +256,13 @@ class ExpansionMapper(CopyMapper):
         cp_map = CopyMapper()
         corrected_new_arrays: Tuple[Array, ...] = ()
         for ind, array in enumerate(new_arrays):
-            tmp = cp_map(array) # Get a copy of the array.
+            tmp = cp_map(array)  # Get a copy of the array.
             if len(array.axes) < len(new_axes):
                 # We need to grow the array to the new size.
                 for study in active_studies:
                     if study not in studies_by_array[array]:
-                        build:List[Array] = [cp_map(tmp) for _ in range(study.axis_size)]
-                        tmp = Stack(arrays=tuple(build), axis=len(tmp.axes),
+                        build: Tuple[Array, ...] = tuple([cp_map(tmp) for _ in range(study.axis_size)])
+                        tmp = Stack(arrays=build, axis=len(tmp.axes),
                                     axes=tmp.axes + (Axis(tags=frozenset((study,))),),
                                     tags=tmp.tags, non_equality_tags=tmp.non_equality_tags)
             elif len(array.axes) > len(new_axes):
@@ -261,8 +270,8 @@ class ExpansionMapper(CopyMapper):
 
             # Now we need to correct to the appropriate shape with an axis permutation.
             # These are known to be in the right place.
-            permute: Tuple[Axis,...] = tuple([i for i in range(len(single_instance_input_shape))])
-            
+            permute: Tuple[int, ...] = tuple([i for i in range(len(single_instance_input_shape))])
+
             for iaxis, axis in enumerate(tmp.axes):
                 axis_tags = list(axis.tags_of_type(ParameterStudyAxisTag))
                 if axis_tags:
@@ -272,15 +281,67 @@ class ExpansionMapper(CopyMapper):
             corrected_new_arrays = corrected_new_arrays + (AxisPermutation(tmp, permute, tags=tmp.tags,
                                                             axes=tmp.axes, non_equality_tags=tmp.non_equality_tags),)
 
-
-        out = Stack(arrays=corrected_new_arrays, axis=expr.axis, axes=expr.axes + new_axes_for_end,
+        return Stack(arrays=corrected_new_arrays, axis=expr.axis, axes=expr.axes + new_axes_for_end,
                     tags=expr.tags, non_equality_tags=expr.non_equality_tags)
-        breakpoint() 
-
-        return out 
 
     def map_concatenate(self, expr: Concatenate) -> Array:
-        return super().map_concatenate(expr)
+        single_instance_input_shape = expr.arrays[0].shape
+        # Note that one of the axes within the first single_instance_input_shape
+        # will not match in size across all inputs.
+
+        new_arrays = tuple(self.rec(arr) for arr in expr.arrays)
+
+        new_axes_for_end, active_studies, studies_by_array = self._get_active_studies_from_multiple_predecessors(new_arrays)
+
+        study_to_axis_number: Dict[ParameterStudyAxisTag, int] = {}
+
+        new_shape_of_predecessors = single_instance_input_shape
+        new_axes  = expr.axes
+
+        for study in active_studies:
+            if isinstance(study, ParameterStudyAxisTag):
+                # Just defensive programming
+                # The active studies are added to the end of the bindings.
+                study_to_axis_number[study] = len(new_shape_of_predecessors)
+                new_shape_of_predecessors = new_shape_of_predecessors + (study.axis_size,)
+                new_axes = new_axes + (Axis(tags=frozenset((study,))),)
+                #  This assumes that the axis only has 1 tag,
+                #  because there should be no dependence across instances.
+
+        # This is going to be expensive.
+
+        # Now we need to update the expressions.
+        # Now that we have the appropriate shape, we need to update the input arrays to match.
+        cp_map = CopyMapper()
+        corrected_new_arrays: Tuple[Array, ...] = ()
+        for ind, array in enumerate(new_arrays):
+            tmp = cp_map(array)  # Get a copy of the array.
+            if len(array.axes) < len(new_axes):
+                # We need to grow the array to the new size.
+                for study in active_studies:
+                    if study not in studies_by_array[array]:
+                        build: Tuple[Array, ...] = tuple([cp_map(tmp) for _ in range(study.axis_size)])
+                        tmp = Stack(arrays=build, axis=len(tmp.axes),
+                                    axes=tmp.axes + (Axis(tags=frozenset((study,))),),
+                                    tags=tmp.tags, non_equality_tags=tmp.non_equality_tags)
+            elif len(array.axes) > len(new_axes):
+                raise ValueError(f"Input array is too big. Expected at most: {len(new_axes)} Found: {len(array.axes)} axes.")
+
+            # Now we need to correct to the appropriate shape with an axis permutation.
+            # These are known to be in the right place.
+            permute: Tuple[int, ...] = tuple([i for i in range(len(single_instance_input_shape))])
+
+            for iaxis, axis in enumerate(tmp.axes):
+                axis_tags = list(axis.tags_of_type(ParameterStudyAxisTag))
+                if axis_tags:
+                    assert len(axis_tags) == 1
+                    permute = permute + (study_to_axis_number[axis_tags[0]],)
+            assert len(permute) == len(new_shape_of_predecessors)
+            corrected_new_arrays = corrected_new_arrays + (AxisPermutation(tmp, permute, tags=tmp.tags,
+                                                            axes=tmp.axes, non_equality_tags=tmp.non_equality_tags),)
+
+        return Concatenate(arrays=corrected_new_arrays, axis=expr.axis, axes=expr.axes + new_axes_for_end,
+                    tags=expr.tags, non_equality_tags=expr.non_equality_tags)
 
     def map_index_lambda(self, expr: IndexLambda) -> Array:
         # Update bindings first.
@@ -330,6 +391,42 @@ class ExpansionMapper(CopyMapper):
                            axes=new_axes,
                            tags=expr.tags,
                            non_equality_tags=expr.non_equality_tags)
+
+    def map_einsum(self, expr: Einsum) -> Array:
+
+        new_arrays = tuple([self.rec(arg) for arg in expr.args])
+        new_axes_for_end, active_studies, studies_by_array = self._get_active_studies_from_multiple_predecessors(new_arrays)
+
+        # Access Descriptors hold the Einsum notation.
+        new_access_descriptors = list(expr.access_descriptors)
+        study_to_axis_number: Dict[ParameterStudyAxisTag, int] = {}
+
+        new_shape = expr.shape
+
+        for study in active_studies:
+            if isinstance(study, ParameterStudyAxisTag):
+                # Just defensive programming
+                # The active studies are added to the end.
+                study_to_axis_number[study] = len(new_shape)
+                new_shape = new_shape + (study.axis_size,)
+
+        for ind, array in enumerate(new_arrays):
+            for _, axis in enumerate(array.axes):
+                axis_tags = list(axis.tags_of_type(ParameterStudyAxisTag))
+                if axis_tags:
+                    assert len(axis_tags) == 1
+                    new_access_descriptors[ind] = new_access_descriptors[ind] + \
+                                                (EinsumElementwiseAxis(dim=study_to_axis_number[axis_tags[0]]),)
+
+        out = Einsum(tuple(new_access_descriptors), new_arrays, axes=expr.axes + new_axes_for_end,
+                     redn_axis_to_redn_descr=expr.redn_axis_to_redn_descr,
+                     index_to_access_descr=expr.index_to_access_descr,
+                     tags=expr.tags,
+                     non_equality_tags=expr.non_equality_tags)
+        breakpoint()
+        return out
+
+        return super().map_einsum(expr)
 
     # }}} Operations with multiple predecessors.
 
@@ -489,7 +586,7 @@ def _cut_if_in_param_study(name, arg) -> Array:
     """
     ndim: int = len(arg.shape)
     newshape = []
-    update_axes: Tuple[Axis, ...] = (Axis(tags=frozenset()),)
+    update_axes: AxesT = (Axis(tags=frozenset()),)
     for i in range(ndim):
         axis_tags = arg.axes[i].tags_of_type(ParameterStudyAxisTag)
         if not axis_tags:
