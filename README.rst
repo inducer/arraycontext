@@ -24,7 +24,7 @@ implementations for:
 - Profiling
 
 ``arraycontext`` started life as an array abstraction for use with the
-`meshmode <https://documen.tician.de/meshmode/>`__ unstrucuted discretization
+`meshmode <https://documen.tician.de/meshmode/>`__ unstructured discretization
 package.
 
 Distributed under the MIT license.
