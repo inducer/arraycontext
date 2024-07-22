@@ -556,7 +556,7 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
             if isinstance(val, LeafArrayDescriptor):
                 input_shapes[input_id_to_name_in_program[key]] = val.shape
             input_axes[input_id_to_name_in_program[key]] = arg_id_to_arg[key].axes
-        myMapper = ExpansionMapper(input_shapes, input_axes)  # Get the dependencies
+        my_expansion_map = ExpansionMapper(input_shapes, input_axes)  # Get the dependencies
         breakpoint()
 
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(dict_of_named_arrays)
@@ -565,7 +565,7 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
 
         # Use the normal compiler now.
 
-        compiled_func = self._dag_to_compiled_func(myMapper(pt_dict_of_named_arrays),  # Update the arrays
+        compiled_func = self._dag_to_compiled_func(my_expansion_map(pt_dict_of_named_arrays),
                                                    # pt_dict_of_named_arrays,
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_id_to_name_in_program=output_id_to_name_in_program,

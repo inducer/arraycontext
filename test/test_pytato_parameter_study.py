@@ -73,23 +73,6 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
 
 # {{{ dummy tag types
 
-class FooTag(Tag):
-    """
-    Foo
-    """
-
-
-class BarTag(Tag):
-    """
-    Bar
-    """
-
-
-class BazTag(Tag):
-    """
-    Baz
-    """
-
 class ParamStudy1(ParameterStudyAxisTag):
     """
     1st parameter study.
@@ -132,16 +115,17 @@ def test_pack_for_parameter_study(actx_factory):
     def rhs(a,b):
         return a + b
 
+    # Adding to the end.
     pack_x = pack_for_parameter_study(actx, ParamStudy1, (4,), x0, x1, x2, x3)
-    assert pack_x.shape == (4,15,5)
+    assert pack_x.shape == (15,5,4)
 
     pack_y = pack_for_parameter_study(actx, ParamStudy2, (5,), y0,y1, y2,y3,y4)
-    assert pack_y.shape == (5,15,5)
+    assert pack_y.shape == (15,5,5)
 
     for i in range(3):
         axis_tags = pack_x.axes[i].tags_of_type(ParamStudy1)
         second_tags = pack_x.axes[i].tags_of_type(ParamStudy2)
-        if i == 0:
+        if i == 2:
             assert axis_tags
         else:
             assert not axis_tags
@@ -176,16 +160,16 @@ def test_unpack_parameter_study(actx_factory):
         return a + b
 
     pack_x = pack_for_parameter_study(actx, ParamStudy1, (4,), x0, x1, x2, x3)
-    assert pack_x.shape == (4,15,5)
+    assert pack_x.shape == (15,5,4)
 
     pack_y = pack_for_parameter_study(actx, ParamStudy2, (5,), y0,y1, y2,y3,y4)
-    assert pack_y.shape == (5,15,5)
+    assert pack_y.shape == (15,5,5)
 
     compiled_rhs = actx.compile(rhs)
 
     output = compiled_rhs(pack_x, pack_y)
 
-    assert output.shape(4,5,15,5)
+    assert output.shape(15,5,4,5)
 
     output_x = unpack_parameter_study(output, ParamStudy1)
     assert len(output_x) == 1  # Only 1 study associated with this variable.

@@ -49,45 +49,23 @@ import sys
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Dict,
-    FrozenSet,
-    Optional,
+    List,
+    Mapping,
     Tuple,
     Type,
-    Union,
-    Sequence,
-    List,
-    Iterable,
-    Mapping,
 )
 
 import numpy as np
-import pytato as pt
 
+import pytato as pt
 from pytato.array import Array
 
-from pytools import memoize_method
-from pytools.tag import UniqueTag
-
-from dataclasses import dataclass
-
-from arraycontext.container.traversal import (rec_map_array_container,
-                                              with_array_context, rec_keyed_map_array_container)
-
-from arraycontext.container import ArrayContainer, is_array_container_type
-
 from arraycontext.context import ArrayContext
-from arraycontext.metadata import NameHint
-from arraycontext import PytatoPyOpenCLArrayContext
-from arraycontext.impl.pytato.compile import (LazilyPyOpenCLCompilingFunctionCaller,
-                                             _get_arg_id_to_arg_and_arg_id_to_descr,
-                                                      _to_input_for_compiled,
-                                              _ary_container_key_stringifier)
+from arraycontext.parameter_study.transform import ParameterStudyAxisTag
 
-from arraycontext.parameter_study.transform import ExpansionMapper, ParameterStudyAxisTag
 
-# from arraycontext.parameter_study.transform import ExpansionMapper
+ParamStudyTagT = Type[ParameterStudyAxisTag]
 
 if TYPE_CHECKING:
     import pyopencl as cl
@@ -103,7 +81,7 @@ logger = logging.getLogger(__name__)
 
 
 def pack_for_parameter_study(actx: ArrayContext,
-                             study_name_tag_type: Type[ParameterStudyAxisTag],
+                             study_name_tag_type: ParamStudyTagT,
                              newshape: Tuple[int, ...],
                              *args: Array) -> Array:
     """
@@ -120,23 +98,24 @@ def pack_for_parameter_study(actx: ArrayContext,
 
     orig_shape = args[0].shape
     out = actx.np.stack(args, axis=len(args[0].shape))
-    outshape = tuple(list(orig_shape) + [newshape] )
+    outshape = tuple([*list(orig_shape), newshape])
 
-    #if len(newshape) > 1:
+    # if len(newshape) > 1:
     #    # Reshape the object
     #    out = out.reshape(outshape)
-    
+
     for i in range(len(orig_shape), len(outshape)):
-        out = out.with_tagged_axis(i, [study_name_tag_type(i - len(orig_shape), newshape[i-len(orig_shape)])])
+        out = out.with_tagged_axis(i, [study_name_tag_type(i - len(orig_shape),
+                                                           newshape[i-len(orig_shape)])])
     return out
 
 
 def unpack_parameter_study(data: Array,
-                           study_name_tag_type: Type[ParameterStudyAxisTag]) -> Mapping[int,
+                           study_name_tag_type: ParamStudyTagT) -> Mapping[int,
                                                                           List[Array]]:
     """
-        Split the data array along the axes which vary according to a ParameterStudyAxisTag
-        whose name tag is an instance study_name_tag_type.
+        Split the data array along the axes which vary according to
+        a ParameterStudyAxisTag whose name tag is an instance study_name_tag_type.
 
         output[i] corresponds to the values associated with the ith parameter study that
         uses the variable name :arg: `study_name_tag_type`.

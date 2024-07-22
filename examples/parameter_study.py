@@ -35,9 +35,6 @@ y3 = actx.from_numpy(rng.random(base_shape))
 # Eq: z = x + y
 # Assumptions: x and y are undergoing independent parameter studies.
 def rhs(param1, param2):
-    import pytato as pt
-    return pt.stack([param1, param2],axis=0)
-    return param1.stack(param1)
     return param1 + param2
 
 
