@@ -1,0 +1,81 @@
+from dataclasses import dataclass
+
+import numpy as np  # for the data types
+
+import pyopencl as cl
+
+from arraycontext.parameter_study import (
+    pack_for_parameter_study,
+    unpack_parameter_study,
+)
+from arraycontext.parameter_study.transform import (
+    ParameterStudyAxisTag,
+    ParamStudyPytatoPyOpenCLArrayContext,
+)
+
+
+ctx = cl.create_some_context(interactive=False)
+queue = cl.CommandQueue(ctx)
+actx = ParamStudyPytatoPyOpenCLArrayContext(queue)
+
+
+
+@dataclass(frozen=True)
+class ParameterStudyForX(ParameterStudyAxisTag):
+    pass
+
+
+@dataclass(frozen=True)
+class ParameterStudyForY(ParameterStudyAxisTag):
+    pass
+
+def test_one_time_step_advection():
+
+    from arraycontext.impl.pytato import _BasePytatoArrayContext
+    if not isinstance(actx, ParamStudyPytatoPyOpenCLArrayContext):
+        pytest.skip("only parameter study array contexts are supported")
+
+    import numpy as np
+    seed = 12345
+    rng = np.random.default_rng(seed)
+
+    base_shape = np.prod((15, 5))
+    x0 = actx.from_numpy(rng.random(base_shape))
+    x1 = actx.from_numpy(rng.random(base_shape))
+    x2 = actx.from_numpy(rng.random(base_shape))
+    x3 = actx.from_numpy(rng.random(base_shape))
+    
+
+    speed_shape = (1,)
+    y0 = actx.from_numpy(rng.random(speed_shape))
+    y1 = actx.from_numpy(rng.random(speed_shape))
+    y2 = actx.from_numpy(rng.random(speed_shape))
+    y3 = actx.from_numpy(rng.random(speed_shape))
+
+
+    ht = 0.0001
+    hx = 0.005
+    inds = actx.np.arange(base_shape, dtype=int)
+    Kp1 = actx.np.roll(inds, -1)
+    Km1 = actx.np.roll(inds, 1)
+
+    def rhs(fields, wave_speed):
+        # 2nd order in space finite difference
+        return fields + wave_speed * (-1) * (ht / (2 * hx)) * \
+                (fields[Kp1] - fields[Km1])
+
+    pack_x = pack_for_parameter_study(actx, ParamStudy1, (4,), x0, x1, x2, x3)
+    assert pack_x.shape == (75,4)
+
+    pack_y = pack_for_parameter_study(actx, ParamStudy1, (4,), y0,y1, y2,y3)
+    assert pack_y.shape == (1,4)
+
+    compiled_rhs = actx.compile(rhs)
+
+    output = compiled_rhs(pack_x, pack_y)
+
+    assert output.shape(75,4)
+
+    output_x = unpack_parameter_study(output, ParamStudy1)
+    assert len(output_x) == 1  # Only 1 study associated with this variable.
+    assert len(output_x[0]) == 4 # 4 inputs for the parameter study.
