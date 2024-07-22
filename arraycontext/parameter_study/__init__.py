@@ -58,7 +58,6 @@ from typing import (
 
 import numpy as np
 
-import pytato as pt
 from pytato.array import Array
 
 from arraycontext.context import ArrayContext
@@ -98,7 +97,7 @@ def pack_for_parameter_study(actx: ArrayContext,
 
     orig_shape = args[0].shape
     out = actx.np.stack(args, axis=len(args[0].shape))
-    outshape = tuple([*list(orig_shape), newshape])
+    outshape = *orig_shape, newshape
 
     # if len(newshape) > 1:
     #    # Reshape the object
