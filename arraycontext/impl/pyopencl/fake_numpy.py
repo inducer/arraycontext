@@ -231,7 +231,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             else:
                 return reduce(
                         partial(cl_array.minimum, queue=queue),
-                        [rec_equal(ix, iy)for (_, ix), (_, iy) in iterable],
+                        [rec_equal(x_i, y_i)for (_, x_i), (_, y_i) in iterable],
                         true)
 
         result = rec_equal(a, b)

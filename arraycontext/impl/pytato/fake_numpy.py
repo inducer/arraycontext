@@ -189,7 +189,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             else:
                 return reduce(
                         pt.logical_and,
-                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable],
+                        [rec_equal(x_i, y_i) for (_, x_i), (_, y_i) in iterable],
                         true)
 
         return rec_equal(a, b)
