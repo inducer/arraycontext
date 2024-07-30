@@ -206,7 +206,6 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
     def is_available(cls) -> bool:
         try:
             import jax  # noqa: F401
-
             import pytato  # noqa: F401
             return True
         except ImportError:

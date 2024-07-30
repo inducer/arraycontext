@@ -151,7 +151,7 @@ class EagerJAXArrayContext(ArrayContext):
         return array
 
     def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
-        # TODO: See `jax.experiemental.maps.xmap`, proabably that should be useful?
+        # TODO: See `jax.experiemental.maps.xmap`, probably that should be useful?
         return array
 
     def call_loopy(self, t_unit, **kwargs):
