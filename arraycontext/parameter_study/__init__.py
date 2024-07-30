@@ -77,12 +77,12 @@ from arraycontext.container.traversal import rec_keyed_map_array_container
 from arraycontext.context import ArrayContext
 from arraycontext.impl.pytato import (
     PytatoPyOpenCLArrayContext,
-    _get_arg_id_to_arg_and_arg_id_to_descr,
 )
 from arraycontext.impl.pytato.compile import (
     LazilyPyOpenCLCompilingFunctionCaller,
     LeafArrayDescriptor,
     _ary_container_key_stringifier,
+    _get_arg_id_to_arg_and_arg_id_to_descr,
     _to_input_for_compiled,
 )
 

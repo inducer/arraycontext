@@ -5,12 +5,10 @@ import numpy as np  # for the data types
 import pyopencl as cl
 
 from arraycontext.parameter_study import (
-    pack_for_parameter_study,
-    unpack_parameter_study,
-)
-from arraycontext.parameter_study.transform import (
     ParameterStudyAxisTag,
     ParamStudyPytatoPyOpenCLArrayContext,
+    pack_for_parameter_study,
+    unpack_parameter_study,
 )
 
 
