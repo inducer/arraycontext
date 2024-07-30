@@ -7,14 +7,12 @@ import pyopencl as cl
 from arraycontext.parameter_study import (
     pack_for_parameter_study,
     unpack_parameter_study,
-)
-from arraycontext.parameter_study.transform import (
-    ParameterStudyAxisTag,
     ParamStudyPytatoPyOpenCLArrayContext,
+    ParameterStudyAxisTag,
 )
 
 
-ctx = cl.create_some_context(interactive=False)
+ctx = cl.create_some_context()
 queue = cl.CommandQueue(ctx)
 actx = ParamStudyPytatoPyOpenCLArrayContext(queue)
 
@@ -35,7 +33,10 @@ y3 = actx.from_numpy(rng.random(base_shape))
 # Eq: z = x + y
 # Assumptions: x and y are undergoing independent parameter studies.
 def rhs(param1, param2):
-    return param1 + param2
+    import pytato as pt
+    return pt.matmul(param1, param2.T)
+    return pt.stack([param1[0], param2[10]], axis=0)
+    return param1[0] + param2[10]
 
 
 @dataclass(frozen=True)

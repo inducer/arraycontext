@@ -18,22 +18,14 @@ ctx = cl.create_some_context(interactive=False)
 queue = cl.CommandQueue(ctx)
 actx = ParamStudyPytatoPyOpenCLArrayContext(queue)
 
-
-
 @dataclass(frozen=True)
-class ParameterStudyForX(ParameterStudyAxisTag):
-    pass
+class ParamStudy1(ParameterStudyAxisTag):
+    """
+    1st parameter study.
+    """
 
-
-@dataclass(frozen=True)
-class ParameterStudyForY(ParameterStudyAxisTag):
-    pass
 
 def test_one_time_step_advection():
-
-    from arraycontext.impl.pytato import _BasePytatoArrayContext
-    if not isinstance(actx, ParamStudyPytatoPyOpenCLArrayContext):
-        pytest.skip("only parameter study array contexts are supported")
 
     import numpy as np
     seed = 12345
@@ -55,9 +47,9 @@ def test_one_time_step_advection():
 
     ht = 0.0001
     hx = 0.005
-    inds = actx.np.arange(base_shape, dtype=int)
-    Kp1 = actx.np.roll(inds, -1)
-    Km1 = actx.np.roll(inds, 1)
+    inds = np.arange(base_shape, dtype=int)
+    Kp1 = actx.from_numpy(np.roll(inds, -1))
+    Km1 = actx.from_numpy(np.roll(inds, 1))
 
     def rhs(fields, wave_speed):
         # 2nd order in space finite difference
@@ -65,17 +57,25 @@ def test_one_time_step_advection():
                 (fields[Kp1] - fields[Km1])
 
     pack_x = pack_for_parameter_study(actx, ParamStudy1, (4,), x0, x1, x2, x3)
+    breakpoint()
     assert pack_x.shape == (75,4)
 
     pack_y = pack_for_parameter_study(actx, ParamStudy1, (4,), y0,y1, y2,y3)
+    breakpoint()
     assert pack_y.shape == (1,4)
 
     compiled_rhs = actx.compile(rhs)
+    breakpoint()
 
     output = compiled_rhs(pack_x, pack_y)
-
+    breakpoint()
     assert output.shape(75,4)
 
     output_x = unpack_parameter_study(output, ParamStudy1)
     assert len(output_x) == 1  # Only 1 study associated with this variable.
     assert len(output_x[0]) == 4 # 4 inputs for the parameter study.
+
+    print("All checks passed")
+
+# Call it.
+test_one_time_step_advection()
