@@ -30,10 +30,10 @@ from arraycontext import (
     pytest_generate_tests_for_array_contexts,
 )
 from arraycontext.parameter_study import (
-    pack_for_parameter_study,
-    unpack_parameter_study,
     ParameterStudyAxisTag,
     ParamStudyPytatoPyOpenCLArrayContext,
+    pack_for_parameter_study,
+    unpack_parameter_study,
 )
 from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
 

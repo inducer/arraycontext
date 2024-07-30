@@ -59,13 +59,12 @@ from typing import (
 import numpy as np
 
 from pytools import memoize_method
-from pytools.tag import Tag, ToTagSetConvertible, normalize_tags, UniqueTag
+from pytools.tag import Tag, ToTagSetConvertible, UniqueTag as UniqueTag, normalize_tags
 
 from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 from arraycontext.metadata import NameHint
 
-from dataclasses import dataclass
 
 if TYPE_CHECKING:
     import pyopencl as cl
@@ -701,8 +700,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     # }}}
 
 # }}}
-
-
 
 
 # {{{ PytatoJAXArrayContext

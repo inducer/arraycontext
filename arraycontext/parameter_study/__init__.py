@@ -1,5 +1,3 @@
-from future import __annotations__
-
 
 """
 .. currentmodule:: arraycontext
@@ -48,45 +46,51 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import sys
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
-    List,
     Mapping,
-    Tuple,
     Type,
 )
 
 import numpy as np
 
 import loopy as lp
-from pytato.array import (Array, make_placeholder as make_placeholder,
-                         make_dict_of_named_arrays)
-
-from pytato.transform.parameter_study import ParameterStudyAxisTag
+from pytato.array import (
+    Array,
+    AxesT,
+    ShapeType,
+    make_dict_of_named_arrays,
+    make_placeholder as make_placeholder,
+)
+from pytato.transform.parameter_study import (
+    ExpansionMapper,
+    ParameterStudyAxisTag,
+)
 from pytools.tag import Tag, UniqueTag as UniqueTag
 
-from arraycontext.context import ArrayContext
-from arraycontext.container import ArrayContainer, is_array_container_type
+from arraycontext.container import (
+    ArrayContainer as ArrayContainer,
+    is_array_container_type,
+)
 from arraycontext.container.traversal import rec_keyed_map_array_container
-from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
-from arraycontext.impl.pytato.compile import (LazilyPyOpenCLCompilingFunctionCaller,
-                                              _to_input_for_compiled)
+from arraycontext.context import ArrayContext
+from arraycontext.impl.pytato import (
+    PytatoPyOpenCLArrayContext,
+    _get_arg_id_to_arg_and_arg_id_to_descr,
+)
+from arraycontext.impl.pytato.compile import (
+    LazilyPyOpenCLCompilingFunctionCaller,
+    LeafArrayDescriptor,
+    _ary_container_key_stringifier,
+    _to_input_for_compiled,
+)
 
 
-ArraysT = Tuple[Array, ...]
-StudiesT = Tuple[ParameterStudyAxisTag, ...]
+ArraysT = tuple[Array, ...]
+StudiesT = tuple[ParameterStudyAxisTag, ...]
 ParamStudyTagT = Type[ParameterStudyAxisTag]
 
-if TYPE_CHECKING:
-    import pyopencl as cl
-    import pytato as pytato
-
-if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
-    import pyopencl as cl
 
 import logging
 
@@ -168,7 +172,7 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         self.actx._compile_trace_callback(self.f, "post_trace", output_template)
 
         if (not (is_array_container_type(output_template.__class__)
-                 or isinstance(output_template, pt.Array))):
+                 or isinstance(output_template, Array))):
             # TODO: We could possibly just short-circuit this interface if the
             # returned type is a scalar. Not sure if it's worth it though.
             raise NotImplementedError(
@@ -185,9 +189,7 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         rec_keyed_map_array_container(_as_dict_of_named_arrays,
                                       output_template)
 
-        input_shapes = {}
-        input_axes = {}
-        placeholder_name_to_parameter_studies: Dict[str, StudiesT] = {}
+        placeholder_name_to_parameter_studies: dict[str, StudiesT] = {}
         for key, val in arg_id_to_descr.items():
             if isinstance(val, LeafArrayDescriptor):
                 name = input_id_to_name_in_program[key]
@@ -240,7 +242,7 @@ def _cut_to_single_instance_size(name, arg) -> Array:
             update_axes = (*update_axes, arg.axes[i],)
             newshape = (*newshape, arg.shape[i])
 
-    update_tags: FrozenSet[Tag] = arg.tags
+    update_tags: frozenset[Tag] = arg.tags
 
     return make_placeholder(name, newshape, arg.dtype, axes=update_axes,
                                tags=update_tags)
@@ -282,7 +284,7 @@ def pack_for_parameter_study(actx: ArrayContext,
                              study_name_tag_type: ParamStudyTagT,
                              *args: Array) -> Array:
     """
-        Args is a list of realized input data that needs to be packed 
+        Args is a list of realized input data that needs to be packed
         for a parameter study or uncertainty quantification.
 
         We assume that each input data set has the same shape and
@@ -301,7 +303,7 @@ def pack_for_parameter_study(actx: ArrayContext,
 
 def unpack_parameter_study(data: Array,
                            study_name_tag_type: ParamStudyTagT) -> Mapping[int,
-                                                                          List[Array]]:
+                                                                          list[Array]]:
     """
         Split the data array along the axes which vary according to
         a ParameterStudyAxisTag whose name tag is an instance study_name_tag_type.
@@ -311,7 +313,7 @@ def unpack_parameter_study(data: Array,
     """
 
     ndim: int = len(data.shape)
-    out: Dict[int, List[Array]] = {}
+    out: dict[int, list[Array]] = {}
 
     study_count = 0
     for i in range(ndim):
@@ -320,7 +322,7 @@ def unpack_parameter_study(data: Array,
             # Now we need to split this data.
             breakpoint()
             for j in range(data.shape[i]):
-                tmp: List[Any] = [slice(None)] * ndim
+                tmp: list[Any] = [slice(None)] * ndim
                 tmp[i] = j
                 the_slice = tuple(tmp)
                 # Needs to be a tuple of slices not list of slices.

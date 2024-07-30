@@ -81,6 +81,7 @@ from .impl.jax import EagerJAXArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
 from .loopy import make_loopy_program
+from .parameter_study import pack_for_parameter_study, unpack_parameter_study
 from .pytest import (
     PytestArrayContextFactory,
     PytestPyOpenCLArrayContextFactory,
@@ -88,7 +89,7 @@ from .pytest import (
     pytest_generate_tests_for_pyopencl_array_context,
 )
 from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
-from .parameter_study import pack_for_parameter_study, unpack_parameter_study
+
 
 __all__ = (
     "Array",
@@ -132,6 +133,7 @@ __all__ = (
     "multimap_reduce_array_container",
     "multimapped_over_array_containers",
     "outer",
+    "pack_for_parameter_study",
     "pytest_generate_tests_for_array_contexts",
     "pytest_generate_tests_for_pyopencl_array_context",
     "rec_map_array_container",
@@ -145,6 +147,7 @@ __all__ = (
     "thaw",
     "to_numpy",
     "unflatten",
+    "unpack_parameter_study",
     "with_array_context",
     "with_container_arithmetic"
 )
