@@ -27,12 +27,16 @@ import numpy as np
 
 import jax.numpy as jnp
 
-from arraycontext.container import NotAnArrayContainerError, serialize_container
+from arraycontext.container import (
+    NotAnArrayContainerError,
+    serialize_container,
+)
 from arraycontext.container.traversal import (
     rec_map_array_container,
     rec_map_reduce_array_container,
     rec_multimap_array_container,
 )
+from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace
 
 
@@ -156,29 +160,35 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_reduce_array_container(
             partial(reduce, jnp.logical_or), jnp.any, a)
 
-    def array_equal(self, a, b):
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
         actx = self._array_context
 
         # NOTE: not all backends support `bool` properly, so use `int8` instead
-        true = actx.from_numpy(np.int8(True))
-        false = actx.from_numpy(np.int8(False))
+        true_ary = actx.from_numpy(np.int8(True))
+        false_ary = actx.from_numpy(np.int8(False))
 
         def rec_equal(x, y):
             if type(x) is not type(y):
-                return false
+                return false_ary
 
             try:
-                iterable = zip(serialize_container(x), serialize_container(y))
+                serialized_x = serialize_container(x)
+                serialized_y = serialize_container(y)
             except NotAnArrayContainerError:
                 if x.shape != y.shape:
-                    return false
+                    return false_ary
                 else:
                     return jnp.all(jnp.equal(x, y))
             else:
+                if len(serialized_x) != len(serialized_y):
+                    return false_ary
                 return reduce(
                         jnp.logical_and,
-                        [rec_equal(x_i, y_i) for (_, x_i), (_, y_i) in iterable],
-                        true)
+                        [(true_ary if kx_i == ky_i else false_ary)
+                            and rec_equal(x_i, y_i)
+                            for (kx_i, x_i), (ky_i, y_i)
+                            in zip(serialized_x, serialized_y)],
+                        true_ary)
 
         return rec_equal(a, b)
 

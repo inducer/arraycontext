@@ -25,14 +25,14 @@ from functools import partial, reduce
 
 import numpy as np
 
-from arraycontext.container import is_array_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-    multimap_reduce_array_container,
     rec_map_array_container,
     rec_map_reduce_array_container,
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
+from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import (
     BaseFakeNumpyLinalgNamespace,
     BaseFakeNumpyNamespace,
@@ -127,18 +127,29 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_reduce_array_container(partial(reduce, np.logical_and),
                                               lambda subary: np.all(subary), a)
 
-    def array_equal(self, a, b):
-        if type(a) != type(b):
-            return False
-        elif not is_array_container(a):
-            if a.shape != b.shape:
-                return False
-            else:
-                return np.all(np.equal(a, b))
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
+        false_ary = np.array(False)
+        true_ary = np.array(True)
+        if type(a) is not type(b):
+            return false_ary
+
+        try:
+            serialized_x = serialize_container(a)
+            serialized_y = serialize_container(b)
+        except NotAnArrayContainerError:
+            assert isinstance(a, np.ndarray)
+            assert isinstance(b, np.ndarray)
+            return np.array(np.array_equal(a, b))
         else:
-            return multimap_reduce_array_container(partial(reduce,
-                                                           np.logical_and),
-                                                   self.array_equal, a, b)
+            if len(serialized_x) != len(serialized_y):
+                return false_ary
+            return reduce(
+                    np.logical_and,
+                    [(true_ary if kx_i == ky_i else false_ary)
+                        and self.array_equal(x_i, y_i)
+                        for (kx_i, x_i), (ky_i, y_i)
+                        in zip(serialized_x, serialized_y)],
+                    true_ary)
 
     def arange(self, *args, **kwargs):
         return np.arange(*args, **kwargs)
