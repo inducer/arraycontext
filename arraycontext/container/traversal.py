@@ -43,6 +43,8 @@ Algebraic operations
 
 from __future__ import annotations
 
+from arraycontext.container.arithmetic import NumpyObjectArray
+
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -964,7 +966,7 @@ def outer(a: Any, b: Any) -> Any:
             return (
                 not isinstance(x, np.ndarray)
                 # This condition is whether "ndarrays should broadcast inside x".
-                and np.ndarray not in x.__class__._outer_bcast_types)
+                and NumpyObjectArray not in x.__class__._outer_bcast_types)
 
     if treat_as_scalar(a) or treat_as_scalar(b):
         return a*b
