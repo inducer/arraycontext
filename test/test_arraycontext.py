@@ -1113,9 +1113,10 @@ def test_flatten_array_container_failure(actx_factory):
     ary = _get_test_containers(actx, shapes=512)[0]
     flat_ary = _checked_flatten(ary, actx)
 
-    with pytest.raises(TypeError):
-        # cannot unflatten from a numpy array
-        unflatten(ary, actx.to_numpy(flat_ary), actx)
+    if not isinstance(actx, NumpyArrayContext):
+        with pytest.raises(TypeError):
+            # cannot unflatten from a numpy array (except for numpy actx)
+            unflatten(ary, actx.to_numpy(flat_ary), actx)
 
     with pytest.raises(ValueError):
         # cannot unflatten non-flat arrays
