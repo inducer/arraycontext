@@ -77,6 +77,7 @@ import numpy as np
 from arraycontext.container import (
     ArrayContainer,
     NotAnArrayContainerError,
+    SerializationKey,
     deserialize_container,
     get_container_context_recursively_opt,
     serialize_container,
@@ -373,12 +374,9 @@ def multimapped_over_array_containers(
 
 # {{{ keyed array container traversal
 
-KeyType = Any
-
-
 def keyed_map_array_container(
         f: Callable[
-            [KeyType, ArrayOrContainer],
+            [SerializationKey, ArrayOrContainer],
             ArrayOrContainer],
         ary: ArrayOrContainer) -> ArrayOrContainer:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
@@ -403,7 +401,7 @@ def keyed_map_array_container(
 
 
 def rec_keyed_map_array_container(
-        f: Callable[[Tuple[KeyType, ...], ArrayT], ArrayT],
+        f: Callable[[Tuple[SerializationKey, ...], ArrayT], ArrayT],
         ary: ArrayOrContainer) -> ArrayOrContainer:
     """
     Works similarly to :func:`rec_map_array_container`, except that *f* also
@@ -412,7 +410,7 @@ def rec_keyed_map_array_container(
     the current array.
     """
 
-    def rec(keys: Tuple[Union[str, int], ...],
+    def rec(keys: Tuple[SerializationKey, ...],
             _ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
