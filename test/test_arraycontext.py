@@ -1585,8 +1585,8 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
 def test_tagging(actx_factory):
     actx = actx_factory()
 
-    if isinstance(actx, EagerJAXArrayContext):
-        pytest.skip("Eager JAX has no tagging support")
+    if isinstance(actx, (NumpyArrayContext, EagerJAXArrayContext)):
+        pytest.skip(f"{type(actx)} has no tagging support")
 
     from pytools.tag import Tag
 
