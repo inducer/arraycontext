@@ -217,7 +217,11 @@ class Array(Protocol):
     def dtype(self) -> "np.dtype[Any]":
         ...
 
-    def __getitem__(self, index: Union[slice, int]) -> "Array":
+    # Covering all the possible index variations is hard and (kind of) futile.
+    # If you'd  like to see how, try changing the Any to
+    # AxisIndex = slice | int | "Array"
+    # Index = AxisIndex |tuple[AxisIndex]
+    def __getitem__(self, index: Any) -> "Array":
         ...
 
 
