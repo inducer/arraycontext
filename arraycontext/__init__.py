@@ -32,6 +32,8 @@ from .container import (
     ArrayContainer,
     ArrayContainerT,
     NotAnArrayContainerError,
+    SerializationKey,
+    SerializedContainer,
     deserialize_container,
     get_container_context_opt,
     get_container_context_recursively,
@@ -113,6 +115,8 @@ __all__ = (
     "PytestPyOpenCLArrayContextFactory",
     "Scalar",
     "ScalarLike",
+    "SerializationKey",
+    "SerializedContainer",
     "dataclass_array_container",
     "deserialize_container",
     "flat_size_and_dtype",
@@ -148,7 +152,7 @@ __all__ = (
     "with_array_context",
     "with_container_arithmetic",
     "with_container_arithmetic"
-    )
+)
 
 
 # {{{ deprecation handling
