@@ -1171,16 +1171,17 @@ def test_numpy_conversion(actx_factory):
     assert np.allclose(ac.mass, ac_roundtrip.mass)
     assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
 
-    from dataclasses import replace
-    ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
-    with pytest.raises(TypeError):
-        actx.from_numpy(ac_with_cl)
+    if not isinstance(actx, NumpyArrayContext):
+        from dataclasses import replace
+        ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
+        with pytest.raises(TypeError):
+            actx.from_numpy(ac_with_cl)
 
-    with pytest.raises(TypeError):
-        actx.from_numpy(ac_actx)
+        with pytest.raises(TypeError):
+            actx.from_numpy(ac_actx)
 
-    with pytest.raises(TypeError):
-        actx.to_numpy(ac)
+        with pytest.raises(TypeError):
+            actx.to_numpy(ac)
 
 # }}}
 
