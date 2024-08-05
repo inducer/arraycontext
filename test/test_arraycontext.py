@@ -1367,7 +1367,7 @@ def test_leaf_array_type_broadcasting(actx_factory):
     # test support for https://github.com/inducer/arraycontext/issues/49
     actx = actx_factory()
 
-    foo = Foo(DOFArray(actx, (actx.zeros(3, dtype=np.float64) + 41, )))
+    foo = Foo(DOFArray(actx, (actx.np.zeros(3, dtype=np.float64) + 41, )))
     bar = foo + 4
     baz = foo + actx.from_numpy(4*np.ones((3, )))
     qux = actx.from_numpy(4*np.ones((3, ))) + foo
@@ -1510,7 +1510,7 @@ def test_actx_compile_on_pure_array_return(actx_factory):
 
     actx = actx_factory()
     ones = actx.thaw(actx.freeze(
-        actx.zeros(shape=(10, 4), dtype=np.float64) + 1
+        actx.np.zeros(shape=(10, 4), dtype=np.float64) + 1
         ))
     np.testing.assert_allclose(actx.to_numpy(_twice(ones)),
                                actx.to_numpy(actx.compile(_twice)(ones)))
@@ -1573,7 +1573,7 @@ def test_taggable_cl_array_tags(actx_factory):
 def test_to_numpy_on_frozen_arrays(actx_factory):
     # See https://github.com/inducer/arraycontext/issues/159
     actx = actx_factory()
-    u = actx.freeze(actx.zeros(10, dtype="float64")+1)
+    u = actx.freeze(actx.np.zeros(10, dtype="float64")+1)
     np.testing.assert_allclose(actx.to_numpy(u), 1)
     np.testing.assert_allclose(actx.to_numpy(u), 1)
 
@@ -1592,7 +1592,7 @@ def test_tagging(actx_factory):
     ary = tag_axes(actx, {0: ExampleTag()},
             actx.tag(
                 ExampleTag(),
-                actx.zeros((20, 20), dtype=np.float64)))
+                actx.np.zeros((20, 20), dtype=np.float64)))
 
     assert ary.tags_of_type(ExampleTag)
     assert ary.axes[0].tags_of_type(ExampleTag)
@@ -1606,11 +1606,11 @@ def test_compile_anonymous_function(actx_factory):
     actx = actx_factory()
     f = actx.compile(lambda x: 2*x+40)
     np.testing.assert_allclose(
-        actx.to_numpy(f(1+actx.zeros((10, 4), "float64"))),
+        actx.to_numpy(f(1+actx.np.zeros((10, 4), "float64"))),
         42)
     f = actx.compile(partial(lambda x: 2*x+40))
     np.testing.assert_allclose(
-        actx.to_numpy(f(1+actx.zeros((10, 4), "float64"))),
+        actx.to_numpy(f(1+actx.np.zeros((10, 4), "float64"))),
         42)
 
 

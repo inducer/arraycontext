@@ -201,7 +201,7 @@ class PyOpenCLArrayContext(ArrayContext):
     def empty(self, shape, dtype):
         from warnings import warn
         warn(f"{type(self).__name__}.empty is deprecated and will stop "
-            "working in 2023. Prefer actx.zeros instead.",
+            "working in 2023. Prefer actx.np.zeros instead.",
             DeprecationWarning, stacklevel=2)
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
