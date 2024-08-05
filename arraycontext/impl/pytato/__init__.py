@@ -101,7 +101,9 @@ def _preprocess_array_tags(tags: ToTagSetConvertible) -> FrozenSet[Tag]:
                     "was already present.", stacklevel=1)
 
         tags = (
-                (tags | frozenset({PrefixNamed(name_hint.name)}))
+                # NOTE: mypy seems to be confused with `dataclass_transform` so
+                # these don't always work as expected for now..
+                (tags | frozenset({PrefixNamed(name_hint.name)}))  # type: ignore[call-arg]
                 - {name_hint})
 
     return tags
