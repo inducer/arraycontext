@@ -144,7 +144,6 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
     def actx_class(self):
         from arraycontext import PytatoPyOpenCLArrayContext
         actx_cls = PytatoPyOpenCLArrayContext
-        actx_cls.transform_loopy_program = lambda s, t_unit: t_unit
         return actx_cls
 
     def __call__(self):
