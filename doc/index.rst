@@ -53,6 +53,7 @@ Contents
 
 .. toctree::
     array_context
+    implementations
     container
     other
     misc
