@@ -583,4 +583,8 @@ def tag_axes(
 
 # }}}
 
+
+class UntransformedCodeWarning(UserWarning):
+    pass
+
 # vim: foldmethod=marker
