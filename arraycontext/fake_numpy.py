@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 
 import operator
+from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
@@ -34,7 +35,7 @@ from arraycontext.container.traversal import rec_map_array_container
 
 # {{{ BaseFakeNumpyNamespace
 
-class BaseFakeNumpyNamespace:
+class BaseFakeNumpyNamespace(ABC):
     def __init__(self, array_context):
         self._array_context = array_context
         self.linalg = self._get_fake_numpy_linalg_namespace()
@@ -94,6 +95,14 @@ class BaseFakeNumpyNamespace:
         # FIXME:
         # "interp",
         })
+
+    @abstractmethod
+    def zeros(self, shape, dtype):
+        ...
+
+    @abstractmethod
+    def zeros_like(self, ary):
+        ...
 
     def conjugate(self, x):
         # NOTE: conjugate distributes over object arrays, but it looks for a
