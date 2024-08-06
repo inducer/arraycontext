@@ -23,7 +23,7 @@ THE SOFTWARE.
 """
 
 
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Mapping, Set, Tuple
 
 from pytato.array import (
     AbstractResultWithNamedArrays,
@@ -118,7 +118,7 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
         self.limit_arg_size_nbytes = limit_arg_size_nbytes
 
     @memoize_method
-    def get_loopy_target(self) -> Optional["lp.PyOpenCLTarget"]:
+    def get_loopy_target(self) -> "lp.PyOpenCLTarget":
         from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
 
