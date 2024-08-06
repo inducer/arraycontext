@@ -1,4 +1,7 @@
-"""
+from __future__ import annotations
+
+
+__doc__ = """
 .. currentmodule:: arraycontext
 .. autoclass:: PyOpenCLArrayContext
 .. automodule:: arraycontext.impl.pyopencl.taggable_cl_array
@@ -36,7 +39,13 @@ import numpy as np
 from pytools.tag import ToTagSetConvertible
 
 from arraycontext.container.traversal import rec_map_array_container, with_array_context
-from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
+from arraycontext.context import (
+    Array,
+    ArrayContext,
+    ArrayOrContainer,
+    ScalarLike,
+    UntransformedCodeWarning,
+)
 
 
 if TYPE_CHECKING:
@@ -72,8 +81,8 @@ class PyOpenCLArrayContext(ArrayContext):
     """
 
     def __init__(self,
-            queue: "pyopencl.CommandQueue",
-            allocator: Optional["pyopencl.tools.AllocatorBase"] = None,
+            queue: pyopencl.CommandQueue,
+            allocator: Optional[pyopencl.tools.AllocatorBase] = None,
             wait_event_queue_length: Optional[int] = None,
             force_device_scalars: bool = False) -> None:
         r"""
@@ -192,7 +201,7 @@ class PyOpenCLArrayContext(ArrayContext):
     def empty(self, shape, dtype):
         from warnings import warn
         warn(f"{type(self).__name__}.empty is deprecated and will stop "
-            "working in 2023. Prefer actx.zeros instead.",
+            "working in 2023. Prefer actx.np.zeros instead.",
             DeprecationWarning, stacklevel=2)
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
@@ -301,16 +310,19 @@ class PyOpenCLArrayContext(ArrayContext):
 
     # {{{ transform_loopy_program
 
-    def transform_loopy_program(self, t_unit):
+    def transform_loopy_program(self, t_unit: lp.TranslationUnit) -> lp.TranslationUnit:
         from warnings import warn
-        warn("Using arraycontext.PyOpenCLArrayContext.transform_loopy_program "
-                "to transform a program. This is deprecated and will stop working "
-                "in 2022. Instead, subclass PyOpenCLArrayContext and implement "
-                "the specific logic required to transform the program for your "
-                "package or application. Check higher-level packages "
+        warn("Using the base "
+                f"{type(self).__name__}.transform_loopy_program "
+                "to transform a translation unit. "
+                "This is largely a no-op and unlikely to result in fast generated "
+                "code."
+                f"Instead, subclass {type(self).__name__} and implement "
+                "the specific transform logic required to transform the program "
+                "for your package or application. Check higher-level packages "
                 "(e.g. meshmode), which may already have subclasses you may want "
                 "to build on.",
-                DeprecationWarning, stacklevel=2)
+                UntransformedCodeWarning, stacklevel=2)
 
         # accommodate loopy with and without kernel callables
 

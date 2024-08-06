@@ -56,6 +56,9 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     # {{{ array creation routines
 
+    def zeros(self, shape, dtype):
+        return jnp.zeros(shape=shape, dtype=dtype)
+
     def empty_like(self, ary):
         from warnings import warn
         warn(f"{type(self._array_context).__name__}.np.empty_like is "

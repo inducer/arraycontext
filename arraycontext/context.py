@@ -171,6 +171,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from warnings import warn
 
 import numpy as np
 
@@ -249,10 +250,6 @@ class ArrayContext(ABC):
 
     .. versionadded:: 2020.2
 
-    .. automethod:: empty
-    .. automethod:: zeros
-    .. automethod:: empty_like
-    .. automethod:: zeros_like
     .. automethod:: from_numpy
     .. automethod:: to_numpy
     .. automethod:: call_loopy
@@ -293,9 +290,9 @@ class ArrayContext(ABC):
     def __init__(self) -> None:
         self.np = self._get_fake_numpy_namespace()
 
+    @abstractmethod
     def _get_fake_numpy_namespace(self) -> Any:
-        from .fake_numpy import BaseFakeNumpyNamespace
-        return BaseFakeNumpyNamespace(self)
+        ...
 
     def __hash__(self) -> int:
         raise TypeError(f"unhashable type: '{type(self).__name__}'")
@@ -306,14 +303,16 @@ class ArrayContext(ABC):
               dtype: "np.dtype[Any]") -> Array:
         pass
 
-    @abstractmethod
     def zeros(self,
               shape: Union[int, Tuple[int, ...]],
               dtype: "np.dtype[Any]") -> Array:
-        pass
+        warn(f"{type(self).__name__}.zeros is deprecated and will stop "
+            "working in 2025. Use actx.np.zeros instead.",
+            DeprecationWarning, stacklevel=2)
+
+        return self.np.zeros(shape, dtype)
 
     def empty_like(self, ary: Array) -> Array:
-        from warnings import warn
         warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
             "working in 2023. Prefer actx.np.zeros_like instead.",
             DeprecationWarning, stacklevel=2)
@@ -321,7 +320,6 @@ class ArrayContext(ABC):
         return self.empty(shape=ary.shape, dtype=ary.dtype)
 
     def zeros_like(self, ary: Array) -> Array:
-        from warnings import warn
         warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
             "working in 2023. Use actx.np.zeros_like instead.",
             DeprecationWarning, stacklevel=2)
@@ -582,5 +580,9 @@ def tag_axes(
     return ary
 
 # }}}
+
+
+class UntransformedCodeWarning(UserWarning):
+    pass
 
 # vim: foldmethod=marker
