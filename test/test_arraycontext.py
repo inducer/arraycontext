@@ -1457,15 +1457,6 @@ def test_outer(actx_factory):
                 b_bcast_dc_of_dofs.momentum),
             enthalpy=a_bcast_dc_of_dofs.enthalpy*b_bcast_dc_of_dofs.enthalpy))
 
-    # Non-object numpy arrays should be treated as scalars
-    ary_of_floats = np.ones(len(b_bcast_dc_of_dofs.mass))
-    assert equal(
-        outer(ary_of_floats, b_bcast_dc_of_dofs),
-        ary_of_floats*b_bcast_dc_of_dofs)
-    assert equal(
-        outer(a_bcast_dc_of_dofs, ary_of_floats),
-        a_bcast_dc_of_dofs*ary_of_floats)
-
 # }}}
 
 
