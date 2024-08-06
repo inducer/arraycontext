@@ -38,6 +38,7 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
+from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
@@ -215,30 +216,40 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             result = result.get()[()]
         return result
 
-    def array_equal(self, a, b):
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
         actx = self._array_context
         queue = actx.queue
 
         # NOTE: pyopencl doesn't like `bool` much, so use `int8` instead
-        true = actx.from_numpy(np.int8(True))
-        false = actx.from_numpy(np.int8(False))
+        true_ary = actx.from_numpy(np.int8(True))
+        false_ary = actx.from_numpy(np.int8(False))
 
-        def rec_equal(x, y):
+        def rec_equal(x: ArrayOrContainer, y: ArrayOrContainer) -> cl_array.Array:
             if type(x) is not type(y):
-                return false
+                return false_ary
 
             try:
-                iterable = zip(serialize_container(x), serialize_container(y))
+                serialized_x = serialize_container(x)
+                serialized_y = serialize_container(y)
             except NotAnArrayContainerError:
+                assert isinstance(x, cl_array.Array)
+                assert isinstance(y, cl_array.Array)
+
                 if x.shape != y.shape:
-                    return false
+                    return false_ary
                 else:
                     return (x == y).all()
             else:
+                if len(serialized_x) != len(serialized_y):
+                    return false_ary
+
                 return reduce(
                         partial(cl_array.minimum, queue=queue),
-                        [rec_equal(x_i, y_i)for (_, x_i), (_, y_i) in iterable],
-                        true)
+                        [(true_ary if kx_i == ky_i else false_ary)
+                            and rec_equal(x_i, y_i)
+                            for (kx_i, x_i), (ky_i, y_i)
+                            in zip(serialized_x, serialized_y)],
+                        true_ary)
 
         result = rec_equal(a, b)
         if not self._array_context._force_device_scalars:

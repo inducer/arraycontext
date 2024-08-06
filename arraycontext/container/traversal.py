@@ -43,6 +43,8 @@ Algebraic operations
 
 from __future__ import annotations
 
+from arraycontext.container.arithmetic import NumpyObjectArray
+
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -77,6 +79,7 @@ import numpy as np
 from arraycontext.container import (
     ArrayContainer,
     NotAnArrayContainerError,
+    SerializationKey,
     deserialize_container,
     get_container_context_recursively_opt,
     serialize_container,
@@ -373,12 +376,9 @@ def multimapped_over_array_containers(
 
 # {{{ keyed array container traversal
 
-KeyType = Any
-
-
 def keyed_map_array_container(
         f: Callable[
-            [KeyType, ArrayOrContainer],
+            [SerializationKey, ArrayOrContainer],
             ArrayOrContainer],
         ary: ArrayOrContainer) -> ArrayOrContainer:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
@@ -403,7 +403,7 @@ def keyed_map_array_container(
 
 
 def rec_keyed_map_array_container(
-        f: Callable[[Tuple[KeyType, ...], ArrayT], ArrayT],
+        f: Callable[[Tuple[SerializationKey, ...], ArrayT], ArrayT],
         ary: ArrayOrContainer) -> ArrayOrContainer:
     """
     Works similarly to :func:`rec_map_array_container`, except that *f* also
@@ -412,7 +412,7 @@ def rec_keyed_map_array_container(
     the current array.
     """
 
-    def rec(keys: Tuple[Union[str, int], ...],
+    def rec(keys: Tuple[SerializationKey, ...],
             _ary: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
             iterable = serialize_container(_ary)
@@ -949,8 +949,7 @@ def outer(a: Any, b: Any) -> Any:
     Tweaks the behavior of :func:`numpy.outer` to return a lower-dimensional
     object if either/both of *a* and *b* are scalars (whereas :func:`numpy.outer`
     always returns a matrix). Here the definition of "scalar" includes
-    all non-array-container types and any scalar-like array container types
-    (including non-object numpy arrays).
+    all non-array-container types and any scalar-like array container types.
 
     If *a* and *b* are both array containers, the result will have the same type
     as *a*. If both are array containers and neither is an object array, they must
@@ -966,14 +965,21 @@ def outer(a: Any, b: Any) -> Any:
             return (
                 not isinstance(x, np.ndarray)
                 # This condition is whether "ndarrays should broadcast inside x".
-                and np.ndarray not in x.__class__._outer_bcast_types)
+                and NumpyObjectArray not in x.__class__._outer_bcast_types)
+
+    a_is_ndarray = isinstance(a, np.ndarray)
+    b_is_ndarray = isinstance(b, np.ndarray)
+
+    if a_is_ndarray and a.dtype != object:
+        raise TypeError("passing a non-object numpy array is not allowed")
+    if b_is_ndarray and b.dtype != object:
+        raise TypeError("passing a non-object numpy array is not allowed")
 
     if treat_as_scalar(a) or treat_as_scalar(b):
         return a*b
-    # After this point, "isinstance(o, ndarray)" means o is an object array.
-    elif isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+    elif a_is_ndarray and b_is_ndarray:
         return np.outer(a, b)
-    elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+    elif a_is_ndarray or b_is_ndarray:
         return map_array_container(lambda x: outer(x, b), a)
     else:
         if type(a) is not type(b):

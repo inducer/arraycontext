@@ -198,41 +198,6 @@ class PyOpenCLArrayContext(ArrayContext):
 
     # {{{ ArrayContext interface
 
-    def empty(self, shape, dtype):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros instead.",
-            DeprecationWarning, stacklevel=2)
-
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        return tga.empty(self.queue, shape, dtype, allocator=self.allocator)
-
-    def zeros(self, shape, dtype):
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        return tga.zeros(self.queue, shape, dtype, allocator=self.allocator)
-
-    def empty_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-
-        def _empty_like(array):
-            return tga.empty(self.queue, array.shape, array.dtype,
-                allocator=self.allocator, axes=array.axes, tags=array.tags)
-
-        return self._rec_map_container(_empty_like, ary)
-
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
-
     def from_numpy(self, array):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 

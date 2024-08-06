@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -34,6 +34,7 @@ from arraycontext.container.traversal import (
     rec_map_reduce_array_container,
     rec_multimap_array_container,
 )
+from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
@@ -171,31 +172,41 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 partial(reduce, pt.logical_or),
                 lambda subary: pt.any(subary), a)
 
-    def array_equal(self, a, b):
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
         actx = self._array_context
 
         # NOTE: not all backends support `bool` properly, so use `int8` instead
-        true = actx.from_numpy(np.int8(True))
-        false = actx.from_numpy(np.int8(False))
+        true_ary = actx.from_numpy(np.int8(True))
+        false_ary = actx.from_numpy(np.int8(False))
 
-        def rec_equal(x, y):
+        def rec_equal(x: ArrayOrContainer, y: ArrayOrContainer) -> pt.Array:
             if type(x) is not type(y):
-                return false
+                return false_ary
 
             try:
-                iterable = zip(serialize_container(x), serialize_container(y))
+                serialized_x = serialize_container(x)
+                serialized_y = serialize_container(y)
             except NotAnArrayContainerError:
+                assert isinstance(x, pt.Array)
+                assert isinstance(y, pt.Array)
+
                 if x.shape != y.shape:
-                    return false
+                    return false_ary
                 else:
-                    return pt.all(pt.equal(x, y))
+                    return pt.all(cast(pt.Array, pt.equal(x, y)))
             else:
+                if len(serialized_x) != len(serialized_y):
+                    return false_ary
+
                 return reduce(
                         pt.logical_and,
-                        [rec_equal(x_i, y_i) for (_, x_i), (_, y_i) in iterable],
-                        true)
+                        [(true_ary if kx_i == ky_i else false_ary)
+                            and rec_equal(x_i, y_i)
+                            for (kx_i, x_i), (ky_i, y_i)
+                            in zip(serialized_x, serialized_y)],
+                        true_ary)
 
-        return rec_equal(a, b)
+        return cast(Array, rec_equal(a, b))
 
     # }}}
 
