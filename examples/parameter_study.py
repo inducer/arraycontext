@@ -30,14 +30,11 @@ y2 = actx.from_numpy(rng.random(base_shape))
 y3 = actx.from_numpy(rng.random(base_shape))
 
 
-# Eq: z = x + y
+# Eq: z = x @ y.T
 # Assumptions: x and y are undergoing independent parameter studies.
+# x and y are matrices such that x @ y.T works in the single instance case.
 def rhs(param1, param2):
-    import pytato as pt
-    return pt.matmul(param1, param2.T)
-    return pt.stack([param1[0], param2[10]], axis=0)
-    return param1[0] + param2[10]
-
+    return param1 @ param2.T
 
 @dataclass(frozen=True)
 class ParameterStudyForX(ParameterStudyAxisTag):
@@ -50,9 +47,8 @@ class ParameterStudyForY(ParameterStudyAxisTag):
 
 # Pack a parameter study of 3 instances for x and and 4 instances for y.
 
-
-packx = pack_for_parameter_study(actx, ParameterStudyForX, (3,), x, x1, x2)
-packy = pack_for_parameter_study(actx, ParameterStudyForY, (4,), y, y1, y2, y3)
+packx = pack_for_parameter_study(actx, ParameterStudyForX, x, x1, x2)
+packy = pack_for_parameter_study(actx, ParameterStudyForY, y, y1, y2, y3)
 
 compiled_rhs = actx.compile(rhs)  # Build the function caller
 
@@ -60,16 +56,45 @@ compiled_rhs = actx.compile(rhs)  # Build the function caller
 # then converts it to a program which takes our multiple instances of `x` and `y`.
 output = compiled_rhs(packx, packy)
 output_2 = compiled_rhs(x, y)
-breakpoint()
 
-assert output.shape == (15, 5, 3, 4)  # Distinct parameter studies.
+numpy_output = actx.to_numpy(output)
 
-output_x = unpack_parameter_study(output, ParameterStudyForX)
-output_y = unpack_parameter_study(output, ParameterStudyForY)
-assert len(output_x) == 1  # Number of parameter studies involving "x"
-assert len(output_x[0]) == 3  # Number of inputs in the 0th parameter study
-# All outputs across every other parameter study.
-assert output_x[0][0].shape == (15, 5, 4)
-assert len(output_y) == 1
-assert len(output_y[0]) == 4
-assert output_y[0][0].shape == (15, 5, 3)
+assert numpy_output.shape == (15, 15, 3, 4)
+
+out = actx.to_numpy(compiled_rhs(x, y))
+assert np.allclose(numpy_output[..., 0, 0], out)
+
+out = actx.to_numpy(compiled_rhs(x, y1))
+assert np.allclose(numpy_output[..., 0, 1], out)
+
+out = actx.to_numpy(compiled_rhs(x, y2))
+assert np.allclose(numpy_output[..., 0, 2], out)
+
+out = actx.to_numpy(compiled_rhs(x, y3))
+assert np.allclose(numpy_output[..., 0, 3], out)
+
+out = actx.to_numpy(compiled_rhs(x1, y))
+assert np.allclose(numpy_output[..., 1, 0], out)
+
+out = actx.to_numpy(compiled_rhs(x1, y1))
+assert np.allclose(numpy_output[..., 1, 1], out)
+
+out = actx.to_numpy(compiled_rhs(x1, y2))
+assert np.allclose(numpy_output[..., 1, 2], out)
+
+out = actx.to_numpy(compiled_rhs(x1, y3))
+assert np.allclose(numpy_output[..., 1, 3], out)
+
+out = actx.to_numpy(compiled_rhs(x2, y))
+assert np.allclose(numpy_output[..., 2, 0], out)
+
+out = actx.to_numpy(compiled_rhs(x2, y1))
+assert np.allclose(numpy_output[..., 2, 1], out)
+
+out = actx.to_numpy(compiled_rhs(x2, y2))
+assert np.allclose(numpy_output[..., 2, 2], out)
+
+out = actx.to_numpy(compiled_rhs(x2, y3))
+assert np.allclose(numpy_output[..., 2, 3], out)
+
+print("All tests passed!")

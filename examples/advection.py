@@ -31,15 +31,7 @@ def test_one_time_step_advection():
 
     base_shape = np.prod((15, 5))
     x0 = actx.from_numpy(rng.random(base_shape))
-    x1 = actx.from_numpy(rng.random(base_shape))
-    x2 = actx.from_numpy(rng.random(base_shape))
-    x3 = actx.from_numpy(rng.random(base_shape))
 
-    speed_shape = (1,)
-    y0 = actx.from_numpy(rng.random(speed_shape))
-    y1 = actx.from_numpy(rng.random(speed_shape))
-    y2 = actx.from_numpy(rng.random(speed_shape))
-    y3 = actx.from_numpy(rng.random(speed_shape))
 
     ht = 0.0001
     hx = 0.005
@@ -52,24 +44,23 @@ def test_one_time_step_advection():
         return fields + wave_speed * (-1) * (ht / (2 * hx)) * \
                 (fields[kp1] - fields[km1])
 
-    pack_x = pack_for_parameter_study(actx, ParamStudy1, (4,), x0, x1, x2, x3)
-    breakpoint()
-    assert pack_x.shape == (75, 4)
-
-    pack_y = pack_for_parameter_study(actx, ParamStudy1, (4,), y0, y1, y2, y3)
-    breakpoint()
-    assert pack_y.shape == (1, 4)
+    wave_speeds = [actx.from_numpy(np.random.random(1)) for _ in range(255)]
+    print(type(wave_speeds[0])) 
+    packed_speeds = pack_for_parameter_study(actx, ParamStudy1, *wave_speeds)
 
     compiled_rhs = actx.compile(rhs)
-    breakpoint()
 
-    output = compiled_rhs(pack_x, pack_y)
-    breakpoint()
-    assert output.shape(75, 4)
+    output = compiled_rhs(x0, packed_speeds)
+    output = actx.freeze(output)
+    
+    expanded_output = actx.to_numpy(output).T
 
-    output_x = unpack_parameter_study(output, ParamStudy1)
-    assert len(output_x) == 1  # Only 1 study associated with this variable.
-    assert len(output_x[0]) == 4  # 4 inputs for the parameter study.
+    # Now for all the single values.
+    for idx in range(len(wave_speeds)):
+        out = compiled_rhs(x0, wave_speeds[idx])
+        out = actx.freeze(out)
+        assert np.allclose(expanded_output[idx], actx.to_numpy(out))
+
 
     print("All checks passed")
 
