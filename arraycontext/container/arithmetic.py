@@ -413,9 +413,8 @@ def with_container_arithmetic(
             for i, bct in enumerate(bcast_container_types):
                 gen(f"from {bct.__module__} import {bct.__qualname__} as _bctype{i}")
             gen("")
-        outer_bcast_type_names = tuple([
-                f"_bctype{i}" for i in range(len(bcast_container_types))
-                ])
+        outer_bcast_type_names = tuple(
+                f"_bctype{i}" for i in range(len(bcast_container_types)))
         if bcast_number:
             outer_bcast_type_names += ("Number",)
 

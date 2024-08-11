@@ -214,10 +214,10 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
     :attr:`BaseLazilyCompilingFunctionCaller.f`.
     """
     if np.isscalar(arg):
-        name = arg_id_to_name[(kw,)]
+        name = arg_id_to_name[kw,]
         return pt.make_placeholder(name, (), np.dtype(type(arg)))
     elif isinstance(arg, pt.Array):
-        name = arg_id_to_name[(kw,)]
+        name = arg_id_to_name[kw,]
         # Transform the DAG to give metadata inference a chance to do its job
         arg = _to_input_for_compiled(arg, actx)
         return pt.make_placeholder(name, arg.shape, arg.dtype,
@@ -225,7 +225,8 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
                                    tags=arg.tags)
     elif is_array_container_type(arg.__class__):
         def _rec_to_placeholder(keys, ary):
-            name = arg_id_to_name[(kw, *keys)]
+            index = (kw, *keys)
+            name = arg_id_to_name[index]
             # Transform the DAG to give metadata inference a chance to do its job
             ary = _to_input_for_compiled(ary, actx)
             return pt.make_placeholder(name,
