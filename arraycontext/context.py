@@ -489,7 +489,7 @@ class ArrayContext(ABC):
         :return: the output of the einsum :mod:`loopy` program
         """
         if arg_names is None:
-            arg_names = tuple([f"arg{i}" for i in range(len(args))])
+            arg_names = tuple(f"arg{i}" for i in range(len(args)))
 
         prg = self._get_einsum_prg(spec, arg_names, tagged)
         out_ary = self.call_loopy(

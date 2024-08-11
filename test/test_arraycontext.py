@@ -165,11 +165,11 @@ class DOFArray:
 
     @property
     def real(self):
-        return DOFArray(self.array_context, tuple([subary.real for subary in self]))
+        return DOFArray(self.array_context, tuple(subary.real for subary in self))
 
     @property
     def imag(self):
-        return DOFArray(self.array_context, tuple([subary.imag for subary in self]))
+        return DOFArray(self.array_context, tuple(subary.imag for subary in self))
 
 
 @serialize_container.register(DOFArray)
@@ -249,9 +249,8 @@ def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     if isinstance(shapes, (Number, tuple)):
         shapes = [shapes]
 
-    x = DOFArray(actx, tuple([
-        actx.from_numpy(randn(shape, np.float64))
-        for shape in shapes]))
+    x = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes))
 
     # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     dataclass_of_dofs = MyContainer(
@@ -1074,13 +1073,11 @@ def test_flatten_array_container(actx_factory, shapes):
     if isinstance(shapes, (int, tuple)):
         shapes = [shapes]
 
-    ary = DOFArray(actx, tuple([
-        actx.from_numpy(randn(shape, np.float64))
-        for shape in shapes]))
+    ary = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes))
 
-    template = DOFArray(actx, tuple([
-        actx.from_numpy(randn(shape, np.complex128))
-        for shape in shapes]))
+    template = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.complex128))
+        for shape in shapes))
 
     flat = flatten(ary, actx)
     ary_roundtrip = unflatten(template, flat, actx, strict=False)

@@ -374,7 +374,7 @@ def pytest_generate_tests_for_array_contexts(
 
         # NOTE: sorts the args so that parallel pytest works
         arg_value_tuples = sorted([
-                tuple([arg_dict[name] for name in arg_names])
+                tuple(arg_dict[name] for name in arg_names)
                 for arg_dict in arg_values_with_actx
                 ], key=lambda x: str(x))
 
