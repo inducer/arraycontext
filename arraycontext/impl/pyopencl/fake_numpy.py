@@ -169,14 +169,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # {{{ linear algebra
 
     def vdot(self, x, y, dtype=None):
-        result = rec_multimap_reduce_array_container(
+        return rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
                 x, y)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     # }}}
 
@@ -190,14 +186,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(all([ary]))
             return ary.all(queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _all,
                 a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     def any(self, a):
         queue = self._array_context.queue
@@ -207,14 +199,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(any([ary]))
             return ary.any(queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _any,
                 a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
         actx = self._array_context
@@ -251,11 +239,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                             in zip(serialized_x, serialized_y)],
                         true_ary)
 
-        result = rec_equal(a, b)
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-
-        return result
+        return rec_equal(a, b)
 
     # FIXME: This should be documentation, not a comment.
     # These are here mainly because some arrays may choose to interpret
@@ -305,11 +289,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
             return cl_array.sum(ary, dtype=dtype, queue=self._array_context.queue)
 
-        result = rec_map_reduce_array_container(sum, _rec_sum, a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
+        return rec_map_reduce_array_container(sum, _rec_sum, a)
 
     def maximum(self, x, y):
         return rec_multimap_array_container(
@@ -327,14 +307,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 raise NotImplementedError(f"Max. over '{axis}' axes not supported.")
             return cl_array.max(ary, queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _rec_max,
                 a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     max = amax
 
@@ -354,14 +330,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 raise NotImplementedError(f"Min. over '{axis}' axes not supported.")
             return cl_array.min(ary, queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _rec_min,
                 a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     min = amin
 

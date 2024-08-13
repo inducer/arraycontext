@@ -84,7 +84,7 @@ class PyOpenCLArrayContext(ArrayContext):
             queue: pyopencl.CommandQueue,
             allocator: Optional[pyopencl.tools.AllocatorBase] = None,
             wait_event_queue_length: Optional[int] = None,
-            force_device_scalars: bool = False) -> None:
+            force_device_scalars: Optional[bool] = None) -> None:
         r"""
         :arg wait_event_queue_length: The length of a queue of
             :class:`~pyopencl.Event` objects that are maintained by the
@@ -105,21 +105,15 @@ class PyOpenCLArrayContext(ArrayContext):
 
             For now, *wait_event_queue_length* should be regarded as an
             experimental feature that may change or disappear at any minute.
-
-        :arg force_device_scalars: if *True*, scalar results returned from
-            reductions in :attr:`ArrayContext.np` will be kept on the device.
-            If *False*, the equivalent of :meth:`~ArrayContext.freeze` and
-            :meth:`~ArrayContext.to_numpy` is applied to transfer the results
-            to the host.
         """
-        if not force_device_scalars:
-            warn("Configuring the PyOpenCLArrayContext to return host scalars "
-                    "from reductions is deprecated. "
-                    "To configure the PyOpenCLArrayContext to return "
-                    "device scalars, pass 'force_device_scalars=True' to the "
-                    "constructor. "
-                    "Support for returning host scalars will be removed in 2022.",
-                    DeprecationWarning, stacklevel=2)
+        if force_device_scalars is not None:
+            warn(
+                "`force_device_scalars` is deprecated and will be removed in 2025.",
+                DeprecationWarning, stacklevel=2)
+
+            if not force_device_scalars:
+                raise ValueError(
+                    "Passing force_device_scalars=False is not allowed.")
 
         import pyopencl as cl
         import pyopencl.array as cl_array
@@ -131,7 +125,6 @@ class PyOpenCLArrayContext(ArrayContext):
         if wait_event_queue_length is None:
             wait_event_queue_length = 10
 
-        self._force_device_scalars = force_device_scalars
         self._wait_event_queue_length = wait_event_queue_length
         self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
 
@@ -268,8 +261,7 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def clone(self):
         return type(self)(self.queue, self.allocator,
-                wait_event_queue_length=self._wait_event_queue_length,
-                force_device_scalars=self._force_device_scalars)
+                wait_event_queue_length=self._wait_event_queue_length)
 
     # }}}
 
