@@ -125,6 +125,12 @@ class PyOpenCLArrayContext(ArrayContext):
         if wait_event_queue_length is None:
             wait_event_queue_length = 10
 
+        self._force_device_scalars = True
+        # Subclasses might still be using the old
+        # "force_devices_scalars: bool = False" interface, in which case we need
+        # to explicitly pass force_device_scalars=True in clone()
+        self._passed_force_device_scalars = force_device_scalars is not None
+
         self._wait_event_queue_length = wait_event_queue_length
         self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
 
@@ -260,8 +266,13 @@ class PyOpenCLArrayContext(ArrayContext):
         return {name: tga.to_tagged_cl_array(ary) for name, ary in result.items()}
 
     def clone(self):
-        return type(self)(self.queue, self.allocator,
-                wait_event_queue_length=self._wait_event_queue_length)
+        if self._passed_force_device_scalars:
+            return type(self)(self.queue, self.allocator,
+                    wait_event_queue_length=self._wait_event_queue_length,
+                    force_device_scalars=True)
+        else:
+            return type(self)(self.queue, self.allocator,
+                    wait_event_queue_length=self._wait_event_queue_length)
 
     # }}}
 
