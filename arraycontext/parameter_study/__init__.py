@@ -64,17 +64,27 @@ from pytato.array import (
     make_placeholder as make_placeholder,
 )
 from pytato.transform.parameter_study import (
-    ExpansionMapper,
     ParameterStudyAxisTag,
+    ParameterStudyVectorizer,
 )
 from pytools.tag import Tag, UniqueTag as UniqueTag
 
+from arraycontext import (
+    get_container_context_recursively as get_container_context_recursively,
+    rec_map_array_container as rec_map_array_container,
+    rec_multimap_array_container,
+)
 from arraycontext.container import (
     ArrayContainer as ArrayContainer,
+    deserialize_container as deserialize_container,
     is_array_container_type,
+    serialize_container as serialize_container,
 )
 from arraycontext.container.traversal import rec_keyed_map_array_container
-from arraycontext.context import ArrayContext
+from arraycontext.context import (
+    ArrayContext,
+    ArrayOrContainerT,
+)
 from arraycontext.impl.pytato import (
     PytatoPyOpenCLArrayContext,
 )
@@ -154,6 +164,10 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
             # On a cache hit we do not need to modify anything.
             return compiled_f(arg_id_to_arg)
 
+        with open("calls_to_compile", "a+") as my_file:
+            my_file.write(str(arg_id_to_descr))
+            my_file.write("\n")
+
         dict_of_named_arrays = {}
         output_id_to_name_in_program = {}
         input_id_to_name_in_program = {
@@ -163,6 +177,7 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         placeholder_args = [_get_f_placeholder_args_for_param_study(arg, iarg,
                                         input_id_to_name_in_program, self.actx)
                             for iarg, arg in enumerate(args)]
+        breakpoint()
         output_template = self.f(*placeholder_args,
                 **{kw: _get_f_placeholder_args_for_param_study(arg, kw,
                                                input_id_to_name_in_program,
@@ -202,21 +217,18 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
                         else:
                             placeholder_name_to_parameter_studies[name] = tags
 
-        breakpoint()
-        expand_map = ExpansionMapper(placeholder_name_to_parameter_studies)
+        vectorize = ParameterStudyVectorizer(placeholder_name_to_parameter_studies)
         # Get the dependencies
-
         sing_inst_outs = make_dict_of_named_arrays(dict_of_named_arrays)
 
         # Use the normal compiler now.
 
-        compiled_func = self._dag_to_compiled_func(expand_map(sing_inst_outs),
+        compiled_func = self._dag_to_compiled_func(vectorize(sing_inst_outs),
                                                    # pt_dict_of_named_arrays,
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_id_to_name_in_program=output_id_to_name_in_program,
                 output_template=output_template)
 
-        breakpoint()
         self.program_cache[arg_id_to_descr] = compiled_func
         return compiled_func(arg_id_to_arg)
 
@@ -282,7 +294,7 @@ def _get_f_placeholder_args_for_param_study(arg, kw, arg_id_to_name, actx):
 
 def pack_for_parameter_study(actx: ArrayContext,
                              study_name_tag_type: ParamStudyTagT,
-                             *args: Array) -> Array:
+                             *args: ArrayOrContainerT) -> ArrayOrContainerT:
     """
         Args is a list of realized input data that needs to be packed
         for a parameter study or uncertainty quantification.
@@ -293,12 +305,32 @@ def pack_for_parameter_study(actx: ArrayContext,
 
     assert len(args) > 0
 
-    orig_shape = args[0].shape
-    out = actx.np.stack(args, axis=len(args[0].shape))
+    def recursive_stack(*args: Array) -> Array:
+        assert len(args) > 0
 
-    for i in range(len(orig_shape), len(out.shape)):
-        out = out.with_tagged_axis(i, [study_name_tag_type(len(args))])
-    return out
+        for val in args:
+            assert not is_array_container_type(type(val))
+            assert isinstance(val, Array)
+
+        orig_shape = args[0].shape
+        out = actx.np.stack(args, axis=len(orig_shape))
+        out = out.with_tagged_axis(len(orig_shape), [study_name_tag_type(len(args))])
+
+        # We have added a new axis.
+        assert len(orig_shape) + 1 == len(out.shape)
+        # Assert that it has been tagged.
+        assert out.axes[-1].tags_of_type(study_name_tag_type)
+
+        return out
+
+    if is_array_container_type(type(args[0])):
+        # Need to deal with this as a container.
+        # assert isinstance(get_container_context_recursively(args[0]), type(actx))
+        # assert isinstance(actx, get_container_context_recursively(args[0]))
+
+        return rec_multimap_array_container(recursive_stack, *args)
+
+    return recursive_stack(*args)
 
 
 def unpack_parameter_study(data: Array,
@@ -320,7 +352,6 @@ def unpack_parameter_study(data: Array,
         axis_tags = data.axes[i].tags_of_type(study_name_tag_type)
         if axis_tags:
             # Now we need to split this data.
-            breakpoint()
             for j in range(data.shape[i]):
                 tmp: list[Any] = [slice(None)] * ndim
                 tmp[i] = j
