@@ -8,7 +8,6 @@ from arraycontext.parameter_study import (
     ParameterStudyAxisTag,
     ParamStudyPytatoPyOpenCLArrayContext,
     pack_for_parameter_study,
-    unpack_parameter_study,
 )
 
 
@@ -36,6 +35,7 @@ y3 = actx.from_numpy(rng.random(base_shape))
 def rhs(param1, param2):
     return param1 @ param2.T
 
+
 @dataclass(frozen=True)
 class ParameterStudyForX(ParameterStudyAxisTag):
     pass
@@ -46,6 +46,7 @@ class ParameterStudyForY(ParameterStudyAxisTag):
     pass
 
 # Pack a parameter study of 3 instances for x and and 4 instances for y.
+
 
 packx = pack_for_parameter_study(actx, ParameterStudyForX, x, x1, x2)
 packy = pack_for_parameter_study(actx, ParameterStudyForY, y, y1, y2, y3)

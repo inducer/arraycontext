@@ -8,7 +8,6 @@ from arraycontext.parameter_study import (
     ParameterStudyAxisTag,
     ParamStudyPytatoPyOpenCLArrayContext,
     pack_for_parameter_study,
-    unpack_parameter_study,
 )
 
 
@@ -32,7 +31,6 @@ def test_one_time_step_advection():
     base_shape = np.prod((15, 5))
     x0 = actx.from_numpy(rng.random(base_shape))
 
-
     ht = 0.0001
     hx = 0.005
     inds = np.arange(base_shape, dtype=int)
@@ -44,15 +42,14 @@ def test_one_time_step_advection():
         return fields + wave_speed * (-1) * (ht / (2 * hx)) * \
                 (fields[kp1] - fields[km1])
 
-    wave_speeds = [actx.from_numpy(np.random.random(1)) for _ in range(255)]
-    print(type(wave_speeds[0])) 
+    wave_speeds = [actx.from_numpy(rng.random(1)) for _ in range(255)]
     packed_speeds = pack_for_parameter_study(actx, ParamStudy1, *wave_speeds)
 
     compiled_rhs = actx.compile(rhs)
 
     output = compiled_rhs(x0, packed_speeds)
     output = actx.freeze(output)
-    
+
     expanded_output = actx.to_numpy(output).T
 
     # Now for all the single values.
@@ -60,7 +57,6 @@ def test_one_time_step_advection():
         out = compiled_rhs(x0, wave_speeds[idx])
         out = actx.freeze(out)
         assert np.allclose(expanded_output[idx], actx.to_numpy(out))
-
 
     print("All checks passed")
 
