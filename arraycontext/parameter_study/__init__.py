@@ -1,12 +1,9 @@
-
-"""
+__doc__ = """
 .. currentmodule:: arraycontext
 
-A :mod:`pytato`-based array context defers the evaluation of an array until its
-frozen. The execution contexts for the evaluations are specific to an
-:class:`~arraycontext.ArrayContext` type. For ex.
-:class:`~arraycontext.ParamStudyPytatoPyOpenCLArrayContext`
-uses :mod:`pyopencl` to JIT-compile and execute the array expressions.
+A parameter study array context allows a user to pass packed input into his or her single instance program.
+These array contexts are derived from the implementations present in :mod:`arraycontext.impl`.
+Only :mod:`pytato`-based array contexts have been implemented so far.
 
 Following :mod:`pytato`-based array context are provided:
 
@@ -49,7 +46,9 @@ THE SOFTWARE.
 from typing import (
     Any,
     Callable,
+    Iterable,
     Mapping,
+    Optional,
     Type,
 )
 
@@ -59,6 +58,7 @@ import loopy as lp
 from pytato.array import (
     Array,
     AxesT,
+    AxisPermutation,
     ShapeType,
     make_dict_of_named_arrays,
     make_placeholder as make_placeholder,
@@ -79,11 +79,15 @@ from arraycontext.container import (
     deserialize_container as deserialize_container,
     is_array_container_type,
     serialize_container as serialize_container,
+    NotAnArrayContainerError,
 )
-from arraycontext.container.traversal import rec_keyed_map_array_container
 from arraycontext.context import (
     ArrayContext,
     ArrayOrContainerT,
+)
+from arraycontext.container.traversal import (
+    rec_keyed_map_array_container,
+    rec_map_reduce_array_container,
 )
 from arraycontext.impl.pytato import (
     PytatoPyOpenCLArrayContext,
@@ -126,11 +130,6 @@ class ParamStudyPytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContext):
     def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
         return ParamStudyLazyPyOpenCLFunctionCaller(self, f)
 
-    def transform_loopy_program(self,
-                                t_unit: lp.TranslationUnit) -> lp.TranslationUnit:
-        # Update in a subclass if you want.
-        return t_unit
-
 # }}}
 
 
@@ -163,10 +162,6 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         else:
             # On a cache hit we do not need to modify anything.
             return compiled_f(arg_id_to_arg)
-
-        with open("calls_to_compile", "a+") as my_file:
-            my_file.write(str(arg_id_to_descr))
-            my_file.write("\n")
 
         dict_of_named_arrays = {}
         output_id_to_name_in_program = {}
@@ -233,31 +228,31 @@ class ParamStudyLazyPyOpenCLFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller
         return compiled_func(arg_id_to_arg)
 
 
-def _cut_to_single_instance_size(name, arg) -> Array:
+def _cut_to_single_instance_size(name: str, arg: Array) -> Array:
     """
-        Helper to split a place holder into the base instance shape
-        if it is tagged with a `ParameterStudyAxisTag`
-        to ensure the survival of the information those tags will be converted
-        to temporary Array Tags of the same type. The placeholder will not
-        have the axes marked with a `ParameterStudyAxisTag` tag.
-
-        We need to cut the extra axes off because we cannot assume
-        that the operators we use to build the single instance program
-        will understand what to do with the extra axes.
+    Helper function to create a placeholder of the single instance size.
+    Axes that are removed are those which are marked with a
+    :class:`ParameterStudyAxisTag`.
+    
+    We need to cut the extra axes off, because we cannot assume that
+    the operators we use to build the single instance program will
+    understand what to do with the extra axes. We are doing it after the
+    call to _to_input_for_compiled in order to ensure that we have an
+    :class:`Array` for arg. Also this way we allow the metadata materializer
+    to work. See :function:`~arraycontext.impl.pytato._to_input_for_compiled` for more
+    information.
     """
     ndim: int = len(arg.shape)
-    newshape: ShapeType = ()
-    update_axes: AxesT = ()
+    single_inst_shape: ShapeType = ()
+    single_inst_axes: AxesT = ()
     for i in range(ndim):
         axis_tags = arg.axes[i].tags_of_type(ParameterStudyAxisTag)
         if not axis_tags:
-            update_axes = (*update_axes, arg.axes[i],)
-            newshape = (*newshape, arg.shape[i])
+            single_inst_axes = (*single_inst_axes, arg.axes[i],)
+            single_inst_shape = (*single_inst_shape, arg.shape[i])
 
-    update_tags: frozenset[Tag] = arg.tags
-
-    return make_placeholder(name, newshape, arg.dtype, axes=update_axes,
-                               tags=update_tags)
+    return make_placeholder(name, single_inst_shape, arg.dtype, axes=single_inst_axes,
+                               tags=arg.tags)
 
 
 def _get_f_placeholder_args_for_param_study(arg, kw, arg_id_to_name, actx):
@@ -278,6 +273,7 @@ def _get_f_placeholder_args_for_param_study(arg, kw, arg_id_to_name, actx):
     elif isinstance(arg, Array):
         name = arg_id_to_name[(kw,)]
         # Transform the DAG to give metadata inference a chance to do its job
+        breakpoint()
         arg = _to_input_for_compiled(arg, actx)
         return _cut_to_single_instance_size(name, arg)
     elif is_array_container_type(arg.__class__):
@@ -305,16 +301,21 @@ def pack_for_parameter_study(actx: ArrayContext,
 
     assert len(args) > 0
 
-    def recursive_stack(*args: Array) -> Array:
+    def _recursive_stack(*args: Array) -> Array:
         assert len(args) > 0
 
+        thawed_args: ArraysT = ()
         for val in args:
             assert not is_array_container_type(type(val))
-            assert isinstance(val, Array)
+            if not isinstance(val, Array):
+                thawed_args = (*thawed_args, actx.thaw(val),)
+            else:
+                thawed_args = (*thawed_args, val)
 
-        orig_shape = args[0].shape
-        out = actx.np.stack(args, axis=len(orig_shape))
-        out = out.with_tagged_axis(len(orig_shape), [study_name_tag_type(len(args))])
+        orig_shape = thawed_args[0].shape
+        out = actx.np.stack(thawed_args, axis=len(orig_shape))
+        out = out.with_tagged_axis(len(orig_shape),
+                                   [study_name_tag_type(len(args))])
 
         # We have added a new axis.
         assert len(orig_shape) + 1 == len(out.shape)
@@ -328,40 +329,59 @@ def pack_for_parameter_study(actx: ArrayContext,
         # assert isinstance(get_container_context_recursively(args[0]), type(actx))
         # assert isinstance(actx, get_container_context_recursively(args[0]))
 
-        return rec_multimap_array_container(recursive_stack, *args)
+        return rec_multimap_array_container(_recursive_stack, *args)
 
-    return recursive_stack(*args)
+    return _recursive_stack(*args)
 
 
-def unpack_parameter_study(data: Array,
+from arraycontext.container import (
+    serialize_container,
+    deserialize_container,
+)
+def unpack_parameter_study(data: ArrayOrContainerT,
                            study_name_tag_type: ParamStudyTagT) -> Mapping[int,
-                                                                          list[Array]]:
+                                                                           ArrayOrContainerT]:
     """
-        Split the data array along the axes which vary according to
-        a ParameterStudyAxisTag whose name tag is an instance study_name_tag_type.
-
-        output[i] corresponds to the values associated with the ith parameter study that
-        uses the variable name :arg: `study_name_tag_type`.
+    Recurse through the data structure and split the data along the
+    axis which corresponds to the input tag name.
     """
 
-    ndim: int = len(data.shape)
-    out: dict[int, list[Array]] = {}
 
-    study_count = 0
-    for i in range(ndim):
-        axis_tags = data.axes[i].tags_of_type(study_name_tag_type)
-        if axis_tags:
-            # Now we need to split this data.
-            for j in range(data.shape[i]):
-                tmp: list[Any] = [slice(None)] * ndim
-                tmp[i] = j
-                the_slice = tuple(tmp)
-                # Needs to be a tuple of slices not list of slices.
-                if study_count in out.keys():
-                    out[study_count].append(data[the_slice])
-                else:
-                    out[study_count] = [data[the_slice]]
-            if study_count in out.keys():
+    def _recursive_split_helper(data: Array) -> Mapping[int, Array]:
+        """
+        Split the data array along the axes which vary according to a
+        ParameterStudyAxisTag whose name tag is an instance study_name_tag_type.
+        """
+
+        ndim: int = len(data.shape)
+        out: list[Array] = []
+
+        breakpoint()
+        study_count = 0
+        for i in range(ndim):
+            axis_tags = data.axes[i].tags_of_type(study_name_tag_type)
+            if axis_tags:
                 study_count += 1
+                # Now we need to split this data.
+                for j in range(data.shape[i]):
+                    tmp: list[slice | int] = [slice(None)] * ndim
+                    tmp[i] = j
+                    the_slice = tuple(tmp)
+                    # Needs to be a tuple of slices not list of slices.
+                    out.append(data[the_slice])
 
-    return out
+        assert study_count == 1
+
+        return out
+
+    def reduce_func(iterable):
+        breakpoint()
+        return deserialize_container(data, iterable)
+
+    if is_array_container_type(data.__class__):
+        # We need to recurse through the system and emit out the indexed arrays.
+        breakpoint()
+        return rec_map_reduce_array_container(_recursive_split_helper, reduce_func, data)
+        return rec_map_array_container(_recursive_split_helper, data)
+
+    return _recursive_split_helper(data)
