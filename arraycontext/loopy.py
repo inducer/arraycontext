@@ -82,8 +82,8 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
     def get(c_name, nargs, naxes):
         from pymbolic import var
 
-        var_names = ["i%d" % i for i in range(naxes)]
-        size_names = ["n%d" % i for i in range(naxes)]
+        var_names = [f"i{i}" for i in range(naxes)]
+        size_names = [f"n{i}" for i in range(naxes)]
         subscript = tuple(var(vname) for vname in var_names)
         from islpy import make_zero_and_vars
         v = make_zero_and_vars(var_names, params=size_names)
@@ -103,12 +103,12 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                     lp.Assignment(
                         var("out")[subscript],
                         var(c_name)(*[
-                            var("inp%d" % i)[subscript] for i in range(nargs)]))
+                            var(f"inp{i}")[subscript] for i in range(nargs)]))
                     ],
                 [
                     lp.GlobalArg("out",
                                  dtype=None, shape=lp.auto, offset=lp.auto)] + [
-                        lp.GlobalArg("inp%d" % i,
+                        lp.GlobalArg(f"inp{i}",
                                      dtype=None, shape=lp.auto, offset=lp.auto)
                         for i in range(nargs)] + [...],
                 name=f"actx_special_{c_name}",
@@ -142,7 +142,7 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
             prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
             outputs = actx.call_loopy(prg,
-                    **{"inp%d" % i: arg for i, arg in enumerate(args)})
+                    **{f"inp{i}": arg for i, arg in enumerate(args)})
             return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:
