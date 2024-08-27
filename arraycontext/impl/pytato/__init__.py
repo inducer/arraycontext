@@ -194,7 +194,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
                 "to transform a translation unit. "
                 "This is a no-op and will result in unoptimized C code for"
                 "the requested optimization, all in a single statement."
-                "This will work, but is unlikely to be performatn."
+                "This will work, but is unlikely to be performant."
                 f"Instead, subclass {type(self).__name__} and implement "
                 "the specific transform logic required to transform the program "
                 "for your package or application. Check higher-level packages "
