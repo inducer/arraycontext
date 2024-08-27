@@ -43,6 +43,7 @@ from arraycontext.context import (
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
     NumpyOrContainerOrScalar,
+    UntransformedCodeWarning,
 )
 
 
@@ -116,9 +117,21 @@ class NumpyArrayContext(ArrayContext):
     # }}}
 
     def transform_loopy_program(self, t_unit):
-        raise ValueError("NumpyArrayContext does not implement "
-                         "transform_loopy_program. Sub-classes are supposed "
-                         "to implement it.")
+        from warnings import warn
+        warn("Using the base "
+                f"{type(self).__name__}.transform_loopy_program "
+                "to transform a translation unit. "
+                "This is a no-op and will result in unoptimized C code for"
+                "the requested optimization, all in a single statement."
+                "This will work, but is unlikely to be performant."
+                f"Instead, subclass {type(self).__name__} and implement "
+                "the specific transform logic required to transform the program "
+                "for your package or application. Check higher-level packages "
+                "(e.g. meshmode), which may already have subclasses you may want "
+                "to build on.",
+                UntransformedCodeWarning, stacklevel=2)
+
+        return t_unit
 
     def tag(self,
             tags: ToTagSetConvertible,
