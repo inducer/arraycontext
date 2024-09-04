@@ -90,7 +90,8 @@ class BaseFakeNumpyNamespace(ABC):
 
         # Miscellaneous
         "convolve", "clip", "sqrt", "cbrt", "square", "absolute", "abs", "fabs",
-        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan",
+        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan", "minimum",
+        "fmin",
 
         # FIXME:
         # "interp",
