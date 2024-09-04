@@ -665,12 +665,7 @@ def test_reductions_same_as_numpy(actx_factory, op):
     actx_red = getattr(actx.np, op)(actx.from_numpy(ary))
     actx_red = actx.to_numpy(actx_red)
 
-    from numbers import Number
-
-    if isinstance(actx, PyOpenCLArrayContext) and (not actx._force_device_scalars):
-        assert isinstance(actx_red, Number)
-    else:
-        assert actx_red.shape == ()
+    assert actx_red.shape == ()
 
     assert np.allclose(np_red, actx_red)
 

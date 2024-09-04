@@ -90,7 +90,6 @@ from .pytest import (
     PytestArrayContextFactory,
     PytestPyOpenCLArrayContextFactory,
     pytest_generate_tests_for_array_contexts,
-    pytest_generate_tests_for_pyopencl_array_context,
 )
 from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 
@@ -139,7 +138,6 @@ __all__ = (
     "multimapped_over_array_containers",
     "outer",
     "pytest_generate_tests_for_array_contexts",
-    "pytest_generate_tests_for_pyopencl_array_context",
     "rec_map_array_container",
     "rec_map_reduce_array_container",
     "rec_multimap_array_container",
