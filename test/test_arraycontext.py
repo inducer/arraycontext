@@ -117,7 +117,7 @@ def _acf():
 # {{{ stand-in DOFArray implementation
 
 @with_container_arithmetic(
-        bcast_obj_array=True,
+        bcasts_across_obj_array=True,
         bitwise=True,
         rel_comparison=True,
         _cls_has_array_context_attr=True,
@@ -208,7 +208,7 @@ def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type:
 
 # {{{ nested containers
 
-@with_container_arithmetic(bcast_obj_array=False,
+@with_container_arithmetic(bcasts_across_obj_array=False,
         eq_comparison=False, rel_comparison=False,
         _cls_has_array_context_attr=True,
         _bcast_actx_array_type=False)
@@ -231,7 +231,7 @@ class MyContainer:
 
 
 @with_container_arithmetic(
-        bcast_obj_array=False,
+        bcasts_across_obj_array=False,
         bcast_container_types=(DOFArray, np.ndarray),
         matmul=True,
         rel_comparison=True,
@@ -1225,7 +1225,7 @@ def test_norm_ord_none(actx_factory, ndim):
 
 # {{{ test_actx_compile helpers
 
-@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
+@with_container_arithmetic(bcasts_across_obj_array=True, rel_comparison=True)
 @dataclass_array_container
 @dataclass(frozen=True)
 class Velocity2D:
@@ -1355,7 +1355,7 @@ def test_container_equality(actx_factory):
 # {{{ test_no_leaf_array_type_broadcasting
 
 @with_container_arithmetic(
-    bcast_obj_array=True,
+    bcasts_across_obj_array=True,
     rel_comparison=True,
     _cls_has_array_context_attr=True,
     _bcast_actx_array_type=False)
@@ -1459,7 +1459,7 @@ def test_outer(actx_factory):
 
 # {{{ test_array_container_with_numpy
 
-@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
+@with_container_arithmetic(bcasts_across_obj_array=True, rel_comparison=True)
 @dataclass_array_container
 @dataclass(frozen=True)
 class ArrayContainerWithNumpy:
