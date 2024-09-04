@@ -75,8 +75,8 @@ actual array contexts:
 
 .. currentmodule:: arraycontext
 
-The interface of an array context
----------------------------------
+The :class:`ArrayContext` Interface
+-----------------------------------
 
 .. autoclass:: ArrayContext
 
@@ -217,7 +217,11 @@ class Array(Protocol):
     def dtype(self) -> "np.dtype[Any]":
         ...
 
-    def __getitem__(self, index: Union[slice, int]) -> "Array":
+    # Covering all the possible index variations is hard and (kind of) futile.
+    # If you'd  like to see how, try changing the Any to
+    # AxisIndex = slice | int | "Array"
+    # Index = AxisIndex |tuple[AxisIndex]
+    def __getitem__(self, index: Any) -> "Array":
         ...
 
 
@@ -274,8 +278,10 @@ class ArrayContext(ABC):
 
         A :class:`tuple` of types that are the valid array classes the
         context can operate on. However, it is not necessary that *all* the
-        :class:`ArrayContext`\ 's operations would be legal for the types in
-        *array_types*.
+        :class:`ArrayContext`\ 's operations are legal for the types in
+        *array_types*. Note that this tuple is *only* intended for use
+        with :func:`isinstance`. Other uses are not allowed. This allows
+        for 'types' with overridden :meth:`class.__instancecheck__`.
 
     .. automethod:: freeze
     .. automethod:: thaw
@@ -297,12 +303,6 @@ class ArrayContext(ABC):
     def __hash__(self) -> int:
         raise TypeError(f"unhashable type: '{type(self).__name__}'")
 
-    @abstractmethod
-    def empty(self,
-              shape: Union[int, Tuple[int, ...]],
-              dtype: "np.dtype[Any]") -> Array:
-        pass
-
     def zeros(self,
               shape: Union[int, Tuple[int, ...]],
               dtype: "np.dtype[Any]") -> Array:
@@ -311,20 +311,6 @@ class ArrayContext(ABC):
             DeprecationWarning, stacklevel=2)
 
         return self.np.zeros(shape, dtype)
-
-    def empty_like(self, ary: Array) -> Array:
-        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.empty(shape=ary.shape, dtype=ary.dtype)
-
-    def zeros_like(self, ary: Array) -> Array:
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.zeros(shape=ary.shape, dtype=ary.dtype)
 
     @abstractmethod
     def from_numpy(self,
@@ -353,7 +339,7 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def call_loopy(self,
-                   program: "loopy.TranslationUnit",
+                   t_unit: "loopy.TranslationUnit",
                    **kwargs: Any) -> Dict[str, Array]:
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.

@@ -171,22 +171,6 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         Returns valid frozen array types for the array context.
         """
 
-    # {{{ ArrayContext interface
-
-    def empty(self, shape, dtype):
-        raise NotImplementedError(
-            f"{type(self).__name__}.empty is not supported")
-
-    def zeros(self, shape, dtype):
-        import pytato as pt
-        return pt.zeros(shape, dtype)
-
-    def empty_like(self, ary):
-        raise NotImplementedError(
-            f"{type(self).__name__}.empty_like is not supported")
-
-    # }}}
-
     # {{{ compilation
 
     def transform_dag(self, dag: pytato.DictOfNamedArrays
@@ -210,7 +194,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
                 "to transform a translation unit. "
                 "This is a no-op and will result in unoptimized C code for"
                 "the requested optimization, all in a single statement."
-                "This will work, but is unlikely to be performatn."
+                "This will work, but is unlikely to be performant."
                 f"Instead, subclass {type(self).__name__} and implement "
                 "the specific transform logic required to transform the program "
                 "for your package or application. Check higher-level packages "
@@ -379,14 +363,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         return rec_map_array_container(_wrapper, array)
 
     # {{{ ArrayContext interface
-
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import pytato as pt
@@ -775,14 +751,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         return rec_map_array_container(_wrapper, array)
 
     # {{{ ArrayContext interface
-
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import jax

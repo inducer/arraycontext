@@ -32,6 +32,8 @@ from .container import (
     ArrayContainer,
     ArrayContainerT,
     NotAnArrayContainerError,
+    SerializationKey,
+    SerializedContainer,
     deserialize_container,
     get_container_context_opt,
     get_container_context_recursively,
@@ -41,7 +43,9 @@ from .container import (
     register_multivector_as_array_container,
     serialize_container,
 )
-from .container.arithmetic import with_container_arithmetic
+from .container.arithmetic import (
+    with_container_arithmetic,
+)
 from .container.dataclass import dataclass_array_container
 from .container.traversal import (
     flat_size_and_dtype,
@@ -78,6 +82,7 @@ from .context import (
     tag_axes,
 )
 from .impl.jax import EagerJAXArrayContext
+from .impl.numpy import NumpyArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
 from .loopy import make_loopy_program
@@ -92,7 +97,6 @@ from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 
 __all__ = (
     "Array",
-    "Array",
     "ArrayContainer",
     "ArrayContainerT",
     "ArrayContext",
@@ -105,14 +109,16 @@ __all__ = (
     "EagerJAXArrayContext",
     "ElementwiseMapKernelTag",
     "NotAnArrayContainerError",
+    "NumpyArrayContext",
     "PyOpenCLArrayContext",
     "PytatoJAXArrayContext",
     "PytatoPyOpenCLArrayContext",
     "PytestArrayContextFactory",
     "PytestPyOpenCLArrayContextFactory",
     "Scalar",
-    "Scalar",
     "ScalarLike",
+    "SerializationKey",
+    "SerializedContainer",
     "dataclass_array_container",
     "deserialize_container",
     "flat_size_and_dtype",
@@ -146,7 +152,7 @@ __all__ = (
     "to_numpy",
     "unflatten",
     "with_array_context",
-    "with_container_arithmetic"
+    "with_container_arithmetic",
 )
 
 
