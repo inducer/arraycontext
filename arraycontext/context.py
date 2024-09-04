@@ -339,7 +339,7 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def call_loopy(self,
-                   program: "loopy.TranslationUnit",
+                   t_unit: "loopy.TranslationUnit",
                    **kwargs: Any) -> Dict[str, Array]:
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.
