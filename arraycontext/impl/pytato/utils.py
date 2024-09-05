@@ -54,7 +54,12 @@ from pytato.array import (
 )
 from pytato.function import FunctionDefinition
 from pytato.target.loopy import LoopyPyOpenCLTarget
-from pytato.transform import ArrayOrNames, CopyMapper, deduplicate
+from pytato.transform import (
+    ArrayOrNames,
+    CopyMapper,
+    TransformMapperCache,
+    deduplicate,
+)
 from pytools import UniqueNameGenerator, memoize_method
 
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
@@ -76,8 +81,19 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
     :class:`pytato.DataWrapper` is replaced with a deterministic copy of
     :class:`Placeholder`.
     """
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(
+            self,
+            err_on_collision: bool = True,
+            err_on_created_duplicate: bool = True,
+            _cache: TransformMapperCache[ArrayOrNames, []] | None = None,
+            _function_cache: TransformMapperCache[FunctionDefinition, []] | None = None
+            ) -> None:
+        super().__init__(
+            err_on_collision=err_on_collision,
+            err_on_created_duplicate=err_on_created_duplicate,
+            _cache=_cache,
+            _function_cache=_function_cache)
+
         self.bound_arguments: dict[str, Any] = {}
         self.vng = UniqueNameGenerator()
         self.seen_inputs: set[str] = set()
