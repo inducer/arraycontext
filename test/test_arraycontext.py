@@ -435,7 +435,7 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
     assert_close_to_numpy(
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
-    for c in (42.0, * _get_test_containers(actx)):
+    for c in (42.0, *_get_test_containers(actx)):
         result = getattr(actx.np, sym_name)(c)
         result = actx.thaw(actx.freeze(result))
 
@@ -965,7 +965,7 @@ def test_container_arithmetic(actx_factory):
     bcast_dc_of_dofs + ary_dof
 
     assert actx.to_numpy(actx.np.linalg.norm(bcast_result.mass
-                                            - 2*ary_of_dofs)) < 1e-8
+                                             - 2*ary_of_dofs)) < 1e-8
 
     mock_gradient = MyContainerDOFBcast(
             name="yo",
@@ -1317,7 +1317,6 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     # key stringification logic.
     from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
-
     if isinstance(actx, CupyArrayContext):
         pytest.skip("CupyArrayContext does not support object arrays")
 
@@ -1389,6 +1388,7 @@ class Foo:
 def test_no_leaf_array_type_broadcasting(actx_factory):
     # test lack of support for https://github.com/inducer/arraycontext/issues/49
     actx = actx_factory()
+
     dof_ary = DOFArray(actx, (actx.np.zeros(3, dtype=np.float64) + 41, ))
     foo = Foo(dof_ary)
 
