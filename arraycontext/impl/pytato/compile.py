@@ -46,7 +46,10 @@ from arraycontext.container import ArrayContainer, is_array_container_type
 from arraycontext.container.traversal import rec_keyed_map_array_container
 from arraycontext.context import ArrayT
 from arraycontext.impl.pytato import (
-    PytatoJAXArrayContext, PytatoPyOpenCLArrayContext, _BasePytatoArrayContext)
+    PytatoJAXArrayContext,
+    PytatoPyOpenCLArrayContext,
+    _BasePytatoArrayContext,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -148,9 +151,9 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
             arg_id_to_descr[arg_id] = ScalarInputDescriptor(np.dtype(type(arg)))
         elif is_array_container_type(arg.__class__):
             def id_collector(keys, ary):
-                arg_id = (kw,) + keys  # noqa: B023
-                arg_id_to_arg[arg_id] = ary  # noqa: B023
-                arg_id_to_descr[arg_id] = LeafArrayDescriptor(  # noqa: B023
+                arg_id = (kw, *keys)  # noqa: B023
+                arg_id_to_arg[arg_id] = ary
+                arg_id_to_descr[arg_id] = LeafArrayDescriptor(
                         np.dtype(ary.dtype), ary.shape)
                 return ary
 
@@ -181,7 +184,9 @@ def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
     import pyopencl.array as cla
 
     from arraycontext.impl.pyopencl.taggable_cl_array import (
-        TaggableCLArray, to_tagged_cl_array)
+        TaggableCLArray,
+        to_tagged_cl_array,
+    )
     if isinstance(ary, pt.Array):
         dag = pt.make_dict_of_named_arrays({"_actx_out": ary})
         # Transform the DAG to give metadata inference a chance to do its job
@@ -209,10 +214,10 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
     :attr:`BaseLazilyCompilingFunctionCaller.f`.
     """
     if np.isscalar(arg):
-        name = arg_id_to_name[(kw,)]
+        name = arg_id_to_name[kw,]
         return pt.make_placeholder(name, (), np.dtype(type(arg)))
     elif isinstance(arg, pt.Array):
-        name = arg_id_to_name[(kw,)]
+        name = arg_id_to_name[kw,]
         # Transform the DAG to give metadata inference a chance to do its job
         arg = _to_input_for_compiled(arg, actx)
         return pt.make_placeholder(name, arg.shape, arg.dtype,
@@ -220,7 +225,8 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
                                    tags=arg.tags)
     elif is_array_container_type(arg.__class__):
         def _rec_to_placeholder(keys, ary):
-            name = arg_id_to_name[(kw,) + keys]
+            index = (kw, *keys)
+            name = arg_id_to_name[index]
             # Transform the DAG to give metadata inference a chance to do its job
             ary = _to_input_for_compiled(ary, actx)
             return pt.make_placeholder(name,
@@ -458,7 +464,7 @@ class LazilyCompilingFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller):
         warn("LazilyCompilingFunctionCaller has been renamed to"
              " LazilyPyOpenCLCompilingFunctionCaller. This will be"
              " an error in 2023.", DeprecationWarning, stacklevel=2)
-        return super(LazilyCompilingFunctionCaller, cls).__new__(cls)
+        return super().__new__(cls)
 
     def _dag_to_transformed_loopy_prg(self, dict_of_named_arrays):
         from warnings import warn
@@ -489,7 +495,7 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         self.actx._compile_trace_callback(
                 prg_id, "pre_transform_dag", dict_of_named_arrays)
 
-        with ProcessLogger(logger, "transform_dag for '{prg_id}'"):
+        with ProcessLogger(logger, f"transform_dag for '{prg_id}'"):
             pt_dict_of_named_arrays = self.actx.transform_dag(dict_of_named_arrays)
 
         self.actx._compile_trace_callback(
@@ -572,7 +578,7 @@ def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
 
 class CompiledFunction(abc.ABC):
     """
-    A callable which captures the :class:`pytato.target.BoundProgram`  resulting
+    A callable which captures the :class:`pytato.target.BoundProgram` resulting
     from calling :attr:`~BaseLazilyCompilingFunctionCaller.f` with a given set of
     input types, and generating :mod:`loopy` IR from it.
 
@@ -753,7 +759,7 @@ class CompiledJAXFunctionReturningArray(CompiledFunction):
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
-        evt, out_dict = self.pytato_program(**input_kwargs_for_loopy)
+        _evt, out_dict = self.pytato_program(**input_kwargs_for_loopy)
 
         return self.actx.thaw(out_dict[self.output_name])
 

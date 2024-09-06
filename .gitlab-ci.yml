@@ -86,12 +86,12 @@ Documentation:
   tags:
   - python3
 
-Flake8:
+Ruff:
   script:
-  - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/prepare-and-run-flake8.sh
-  - . ./prepare-and-run-flake8.sh "$CI_PROJECT_NAME" test examples
+  - pipx install ruff
+  - ruff check
   tags:
-  - python3
+  - docker-runner
   except:
   - tags
 
@@ -107,11 +107,14 @@ Pylint:
 
 Mypy:
   script: |
-    EXTRA_INSTALL="jax[cpu]"
+    # NOTE: jax>=0.4.31 requires python 3.10 and uses pattern matching
+    # which conflicts with our mypy.python_version = '3.8' setting
+    EXTRA_INSTALL="mypy pytest jax[cpu]<0.4.31"
+
     curl -L -O https://tiker.net/ci-support-v0
     . ./ci-support-v0
+
     build_py_project_in_venv
-    python -m pip install mypy pytest
     ./run-mypy.sh
   tags:
   - python3

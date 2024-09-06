@@ -27,6 +27,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from typing import ClassVar, Mapping
+
 import numpy as np
 
 import loopy as lp
@@ -70,9 +72,9 @@ def get_default_entrypoint(t_unit):
     except AttributeError:
         try:
             return t_unit.root_kernel
-        except AttributeError:
+        except AttributeError as err:
             raise TypeError("unable to find default entry point for loopy "
-                    "translation unit")
+                    "translation unit") from err
 
 
 def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
@@ -80,8 +82,8 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
     def get(c_name, nargs, naxes):
         from pymbolic import var
 
-        var_names = ["i%d" % i for i in range(naxes)]
-        size_names = ["n%d" % i for i in range(naxes)]
+        var_names = [f"i{i}" for i in range(naxes)]
+        size_names = [f"n{i}" for i in range(naxes)]
         subscript = tuple(var(vname) for vname in var_names)
         from islpy import make_zero_and_vars
         v = make_zero_and_vars(var_names, params=size_names)
@@ -101,22 +103,22 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
                     lp.Assignment(
                         var("out")[subscript],
                         var(c_name)(*[
-                            var("inp%d" % i)[subscript] for i in range(nargs)]))
+                            var(f"inp{i}")[subscript] for i in range(nargs)]))
                     ],
                 [
                     lp.GlobalArg("out",
                                  dtype=None, shape=lp.auto, offset=lp.auto)] + [
-                        lp.GlobalArg("inp%d" % i,
+                        lp.GlobalArg(f"inp{i}",
                                      dtype=None, shape=lp.auto, offset=lp.auto)
                         for i in range(nargs)] + [...],
-                name="actx_special_%s" % c_name,
+                name=f"actx_special_{c_name}",
                 tags=(ElementwiseMapKernelTag(),))
 
     return get(c_name, nargs, naxes)
 
 
 class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
-    _numpy_to_c_arc_functions = {
+    _numpy_to_c_arc_functions: ClassVar[Mapping[str, str]] = {
             "arcsin": "asin",
             "arccos": "acos",
             "arctan": "atan",
@@ -127,7 +129,7 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
             "arctanh": "atanh",
             }
 
-    _c_to_numpy_arc_functions = {c_name: numpy_name
+    _c_to_numpy_arc_functions: ClassVar[Mapping[str, str]] = {c_name: numpy_name
             for numpy_name, c_name in _numpy_to_c_arc_functions.items()}
 
     def __getattr__(self, name):
@@ -140,7 +142,7 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
             prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
             outputs = actx.call_loopy(prg,
-                    **{"inp%d" % i: arg for i, arg in enumerate(args)})
+                    **{f"inp{i}": arg for i, arg in enumerate(args)})
             return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:

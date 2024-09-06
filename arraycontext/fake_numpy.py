@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 
 import operator
+from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
@@ -34,7 +35,7 @@ from arraycontext.container.traversal import rec_map_array_container
 
 # {{{ BaseFakeNumpyNamespace
 
-class BaseFakeNumpyNamespace:
+class BaseFakeNumpyNamespace(ABC):
     def __init__(self, array_context):
         self._array_context = array_context
         self.linalg = self._get_fake_numpy_linalg_namespace()
@@ -89,11 +90,20 @@ class BaseFakeNumpyNamespace:
 
         # Miscellaneous
         "convolve", "clip", "sqrt", "cbrt", "square", "absolute", "abs", "fabs",
-        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan",
+        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan", "minimum",
+        "fmin",
 
         # FIXME:
         # "interp",
         })
+
+    @abstractmethod
+    def zeros(self, shape, dtype):
+        ...
+
+    @abstractmethod
+    def zeros_like(self, ary):
+        ...
 
     def conjugate(self, x):
         # NOTE: conjugate distributes over object arrays, but it looks for a
@@ -112,7 +122,7 @@ class BaseFakeNumpyNamespace:
                 axis=0):
         num = operator.index(num)
         if num < 0:
-            raise ValueError("Number of samples, %s, must be non-negative." % num)
+            raise ValueError(f"Number of samples, {num}, must be non-negative.")
         div = (num - 1) if endpoint else num
 
         # Convert float/complex array scalars to float, gh-3504
@@ -140,8 +150,8 @@ class BaseFakeNumpyNamespace:
 
         if div > 0:
             step = delta / div
-            #any_step_zero = _nx.asanyarray(step == 0).any()
-            any_step_zero = self._array_context.to_numpy((step == 0)).any()
+            # any_step_zero = _nx.asanyarray(step == 0).any()
+            any_step_zero = self._array_context.to_numpy(step == 0).any()
             if any_step_zero:
                 delta_actx = self._array_context.from_numpy(delta)
 
@@ -176,10 +186,10 @@ class BaseFakeNumpyNamespace:
         # https://github.com/inducer/pytato/issues/456
         if retstep:
             return y, step
-            #return y.astype(dtype), step
+            # return y.astype(dtype), step
         else:
             return y
-            #return y.astype(dtype)
+            # return y.astype(dtype)
 
     # }}}
 

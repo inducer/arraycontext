@@ -1,4 +1,7 @@
-"""
+from __future__ import annotations
+
+
+__doc__ = """
 .. currentmodule:: arraycontext
 .. autoclass:: PyOpenCLArrayContext
 .. automodule:: arraycontext.impl.pyopencl.taggable_cl_array
@@ -35,9 +38,14 @@ import numpy as np
 
 from pytools.tag import ToTagSetConvertible
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
-from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
+from arraycontext.context import (
+    Array,
+    ArrayContext,
+    ArrayOrContainer,
+    ScalarLike,
+    UntransformedCodeWarning,
+)
 
 
 if TYPE_CHECKING:
@@ -73,10 +81,10 @@ class PyOpenCLArrayContext(ArrayContext):
     """
 
     def __init__(self,
-            queue: "pyopencl.CommandQueue",
-            allocator: Optional["pyopencl.tools.AllocatorBase"] = None,
+            queue: pyopencl.CommandQueue,
+            allocator: Optional[pyopencl.tools.AllocatorBase] = None,
             wait_event_queue_length: Optional[int] = None,
-            force_device_scalars: bool = False) -> None:
+            force_device_scalars: Optional[bool] = None) -> None:
         r"""
         :arg wait_event_queue_length: The length of a queue of
             :class:`~pyopencl.Event` objects that are maintained by the
@@ -97,21 +105,15 @@ class PyOpenCLArrayContext(ArrayContext):
 
             For now, *wait_event_queue_length* should be regarded as an
             experimental feature that may change or disappear at any minute.
-
-        :arg force_device_scalars: if *True*, scalar results returned from
-            reductions in :attr:`ArrayContext.np` will be kept on the device.
-            If *False*, the equivalent of :meth:`~ArrayContext.freeze` and
-            :meth:`~ArrayContext.to_numpy` is applied to transfer the results
-            to the host.
         """
-        if not force_device_scalars:
-            warn("Configuring the PyOpenCLArrayContext to return host scalars "
-                    "from reductions is deprecated. "
-                    "To configure the PyOpenCLArrayContext to return "
-                    "device scalars, pass 'force_device_scalars=True' to the "
-                    "constructor. "
-                    "Support for returning host scalars will be removed in 2022.",
-                    DeprecationWarning, stacklevel=2)
+        if force_device_scalars is not None:
+            warn(
+                "`force_device_scalars` is deprecated and will be removed in 2025.",
+                DeprecationWarning, stacklevel=2)
+
+            if not force_device_scalars:
+                raise ValueError(
+                    "Passing force_device_scalars=False is not allowed.")
 
         import pyopencl as cl
         import pyopencl.array as cl_array
@@ -123,7 +125,12 @@ class PyOpenCLArrayContext(ArrayContext):
         if wait_event_queue_length is None:
             wait_event_queue_length = 10
 
-        self._force_device_scalars = force_device_scalars
+        self._force_device_scalars = True
+        # Subclasses might still be using the old
+        # "force_devices_scalars: bool = False" interface, in which case we need
+        # to explicitly pass force_device_scalars=True in clone()
+        self._passed_force_device_scalars = force_device_scalars is not None
+
         self._wait_event_queue_length = wait_event_queue_length
         self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
 
@@ -132,16 +139,18 @@ class PyOpenCLArrayContext(ArrayContext):
                 warn("PyOpenCLArrayContext created without an allocator on a GPU. "
                      "This can lead to high numbers of memory allocations. "
                      "Please consider using a pyopencl.tools.MemoryPool. "
-                     "Run with allocator=False to disable this warning.")
+                     "Run with allocator=False to disable this warning.",
+                     stacklevel=2)
 
             if __debug__:
                 # Use "running on GPU" as a proxy for "they care about speed".
                 warn("You are using the PyOpenCLArrayContext on a GPU, but you "
                         "are running Python in debug mode. Use 'python -O' for "
-                        "a noticeable speed improvement.")
+                        "a noticeable speed improvement.",
+                        stacklevel=2)
 
         self._loopy_transform_cache: \
-                Dict["lp.TranslationUnit", "lp.TranslationUnit"] = {}
+                Dict[lp.TranslationUnit, lp.TranslationUnit] = {}
 
         # TODO: Ideally this should only be `(TaggableCLArray,)`, but
         # that would break the logic in the downstream users.
@@ -187,41 +196,6 @@ class PyOpenCLArrayContext(ArrayContext):
         return rec_map_array_container(_wrapper, array)
 
     # {{{ ArrayContext interface
-
-    def empty(self, shape, dtype):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty is deprecated and will stop "
-            "working in 2023. Prefer actx.zeros instead.",
-            DeprecationWarning, stacklevel=2)
-
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        return tga.empty(self.queue, shape, dtype, allocator=self.allocator)
-
-    def zeros(self, shape, dtype):
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        return tga.zeros(self.queue, shape, dtype, allocator=self.allocator)
-
-    def empty_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-
-        def _empty_like(array):
-            return tga.empty(self.queue, array.shape, array.dtype,
-                allocator=self.allocator, axes=array.axes, tags=array.tags)
-
-        return self._rec_map_container(_empty_like, ary)
-
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
@@ -292,24 +266,31 @@ class PyOpenCLArrayContext(ArrayContext):
         return {name: tga.to_tagged_cl_array(ary) for name, ary in result.items()}
 
     def clone(self):
-        return type(self)(self.queue, self.allocator,
-                wait_event_queue_length=self._wait_event_queue_length,
-                force_device_scalars=self._force_device_scalars)
+        if self._passed_force_device_scalars:
+            return type(self)(self.queue, self.allocator,
+                    wait_event_queue_length=self._wait_event_queue_length,
+                    force_device_scalars=True)
+        else:
+            return type(self)(self.queue, self.allocator,
+                    wait_event_queue_length=self._wait_event_queue_length)
 
     # }}}
 
     # {{{ transform_loopy_program
 
-    def transform_loopy_program(self, t_unit):
+    def transform_loopy_program(self, t_unit: lp.TranslationUnit) -> lp.TranslationUnit:
         from warnings import warn
-        warn("Using arraycontext.PyOpenCLArrayContext.transform_loopy_program "
-                "to transform a program. This is deprecated and will stop working "
-                "in 2022. Instead, subclass PyOpenCLArrayContext and implement "
-                "the specific logic required to transform the program for your "
-                "package or application. Check higher-level packages "
+        warn("Using the base "
+                f"{type(self).__name__}.transform_loopy_program "
+                "to transform a translation unit. "
+                "This is largely a no-op and unlikely to result in fast generated "
+                "code."
+                f"Instead, subclass {type(self).__name__} and implement "
+                "the specific transform logic required to transform the program "
+                "for your package or application. Check higher-level packages "
                 "(e.g. meshmode), which may already have subclasses you may want "
                 "to build on.",
-                DeprecationWarning, stacklevel=2)
+                UntransformedCodeWarning, stacklevel=2)
 
         # accommodate loopy with and without kernel callables
 
@@ -323,32 +304,10 @@ class PyOpenCLArrayContext(ArrayContext):
                     "to create this kernel?")
 
         all_inames = default_entrypoint.all_inames()
-        # FIXME: This could be much smarter.
+
         inner_iname = None
 
-        # import with underscore to avoid DeprecationWarning
-        from arraycontext.metadata import _FirstAxisIsElementsTag
-
-        if (len(default_entrypoint.instructions) == 1
-                and isinstance(default_entrypoint.instructions[0], lp.Assignment)
-                and any(isinstance(tag, _FirstAxisIsElementsTag)
-                    # FIXME: Firedrake branch lacks kernel tags
-                    for tag in getattr(default_entrypoint, "tags", ()))):
-            stmt, = default_entrypoint.instructions
-
-            out_inames = [v.name for v in stmt.assignee.index_tuple]
-            assert out_inames
-            outer_iname = out_inames[0]
-            if len(out_inames) >= 2:
-                inner_iname = out_inames[1]
-
-        elif "iel" in all_inames:
-            outer_iname = "iel"
-
-            if "idof" in all_inames:
-                inner_iname = "idof"
-
-        elif "i0" in all_inames:
+        if "i0" in all_inames:
             outer_iname = "i0"
 
             if "i1" in all_inames:

@@ -5,7 +5,6 @@
 .. autoclass:: PytestPyOpenCLArrayContextFactory
 
 .. autofunction:: pytest_generate_tests_for_array_contexts
-.. autofunction:: pytest_generate_tests_for_pyopencl_array_context
 """
 
 __copyright__ = """
@@ -34,6 +33,7 @@ THE SOFTWARE.
 
 from typing import Any, Callable, Dict, Sequence, Type, Union
 
+from arraycontext import NumpyArrayContext
 from arraycontext.context import ArrayContext
 
 
@@ -87,7 +87,16 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
 
 
 class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFactory):
-    force_device_scalars = True
+    # Deprecated, remove in 2025.
+    _force_device_scalars = True
+
+    @property
+    def force_device_scalars(self):
+        from warnings import warn
+        warn(
+            "force_device_scalars is deprecated and will be removed in 2025.",
+             DeprecationWarning, stacklevel=2)
+        return self._force_device_scalars
 
     @property
     def actx_class(self):
@@ -100,7 +109,7 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
         # holding a reference to the context to keep it alive in turn.
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
-        ctx, queue = self.get_command_queue()
+        _ctx, queue = self.get_command_queue()
 
         alloc = None
 
@@ -111,24 +120,17 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
             from warnings import warn
             warn("Disabling SVM due to memory leak "
                  "in Nvidia CL when running pytest. "
-                 "See https://github.com/inducer/arraycontext/issues/196")
+                 "See https://github.com/inducer/arraycontext/issues/196",
+                 stacklevel=1)
 
         return self.actx_class(
                 queue,
-                allocator=alloc,
-                force_device_scalars=self.force_device_scalars)
+                allocator=alloc)
 
     def __str__(self):
-        return ("<%s for <pyopencl.Device '%s' on '%s'>>" %
-                (
-                    self.actx_class.__name__,
-                    self.device.name.strip(),
-                    self.device.platform.name.strip()))
-
-
-class _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars(
-        _PytestPyOpenCLArrayContextFactoryWithClass):
-    force_device_scalars = False
+        return (f"<{self.actx_class.__name__} "
+            f"for <pyopencl.Device '{self.device.name.strip()}' "
+            f"on '{self.device.platform.name.strip()}'>>")
 
 
 class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
@@ -145,7 +147,6 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
     def actx_class(self):
         from arraycontext import PytatoPyOpenCLArrayContext
         actx_cls = PytatoPyOpenCLArrayContext
-        actx_cls.transform_loopy_program = lambda s, t_unit: t_unit
         return actx_cls
 
     def __call__(self):
@@ -154,7 +155,7 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
         # holding a reference to the context to keep it alive in turn.
         # On some implementations (notably Intel CPU), holding a reference
         # to a queue does not keep the context alive.
-        ctx, queue = self.get_command_queue()
+        _ctx, queue = self.get_command_queue()
 
         alloc = None
 
@@ -165,15 +166,15 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
             from warnings import warn
             warn("Disabling SVM due to memory leak "
                  "in Nvidia CL when running pytest. "
-                 "See https://github.com/inducer/arraycontext/issues/196")
+                 "See https://github.com/inducer/arraycontext/issues/196",
+                 stacklevel=1)
 
         return self.actx_class(queue, allocator=alloc)
 
     def __str__(self):
-        return ("<PytatoPyOpenCLArrayContext for <pyopencl.Device '%s' on '%s'>>" %
-                (
-                    self.device.name.strip(),
-                    self.device.platform.name.strip()))
+        return ("<PytatoPyOpenCLArrayContext for "
+                f"<pyopencl.Device '{self.device.name.strip()}' "
+                f"on '{self.device.platform.name.strip()}'>>")
 
 
 class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
@@ -207,7 +208,6 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
     def is_available(cls) -> bool:
         try:
             import jax  # noqa: F401
-
             import pytato  # noqa: F401
             return True
         except ImportError:
@@ -243,16 +243,35 @@ class _PytestCupyArrayContextFactory(PytestArrayContextFactory):
         name = d["name"].decode("utf-8")
         return f"<CupyArrayContext> on {cupy.cuda.Device()}:{name}"
 
+ 
+# {{{ _PytestArrayContextFactory
+
+class _NumpyArrayContextForTests(NumpyArrayContext):
+    def transform_loopy_program(self, t_unit):
+        return t_unit
+
+
+class _PytestNumpyArrayContextFactory(PytestArrayContextFactory):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def __call__(self):
+        return _NumpyArrayContextForTests()
+
+    def __str__(self):
+        return "<NumpyArrayContext>"
+
+# }}}
+
 
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
         Dict[str, Type[PytestArrayContextFactory]] = {
                 "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
-                "pyopencl-deprecated":
-                _PytestPyOpenCLArrayContextFactoryWithClassAndHostScalars,
                 "pytato:pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
                 "pytato:jax": _PytestPytatoJaxArrayContextFactory,
                 "eagerjax": _PytestEagerJaxArrayContextFactory,
                 "cupy": _PytestCupyArrayContextFactory,
+                "numpy": _PytestNumpyArrayContextFactory,
                 }
 
 
@@ -287,10 +306,7 @@ def pytest_generate_tests_for_array_contexts(
             "pyopencl",
             ])
 
-    to use the :mod:`pyopencl`-based array context. For :mod:`pyopencl`-based
-    contexts :func:`pyopencl.tools.pytest_generate_tests_for_pyopencl` is used
-    as a backend, which allows specifying the ``PYOPENCL_TEST`` environment
-    variable for device selection.
+    to use the :mod:`pyopencl`-based array context.
 
     The environment variable ``ARRAYCONTEXT_TEST`` can also be used to
     overwrite any chosen implementations through *factories*. This is a
@@ -298,11 +314,7 @@ def pytest_generate_tests_for_array_contexts(
 
     Current supported implementations include:
 
-    * ``"pyopencl"``, which creates a :class:`~arraycontext.PyOpenCLArrayContext`
-      with ``force_device_scalars=True``.
-    * ``"pyopencl-deprecated"``, which creates a
-      :class:`~arraycontext.PyOpenCLArrayContext` with
-      ``force_device_scalars=False``.
+    * ``"pyopencl"``, which creates a :class:`~arraycontext.PyOpenCLArrayContext`.
     * ``"pytato-pyopencl"``, which creates a
       :class:`~arraycontext.PytatoPyOpenCLArrayContext`.
 
@@ -365,7 +377,7 @@ def pytest_generate_tests_for_array_contexts(
             return
 
         arg_values, ids = cl_tools.get_pyopencl_fixture_arg_values()
-        empty_arg_dict = {k: None for k in arg_values[0]}
+        empty_arg_dict = dict.fromkeys(arg_values[0])
 
         # }}}
 
@@ -398,52 +410,13 @@ def pytest_generate_tests_for_array_contexts(
 
         # NOTE: sorts the args so that parallel pytest works
         arg_value_tuples = sorted([
-                tuple([arg_dict[name] for name in arg_names])
+                tuple(arg_dict[name] for name in arg_names)
                 for arg_dict in arg_values_with_actx
                 ], key=lambda x: str(x))
 
         metafunc.parametrize(arg_names, arg_value_tuples, ids=ids)
 
     return inner
-
-
-def pytest_generate_tests_for_pyopencl_array_context(metafunc) -> None:
-    """Parametrize tests for pytest to use a
-    :class:`~arraycontext.PyOpenCLArrayContext`.
-
-    Performs device enumeration analogously to
-    :func:`pyopencl.tools.pytest_generate_tests_for_pyopencl`.
-
-    Using the line:
-
-    .. code-block:: python
-
-       from arraycontext import (
-            pytest_generate_tests_for_pyopencl_array_context
-            as pytest_generate_tests)
-
-    in your pytest test scripts allows you to use the argument ``actx_factory``,
-    in your test functions, and they will automatically be
-    run once for each OpenCL device/platform in the system, as appropriate,
-    with an argument-less function that returns an
-    :class:`~arraycontext.ArrayContext` when called.
-
-    It also allows you to specify the ``PYOPENCL_TEST`` environment variable
-    for device selection.
-    """
-
-    from warnings import warn
-    warn("pytest_generate_tests_for_pyopencl_array_context is deprecated. "
-            "Use 'pytest_generate_tests = "
-            "arraycontext.pytest_generate_tests_for_array_contexts"
-            "([\"pyopencl-deprecated\"])' instead. "
-            "pytest_generate_tests_for_pyopencl_array_context will stop working "
-            "in 2022.",
-            DeprecationWarning, stacklevel=2)
-
-    pytest_generate_tests_for_array_contexts([
-        "pyopencl-deprecated",
-        ], factory_arg_name="actx_factory")(metafunc)
 
 # }}}
 

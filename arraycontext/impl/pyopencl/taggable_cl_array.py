@@ -20,8 +20,9 @@ from pytools.tag import Tag, Taggable, ToTagSetConvertible
 @dataclass(frozen=True, eq=True)
 class Axis(Taggable):
     """
-    Records the tags corresponding to a dimensions of :class:`TaggableCLArray`.
+    Records the tags corresponding to a dimension of :class:`TaggableCLArray`.
     """
+
     tags: FrozenSet[Tag]
 
     def _with_new_tags(self, tags: FrozenSet[Tag]) -> "Axis":
@@ -98,6 +99,10 @@ class TaggableCLArray(cla.Array, Taggable):
 
         self.tags = tags
         self.axes = axes
+
+    def __repr__(self) -> str:
+        return (f"{type(self).__name__}(shape={self.shape}, dtype={self.dtype}, "
+                f"tags={self.tags}, axes={self.axes})")
 
     def copy(self, queue=cla._copy_queue):
         ary = super().copy(queue=queue)

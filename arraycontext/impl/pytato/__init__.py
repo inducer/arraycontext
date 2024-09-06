@@ -1,4 +1,7 @@
-"""
+from __future__ import annotations
+
+
+__doc__ = """
 .. currentmodule:: arraycontext
 
 A :mod:`pytato`-based array context defers the evaluation of an array until its
@@ -45,25 +48,40 @@ THE SOFTWARE.
 import abc
 import sys
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Optional, Tuple, Type, Union)
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import numpy as np
 
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
-from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
+from arraycontext.context import (
+    Array,
+    ArrayContext,
+    ArrayOrContainer,
+    ScalarLike,
+    UntransformedCodeWarning,
+)
 from arraycontext.metadata import NameHint
 
 
 if TYPE_CHECKING:
+    import loopy as lp
     import pyopencl as cl
     import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
-    import pyopencl as cl  # noqa: F811
+    import pyopencl as cl
 
 import logging
 
@@ -90,7 +108,7 @@ def _preprocess_array_tags(tags: ToTagSetConvertible) -> FrozenSet[Tag]:
                     f"arraycontext.metadata.NameHint('{name_hint.name}') "
                     "to pytato.tags.PrefixNamed, "
                     f"PrefixNamed('{prefix_named.prefix}') "
-                    "was already present.")
+                    "was already present.", stacklevel=1)
 
         tags = (
                 (tags | frozenset({PrefixNamed(name_hint.name)}))
@@ -129,7 +147,6 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         super().__init__()
 
-        import loopy as lp
         import pytato as pt
         self._freeze_prg_cache: Dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
         self._dag_transform_cache: Dict[
@@ -154,26 +171,10 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         Returns valid frozen array types for the array context.
         """
 
-    # {{{ ArrayContext interface
-
-    def empty(self, shape, dtype):
-        raise NotImplementedError(
-            f"{type(self).__name__}.empty is not supported")
-
-    def zeros(self, shape, dtype):
-        import pytato as pt
-        return pt.zeros(shape, dtype)
-
-    def empty_like(self, ary):
-        raise NotImplementedError(
-            f"{type(self).__name__}.empty_like is not supported")
-
-    # }}}
-
     # {{{ compilation
 
-    def transform_dag(self, dag: "pytato.DictOfNamedArrays"
-                      ) -> "pytato.DictOfNamedArrays":
+    def transform_dag(self, dag: pytato.DictOfNamedArrays
+                      ) -> pytato.DictOfNamedArrays:
         """
         Returns a transformed version of *dag*. Sub-classes are supposed to
         override this method to implement context-specific transformations on
@@ -186,10 +187,22 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         return dag
 
-    def transform_loopy_program(self, t_unit):
-        raise ValueError(
-            f"{type(self).__name__} does not implement transform_loopy_program. "
-            "Sub-classes are supposed to implement it.")
+    def transform_loopy_program(self, t_unit: lp.TranslationUnit) -> lp.TranslationUnit:
+        from warnings import warn
+        warn("Using the base "
+                f"{type(self).__name__}.transform_loopy_program "
+                "to transform a translation unit. "
+                "This is a no-op and will result in unoptimized C code for"
+                "the requested optimization, all in a single statement."
+                "This will work, but is unlikely to be performant."
+                f"Instead, subclass {type(self).__name__} and implement "
+                "the specific transform logic required to transform the program "
+                "for your package or application. Check higher-level packages "
+                "(e.g. meshmode), which may already have subclasses you may want "
+                "to build on.",
+                UntransformedCodeWarning, stacklevel=2)
+
+        return t_unit
 
     @abc.abstractmethod
     def einsum(self, spec, *args, arg_names=None, tagged=()):
@@ -242,7 +255,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     .. automethod:: compile
     """
     def __init__(
-            self, queue: "cl.CommandQueue", allocator=None, *,
+            self, queue: cl.CommandQueue, allocator=None, *,
             use_memory_pool: Optional[bool] = None,
             compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None,
 
@@ -351,14 +364,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     # {{{ ArrayContext interface
 
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
-
     def from_numpy(self, array):
         import pytato as pt
 
@@ -411,17 +416,20 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
                 from warnings import warn
                 warn("Running on an Nvidia GPU, reducing the argument "
-                    f"size limit from 4352 to {limit}.")
+                    f"size limit from 4352 to {limit}.", stacklevel=1)
             else:
                 limit = dev.max_parameter_size
 
             if self._force_svm_arg_limit is not None:
                 limit = self._force_svm_arg_limit
 
-            logger.info(f"limiting argument buffer size for {dev} to {limit} bytes")
+            logger.info(
+                    "limiting argument buffer size for %s to %d bytes",
+                    dev, limit)
 
             from arraycontext.impl.pytato.utils import (
-                ArgSizeLimitingPytatoLoopyPyOpenCLTarget)
+                ArgSizeLimitingPytatoLoopyPyOpenCLTarget,
+            )
             return ArgSizeLimitingPytatoLoopyPyOpenCLTarget(limit)
         else:
             return super().get_target()
@@ -435,10 +443,14 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pyopencl.taggable_cl_array import (
-            TaggableCLArray, to_tagged_cl_array)
+            TaggableCLArray,
+            to_tagged_cl_array,
+        )
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
         from arraycontext.impl.pytato.utils import (
-            _normalize_pt_expr, get_cl_axes_from_pt_axes)
+            _normalize_pt_expr,
+            get_cl_axes_from_pt_axes,
+        )
 
         array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray, pt.Array]] = {}
         key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
@@ -608,7 +620,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         processed_kwargs = {}
 
         for kw, arg in sorted(kwargs.items()):
-            if isinstance(arg, (pt.Array,) + SCALAR_CLASSES):
+            if isinstance(arg, (pt.Array, *SCALAR_CLASSES)):
                 pass
             elif isinstance(arg, TaggableCLArray):
                 arg = self.thaw(arg)
@@ -627,8 +639,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         from .compile import LazilyPyOpenCLCompilingFunctionCaller
         return LazilyPyOpenCLCompilingFunctionCaller(self, f)
 
-    def transform_dag(self, dag: "pytato.DictOfNamedArrays"
-                      ) -> "pytato.DictOfNamedArrays":
+    def transform_dag(self, dag: pytato.DictOfNamedArrays
+                      ) -> pytato.DictOfNamedArrays:
         import pytato as pt
         dag = pt.transform.materialize_with_mpms(dag)
         return dag
@@ -705,7 +717,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             unstable.
         """
         import jax.numpy as jnp
-
         import pytato as pt
         super().__init__(compile_trace_callback=compile_trace_callback)
         self.array_types = (pt.Array, jnp.ndarray)
@@ -741,17 +752,8 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
     # {{{ ArrayContext interface
 
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
-
     def from_numpy(self, array):
         import jax
-
         import pytato as pt
 
         def _from_numpy(ary):
@@ -776,7 +778,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             return array
 
         import jax.numpy as jnp
-
         import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container

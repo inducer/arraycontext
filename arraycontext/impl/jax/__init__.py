@@ -33,8 +33,7 @@ import numpy as np
 
 from pytools.tag import ToTagSetConvertible
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
 
 
@@ -88,38 +87,6 @@ class EagerJAXArrayContext(ArrayContext):
 
     # {{{ ArrayContext interface
 
-    def empty(self, shape, dtype):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty is deprecated and will stop "
-            "working in 2023. Prefer actx.zeros instead.",
-            DeprecationWarning, stacklevel=2)
-
-        import jax.numpy as jnp
-        return jnp.empty(shape=shape, dtype=dtype)
-
-    def zeros(self, shape, dtype):
-        import jax.numpy as jnp
-        return jnp.zeros(shape=shape, dtype=dtype)
-
-    def empty_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        def _empty_like(array):
-            return self.empty(array.shape, array.dtype)
-
-        return self._rec_map_container(_empty_like, ary)
-
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
-
     def from_numpy(self, array):
         def _from_numpy(ary):
             import jax
@@ -152,7 +119,7 @@ class EagerJAXArrayContext(ArrayContext):
         return array
 
     def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
-        # TODO: See `jax.experiemental.maps.xmap`, proabably that should be useful?
+        # TODO: See `jax.experiemental.maps.xmap`, probably that should be useful?
         return array
 
     def call_loopy(self, t_unit, **kwargs):

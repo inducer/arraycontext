@@ -151,7 +151,10 @@ def test_stringify_array_container_tree() -> None:
     from dataclasses import dataclass
 
     from arraycontext import (
-        Array, dataclass_array_container, stringify_array_container_tree)
+        Array,
+        dataclass_array_container,
+        stringify_array_container_tree,
+    )
 
     @dataclass_array_container
     @dataclass(frozen=True)

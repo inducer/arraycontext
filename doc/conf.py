@@ -1,3 +1,4 @@
+from importlib import metadata
 from urllib.request import urlopen
 
 
@@ -8,12 +9,8 @@ with urlopen(_conf_url) as _inf:
 
 copyright = "2021, University of Illinois Board of Trustees"
 author = "Arraycontext Contributors"
-
-ver_dic = {}
-exec(compile(open("../arraycontext/version.py").read(), "../arraycontext/version.py",
-    "exec"), ver_dic)
-version = ".".join(str(x) for x in ver_dic["VERSION"])
-release = ver_dic["VERSION_TEXT"]
+release = metadata.version("arraycontext")
+version = ".".join(release.split(".")[:2])
 
 intersphinx_mapping = {
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
