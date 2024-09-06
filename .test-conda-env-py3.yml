@@ -15,4 +15,3 @@ dependencies:
 - islpy
 - pip
 - jax
-- cupy
