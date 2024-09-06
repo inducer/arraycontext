@@ -56,7 +56,7 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return CupyFakeNumpyLinalgNamespace(self._array_context)
 
     def zeros(self, shape, dtype):
-        import cupy as cp
+        import cupy as cp  # type: ignore[import-untyped]
         return cp.zeros(shape, dtype)
 
     def __getattr__(self, name):

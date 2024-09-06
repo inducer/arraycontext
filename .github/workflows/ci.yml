@@ -55,7 +55,6 @@ jobs:
 
                 build_py_project_in_conda_env
                 python -m pip install mypy pytest
-                conda install cupy
                 ./run-mypy.sh
 
     pytest3_pocl:

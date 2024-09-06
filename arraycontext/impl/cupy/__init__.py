@@ -51,7 +51,7 @@ from arraycontext.context import (
 
 class CupyNonObjectArrayMetaclass(type):
     def __instancecheck__(cls, instance: Any) -> bool:
-        import cupy as cp
+        import cupy as cp  # type: ignore[import-untyped]
         return isinstance(instance, cp.ndarray) and instance.dtype != object
 
 
