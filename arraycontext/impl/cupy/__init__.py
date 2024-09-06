@@ -35,8 +35,6 @@ THE SOFTWARE.
 
 from typing import Any
 
-import cupy as cp
-
 import loopy as lp
 from pytools.tag import ToTagSetConvertible
 
@@ -53,6 +51,7 @@ from arraycontext.context import (
 
 class CupyNonObjectArrayMetaclass(type):
     def __instancecheck__(cls, instance: Any) -> bool:
+        import cupy as cp
         return isinstance(instance, cp.ndarray) and instance.dtype != object
 
 
@@ -87,11 +86,13 @@ class CupyArrayContext(ArrayContext):
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
+        import cupy as cp
         return cp.array(array)
 
     def to_numpy(self,
                  array: ArrayOrContainerOrScalar
                  ) -> NumpyOrContainerOrScalar:
+        import cupy as cp
         return cp.asnumpy(array)
 
     def call_loopy(
@@ -110,12 +111,16 @@ class CupyArrayContext(ArrayContext):
         return result
 
     def freeze(self, array):
+        import cupy as cp
+
         def _freeze(ary):
             return cp.asnumpy(ary)
 
         return with_array_context(rec_map_array_container(_freeze, array), actx=None)
 
     def thaw(self, array):
+        import cupy as cp
+
         def _thaw(ary):
             return cp.array(ary)
 
@@ -153,6 +158,7 @@ class CupyArrayContext(ArrayContext):
         return array
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
+        import cupy as cp
         return cp.einsum(spec, *args)
 
     @property
