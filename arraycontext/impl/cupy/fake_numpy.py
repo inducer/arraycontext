@@ -23,15 +23,20 @@ THE SOFTWARE.
 """
 from functools import partial, reduce
 
-import cupy as cp  # type: ignore[import-untyped]  # pylint: disable=import-error
+import cupy as cp
 
-from arraycontext.container import is_array_container
+from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-    multimap_reduce_array_container, rec_map_array_container,
-    rec_map_reduce_array_container, rec_multimap_array_container,
-    rec_multimap_reduce_array_container)
+    rec_map_array_container,
+    rec_map_reduce_array_container,
+    rec_multimap_array_container,
+    rec_multimap_reduce_array_container,
+)
+from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import (
-    BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace)
+    BaseFakeNumpyLinalgNamespace,
+    BaseFakeNumpyNamespace,
+)
 
 
 class CupyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -39,19 +44,21 @@ class CupyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     pass
 
 
-_NUMPY_UFUNCS = {"abs", "sin", "cos", "tan", "arcsin", "arccos", "arctan",
-                 "sinh", "cosh", "tanh", "exp", "log", "log10", "isnan",
-                 "sqrt", "concatenate", "transpose",
-                 "ones_like", "maximum", "minimum", "where", "conj", "arctan2",
-                 }
+_NUMPY_UFUNCS = frozenset({"concatenate", "reshape", "transpose",
+                 "ones_like", "where",
+                 *BaseFakeNumpyNamespace._numpy_math_functions
+                 })
 
 
 class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     """
-    A :mod:`numpy` mimic for :class:`CupyArrayContext`.
+    A :mod:`cupy` mimic for :class:`CupyArrayContext`.
     """
     def _get_fake_numpy_linalg_namespace(self):
         return CupyFakeNumpyLinalgNamespace(self._array_context)
+
+    def zeros(self, shape, dtype):
+        return cp.zeros(shape, dtype)
 
     def __getattr__(self, name):
 
@@ -60,7 +67,7 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
             return partial(rec_multimap_array_container,
                            getattr(cp, name))
 
-        raise NotImplementedError
+        raise AttributeError(name)
 
     def sum(self, a, axis=None, dtype=None):
         return rec_map_reduce_array_container(sum, partial(cp.sum,
@@ -109,10 +116,7 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def ravel(self, a, order="C"):
         return rec_map_array_container(partial(cp.ravel, order=order), a)
 
-    def vdot(self, x, y, dtype=None):
-        if dtype is not None:
-            raise NotImplementedError("only 'dtype=None' supported.")
-
+    def vdot(self, x, y):
         return rec_multimap_reduce_array_container(sum, cp.vdot, x, y)
 
     def any(self, a):
@@ -123,34 +127,43 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_reduce_array_container(partial(reduce, cp.logical_and),
                                               lambda subary: cp.all(subary), a)
 
-    def array_equal(self, a, b):
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
+        false_ary = cp.array(False)
+        true_ary = cp.array(True)
         if type(a) is not type(b):
-            return False
-        elif not is_array_container(a):
-            if a.shape != b.shape:
-                return False
-            else:
-                return cp.all(cp.equal(a, b))
+            return false_ary
+
+        try:
+            serialized_x = serialize_container(a)
+            serialized_y = serialize_container(b)
+        except NotAnArrayContainerError:
+            assert isinstance(a, cp.ndarray)
+            assert isinstance(b, cp.ndarray)
+            return cp.array(cp.array_equal(a, b))
         else:
-            try:
-                return multimap_reduce_array_container(partial(reduce,
-                                                           cp.logical_and),
-                                                   self.array_equal, a, b)
-            except TypeError:
-                return True
-
-    def zeros_like(self, ary):
-        return rec_multimap_array_container(cp.zeros_like, ary)
-
-    def reshape(self, a, newshape, order="C"):
-        return rec_map_array_container(
-                lambda ary: ary.reshape(newshape, order=order),
-                a)
+            if len(serialized_x) != len(serialized_y):
+                return false_ary
+            return reduce(
+                    cp.logical_and,
+                    [(true_ary if kx_i == ky_i else false_ary)
+                        and self.array_equal(x_i, y_i)
+                        for (kx_i, x_i), (ky_i, y_i)
+                        in zip(serialized_x, serialized_y)],
+                    true_ary)
 
     def arange(self, *args, **kwargs):
         return cp.arange(*args, **kwargs)
 
     def linspace(self, *args, **kwargs):
         return cp.linspace(*args, **kwargs)
+
+    def zeros_like(self, ary):
+        return rec_map_array_container(cp.zeros_like, ary)
+
+    def reshape(self, a, newshape, order="C"):
+        return rec_map_array_container(
+                lambda ary: ary.reshape(newshape, order=order),
+                a)
+
 
 # vim: fdm=marker

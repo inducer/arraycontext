@@ -1,11 +1,14 @@
+from __future__ import annotations
+
+
 """
 .. currentmodule:: arraycontext
-
 
 A mod :`cupy`-based array context.
 
 .. autoclass:: CupyArrayContext
 """
+
 __copyright__ = """
 Copyright (C) 2024 University of Illinois Board of Trustees
 """
@@ -30,34 +33,47 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Mapping
+from typing import Any
 
-
-try:
-    import cupy as cp  # type: ignore[import-untyped]
-except ModuleNotFoundError:
-    pass
+import cupy as cp
 
 import loopy as lp
+from pytools.tag import ToTagSetConvertible
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
-from arraycontext.context import ArrayContext
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
+from arraycontext.context import (
+    Array,
+    ArrayContext,
+    ArrayOrContainerOrScalar,
+    ArrayOrContainerOrScalarT,
+    NumpyOrContainerOrScalar,
+    UntransformedCodeWarning,
+)
+
+
+class CupyNonObjectArrayMetaclass(type):
+    def __instancecheck__(cls, instance: Any) -> bool:
+        return isinstance(instance, cp.ndarray) and instance.dtype != object
+
+
+class CupyNonObjectArray(metaclass=CupyNonObjectArrayMetaclass):
+    pass
 
 
 class CupyArrayContext(ArrayContext):
     """
-    A :class:`ArrayContext` that uses :mod:`cupy.ndarray` to represent arrays
-
+    A :class:`ArrayContext` that uses :class:`cupy.ndarray` to represent arrays.
 
     .. automethod:: __init__
     """
-    def __init__(self):
-        super().__init__()
-        self._loopy_transform_cache: \
-                Mapping["lp.TranslationUnit", "lp.TranslationUnit"] = {}
 
-        self.array_types = (cp.ndarray,)
+    _loopy_transform_cache: dict[lp.TranslationUnit, lp.ExecutorBase]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._loopy_transform_cache = {}
+
+    array_types = (CupyNonObjectArray,)
 
     def _get_fake_numpy_namespace(self):
         from .fake_numpy import CupyFakeNumpyNamespace
@@ -68,29 +84,28 @@ class CupyArrayContext(ArrayContext):
     def clone(self):
         return type(self)()
 
-    def empty(self, shape, dtype):
-        return cp.empty(shape, dtype=dtype)
+    def from_numpy(self,
+                   array: NumpyOrContainerOrScalar
+                   ) -> ArrayOrContainerOrScalar:
+        return cp.array(array)
 
-    def zeros(self, shape, dtype):
-        return cp.zeros(shape, dtype)
-
-    def from_numpy(self, np_array):
-        return cp.array(np_array)
-
-    def to_numpy(self, array):
+    def to_numpy(self,
+                 array: ArrayOrContainerOrScalar
+                 ) -> NumpyOrContainerOrScalar:
         return cp.asnumpy(array)
 
-    def call_loopy(self, t_unit, **kwargs):
+    def call_loopy(
+                self,
+                t_unit: lp.TranslationUnit, **kwargs: Any
+            ) -> dict[str, Array]:
         t_unit = t_unit.copy(target=lp.ExecutableCTarget())
         try:
-            t_unit = self._loopy_transform_cache[t_unit]
+            executor = self._loopy_transform_cache[t_unit]
         except KeyError:
-            orig_t_unit = t_unit
-            t_unit = self.transform_loopy_program(t_unit)
-            self._loopy_transform_cache[orig_t_unit] = t_unit
-            del orig_t_unit
+            executor = self.transform_loopy_program(t_unit).executor()
+            self._loopy_transform_cache[t_unit] = executor
 
-        _, result = t_unit(**kwargs)
+        _, result = executor(**kwargs)
 
         return result
 
@@ -109,15 +124,32 @@ class CupyArrayContext(ArrayContext):
     # }}}
 
     def transform_loopy_program(self, t_unit):
-        raise ValueError("CupyArrayContext does not implement "
-                         "transform_loopy_program. Sub-classes are supposed "
-                         "to implement it.")
+        from warnings import warn
+        warn("Using the base "
+                f"{type(self).__name__}.transform_loopy_program "
+                "to transform a translation unit. "
+                "This is a no-op and will result in unoptimized C code for"
+                "the requested optimization, all in a single statement."
+                "This will work, but is unlikely to be performant."
+                f"Instead, subclass {type(self).__name__} and implement "
+                "the specific transform logic required to transform the program "
+                "for your package or application. Check higher-level packages "
+                "(e.g. meshmode), which may already have subclasses you may want "
+                "to build on.",
+                UntransformedCodeWarning, stacklevel=2)
 
-    def tag(self, tags, array):
-        # No tagging support in CupyArrayContext
+        return t_unit
+
+    def tag(self,
+            tags: ToTagSetConvertible,
+            array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
+        # Cupy (like numpy) doesn't support tagging
         return array
 
-    def tag_axis(self, iaxis, tags, array):
+    def tag_axis(self,
+                 iaxis: int, tags: ToTagSetConvertible,
+                 array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
+        # Cupy (like numpy) doesn't support tagging
         return array
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
