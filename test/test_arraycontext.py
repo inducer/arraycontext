@@ -1298,7 +1298,6 @@ def test_actx_compile_kwargs(actx_factory):
 
     rng = np.random.default_rng()
 
-
     compiled_rhs = actx.compile(scale_and_orthogonalize)
 
     v_x = rng.uniform(size=10)

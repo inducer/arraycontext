@@ -243,7 +243,7 @@ class _PytestCupyArrayContextFactory(PytestArrayContextFactory):
         name = d["name"].decode("utf-8")
         return f"<CupyArrayContext> on {cupy.cuda.Device()}:{name}"
 
- 
+
 # {{{ _PytestArrayContextFactory
 
 class _NumpyArrayContextForTests(NumpyArrayContext):

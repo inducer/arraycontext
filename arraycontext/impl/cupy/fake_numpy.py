@@ -160,13 +160,13 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def zeros_like(self, ary):
         if isinstance(ary, (int, float, complex)):
             # Cupy does not support zeros_like with scalar arguments
-            ary=cp.array(ary)
+            ary = cp.array(ary)
         return rec_map_array_container(cp.zeros_like, ary)
 
     def ones_like(self, ary):
         if isinstance(ary, (int, float, complex)):
             # Cupy does not support ones_like with scalar arguments
-            ary=cp.array(ary)
+            ary = cp.array(ary)
         return rec_map_array_container(cp.ones_like, ary)
 
     def reshape(self, a, newshape, order="C"):
