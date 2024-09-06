@@ -436,12 +436,6 @@ def test_array_context_np_like(actx_factory, sym_name, n_args, dtype):
             actx, lambda _np, *_args: getattr(_np, sym_name)(*_args), args)
 
     for c in (42.0, * _get_test_containers(actx)):
-        if (isinstance(actx, CupyArrayContext)
-              and isinstance(c, (int, float, complex))):
-            # CupyArrayContext does not support zeros_like/ones_like with
-            # Python scalars.
-            continue
-
         result = getattr(actx.np, sym_name)(c)
         result = actx.thaw(actx.freeze(result))
 
@@ -967,13 +961,11 @@ def test_container_arithmetic(actx_factory):
     with pytest.raises(TypeError):
         dc_of_dofs + ary_dof
 
-    if not isinstance(actx, CupyArrayContext):
-        # CupyArrayContext does not support operations between numpy and cupy arrays.
-        bcast_result = ary_dof + bcast_dc_of_dofs
-        bcast_dc_of_dofs + ary_dof
+    bcast_result = ary_dof + bcast_dc_of_dofs
+    bcast_dc_of_dofs + ary_dof
 
-        assert actx.to_numpy(actx.np.linalg.norm(bcast_result.mass
-                                                - 2*ary_of_dofs)) < 1e-8
+    assert actx.to_numpy(actx.np.linalg.norm(bcast_result.mass
+                                            - 2*ary_of_dofs)) < 1e-8
 
     mock_gradient = MyContainerDOFBcast(
             name="yo",
@@ -1166,7 +1158,7 @@ def test_numpy_conversion(actx_factory):
     actx = actx_factory()
     if isinstance(actx, CupyArrayContext):
         pytest.skip("Irrelevant tests for CupyArrayContext. "
-                    "Also, CupyArrayContextdoes not support object arrays.")
+                    "Also, CupyArrayContext does not support object arrays.")
     rng = np.random.default_rng()
 
     nelements = 42
@@ -1398,9 +1390,6 @@ class Foo:
 def test_no_leaf_array_type_broadcasting(actx_factory):
     # test lack of support for https://github.com/inducer/arraycontext/issues/49
     actx = actx_factory()
-    if isinstance(actx, CupyArrayContext):
-        pytest.skip("CupyArrayContext has no leaf array type broadcasting support")
-
     dof_ary = DOFArray(actx, (actx.np.zeros(3, dtype=np.float64) + 41, ))
     foo = Foo(dof_ary)
 
@@ -1586,11 +1575,8 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
 def test_tagging(actx_factory):
     actx = actx_factory()
 
-    if isinstance(actx, (NumpyArrayContext, EagerJAXArrayContext)):
+    if isinstance(actx, (NumpyArrayContext, EagerJAXArrayContext, CupyArrayContext)):
         pytest.skip(f"{type(actx)} has no tagging support")
-
-    if isinstance(actx, CupyArrayContext):
-        pytest.skip("CupyArrayContext has no tagging support")
 
     from pytools.tag import Tag
 
