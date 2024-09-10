@@ -41,6 +41,7 @@ THE SOFTWARE.
 from typing import TYPE_CHECKING, Any, cast
 
 import pytools
+from pytato.analysis import get_num_call_sites
 from pytato.array import (
     AbstractResultWithNamedArrays,
     Array,
@@ -51,6 +52,7 @@ from pytato.array import (
     SizeParam,
     make_placeholder,
 )
+from pytato.function import FunctionDefinition
 from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
@@ -108,7 +110,14 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
         raise ValueError("Placeholders cannot appear in"
                          " DatawrapperToBoundPlaceholderMapper.")
 
+    def map_function_definition(
+            self, expr: FunctionDefinition) -> FunctionDefinition:
+        raise ValueError("Function definitions cannot appear in"
+                         " DatawrapperToBoundPlaceholderMapper.")
 
+
+# FIXME: This strategy doesn't work if the DAG has functions, since function
+# definitions can't contain non-argument placeholders
 def _normalize_pt_expr(
         expr: DictOfNamedArrays
         ) -> tuple[Array | AbstractResultWithNamedArrays, Mapping[str, Any]]:
@@ -121,6 +130,11 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
+    if get_num_call_sites(expr):
+        raise NotImplementedError(
+            "_normalize_pt_expr is not compatible with expressions that "
+            "contain function calls.")
+
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
     normalized_expr = normalize_mapper(expr)
     assert isinstance(normalized_expr, AbstractResultWithNamedArrays)
