@@ -25,6 +25,8 @@ THE SOFTWARE.
 
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Set, Tuple
 
+from pyopencl import CommandQueue
+from pyopencl.tools import AllocatorBase
 from pytato.array import (
     AbstractResultWithNamedArrays,
     Array,
@@ -36,7 +38,7 @@ from pytato.array import (
     make_placeholder,
 )
 from pytato.target.loopy import LoopyPyOpenCLTarget
-from pytato.transform import CopyMapper
+from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
 
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
@@ -121,6 +123,62 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
     def get_loopy_target(self) -> "lp.PyOpenCLTarget":
         from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+
+# }}}
+
+# {{{ Transfer mappers
+
+
+class TransferToDeviceMapper(CopyMapper):
+    def __init__(self, queue: CommandQueue, allocator: AllocatorBase = None) -> None:
+        super().__init__()
+        self.queue = queue
+        self.allocator = allocator
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        if isinstance(expr.data, np.ndarray):
+            data = tga.to_device(self.queue, expr.data, allocator=self.allocator)
+            return DataWrapper(
+                data=data,
+                shape=expr.shape,
+                axes=expr.axes,
+                tags=expr.tags,
+                non_equality_tags=expr.non_equality_tags)
+
+        return super().map_data_wrapper(expr)
+
+
+class TransferToHostMapper(CopyMapper):
+    def __init__(self, queue: CommandQueue, allocator: AllocatorBase = None) -> None:
+        super().__init__()
+        self.queue = queue
+        self.allocator = allocator
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        if isinstance(expr.data, tga.TaggableCLArray):
+            data = expr.data.get()
+            return DataWrapper(
+                data=data,
+                shape=expr.shape,
+                axes=expr.axes,
+                tags=expr.tags,
+                non_equality_tags=expr.non_equality_tags)
+
+        return super().map_data_wrapper(expr)
+
+
+def transfer_to_device(expr: ArrayOrNames, queue: CommandQueue,
+                       allocator: AllocatorBase = None) -> ArrayOrNames:
+    return TransferToDeviceMapper(queue, allocator)(expr)
+
+
+def transfer_to_host(expr: ArrayOrNames, queue: CommandQueue,
+                     allocator: AllocatorBase = None) -> ArrayOrNames:
+    return TransferToHostMapper(queue, allocator)(expr)
 
 # }}}
 

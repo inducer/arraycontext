@@ -192,6 +192,57 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
             assert res == 198
 
 
+def test_transfer(actx_factory):
+    import numpy as np
+
+    import pytato as pt
+    actx = actx_factory()
+
+    # {{{ simple tests
+
+    a = actx.from_numpy(np.array([0, 1, 2, 3]))
+
+    from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
+    assert isinstance(a.data, TaggableCLArray)
+
+    from arraycontext.impl.pytato.utils import transfer_to_device, transfer_to_host
+
+    ah = transfer_to_host(a, actx.queue, actx.allocator)
+    assert ah != a
+    assert isinstance(ah.data, np.ndarray)
+
+    ahh = transfer_to_host(ah, actx.queue, actx.allocator)
+    assert isinstance(ahh.data, np.ndarray)
+    assert ah != ahh  # copied DataWrappers compare unequal
+    assert ah != a
+
+    ad = transfer_to_device(ah, actx.queue, actx.allocator)
+    assert isinstance(ad.data, TaggableCLArray)
+    assert ad != ah
+    assert ad != a  # copied DataWrappers compare unequal
+    assert np.array_equal(a.data.get(), ad.data.get())
+
+    add = transfer_to_device(ad, actx.queue, actx.allocator)
+    assert add != ad  # copied DataWrappers compare unequal
+
+    # }}}
+
+    # {{{ test with DictOfNamedArrays
+
+    dag = pt.make_dict_of_named_arrays({
+        "a_expr": a + 2
+        })
+
+    dagh = transfer_to_host(dag, actx.queue, actx.allocator)
+    assert dagh != dag
+    assert isinstance(dagh["a_expr"].expr.bindings["_in0"].data, np.ndarray)
+
+    daghd = transfer_to_device(dagh, actx.queue, actx.allocator)
+    assert isinstance(daghd["a_expr"].expr.bindings["_in0"].data, TaggableCLArray)
+
+    # }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
