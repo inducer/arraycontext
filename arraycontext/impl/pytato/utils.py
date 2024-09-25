@@ -36,9 +36,10 @@ from pytato.array import (
     make_placeholder,
 )
 from pytato.target.loopy import LoopyPyOpenCLTarget
-from pytato.transform import CopyMapper
+from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
 
+from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
 
 
@@ -121,6 +122,63 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
     def get_loopy_target(self) -> "lp.PyOpenCLTarget":
         from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+
+# }}}
+
+# {{{ Transfer mappers
+
+
+class TransferToDeviceMapper(CopyMapper):
+    def __init__(self, actx: ArrayContext) -> None:
+        super().__init__()
+        self.actx = actx
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
+        if not isinstance(expr.data, np.ndarray):
+            raise ValueError("TransferToDeviceMapper: tried to transfer data that "
+                             "is already on the device")
+
+        new_dw = self.actx.from_numpy(expr.data)
+        assert isinstance(new_dw, DataWrapper)
+        return DataWrapper(
+            data=new_dw.data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
+
+
+class TransferToHostMapper(CopyMapper):
+    def __init__(self, actx: ArrayContext) -> None:
+        super().__init__()
+        self.actx = actx
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        if not isinstance(expr.data, tga.TaggableCLArray):
+            raise ValueError("TransferToHostMapper: tried to transfer data that "
+                             "is already on the host")
+
+        data = self.actx.to_numpy(expr.data)
+        assert isinstance(data, np.ndarray)
+        return DataWrapper(
+            data=data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
+
+
+def transfer_to_device(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    return TransferToDeviceMapper(actx)(expr)
+
+
+def transfer_to_host(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    return TransferToHostMapper(actx)(expr)
 
 # }}}
 
