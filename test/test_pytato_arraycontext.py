@@ -200,28 +200,32 @@ def test_transfer(actx_factory):
 
     # {{{ simple tests
 
-    a = actx.from_numpy(np.array([0, 1, 2, 3]))
+    a = actx.from_numpy(np.array([0, 1, 2, 3])).tagged(FooTag())
 
     from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
     assert isinstance(a.data, TaggableCLArray)
 
     from arraycontext.impl.pytato.utils import transfer_to_device, transfer_to_host
 
-    ah = transfer_to_host(a, actx.queue, actx.allocator)
+    ah = transfer_to_host(a, actx)
     assert ah != a
+    assert a.tags == ah.tags
+    assert a.non_equality_tags == ah.non_equality_tags
     assert isinstance(ah.data, np.ndarray)
 
     with pytest.raises(ValueError):
-        _ahh = transfer_to_host(ah, actx.queue, actx.allocator)
+        _ahh = transfer_to_host(ah, actx)
 
-    ad = transfer_to_device(ah, actx.queue, actx.allocator)
+    ad = transfer_to_device(ah, actx)
     assert isinstance(ad.data, TaggableCLArray)
     assert ad != ah
     assert ad != a  # copied DataWrappers compare unequal
+    assert ad.tags == ah.tags
+    assert ad.non_equality_tags == ah.non_equality_tags
     assert np.array_equal(a.data.get(), ad.data.get())
 
     with pytest.raises(ValueError):
-        _add = transfer_to_device(ad, actx.queue, actx.allocator)
+        _add = transfer_to_device(ad, actx)
 
     # }}}
 
@@ -231,11 +235,11 @@ def test_transfer(actx_factory):
         "a_expr": a + 2
         })
 
-    dagh = transfer_to_host(dag, actx.queue, actx.allocator)
+    dagh = transfer_to_host(dag, actx)
     assert dagh != dag
     assert isinstance(dagh["a_expr"].expr.bindings["_in0"].data, np.ndarray)
 
-    daghd = transfer_to_device(dagh, actx.queue, actx.allocator)
+    daghd = transfer_to_device(dagh, actx)
     assert isinstance(daghd["a_expr"].expr.bindings["_in0"].data, TaggableCLArray)
 
     # }}}

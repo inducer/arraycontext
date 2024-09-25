@@ -25,8 +25,6 @@ THE SOFTWARE.
 
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Set, Tuple
 
-from pyopencl import CommandQueue
-from pyopencl.tools import AllocatorBase
 from pytato.array import (
     AbstractResultWithNamedArrays,
     Array,
@@ -41,6 +39,7 @@ from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
 
+from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
 
 
@@ -130,20 +129,18 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
 
 
 class TransferToDeviceMapper(CopyMapper):
-    def __init__(self, queue: CommandQueue, allocator: AllocatorBase = None) -> None:
+    def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
-        self.queue = queue
-        self.allocator = allocator
+        self.actx = actx
 
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import numpy as np
 
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
         if not isinstance(expr.data, np.ndarray):
             raise ValueError("TransferToDeviceMapper: tried to transfer data that "
                              "is already on the device")
 
-        data = tga.to_device(self.queue, expr.data, allocator=self.allocator)
+        data = self.actx.from_numpy(expr.data).data
         return DataWrapper(
             data=data,
             shape=expr.shape,
@@ -153,10 +150,9 @@ class TransferToDeviceMapper(CopyMapper):
 
 
 class TransferToHostMapper(CopyMapper):
-    def __init__(self, queue: CommandQueue, allocator: AllocatorBase = None) -> None:
+    def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
-        self.queue = queue
-        self.allocator = allocator
+        self.actx = actx
 
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
@@ -164,7 +160,7 @@ class TransferToHostMapper(CopyMapper):
             raise ValueError("TransferToHostMapper: tried to transfer data that "
                              "is already on the host")
 
-        data = expr.data.get()
+        data = self.actx.to_numpy(expr.data)
         return DataWrapper(
             data=data,
             shape=expr.shape,
@@ -173,14 +169,12 @@ class TransferToHostMapper(CopyMapper):
             non_equality_tags=expr.non_equality_tags)
 
 
-def transfer_to_device(expr: ArrayOrNames, queue: CommandQueue,
-                       allocator: AllocatorBase = None) -> ArrayOrNames:
-    return TransferToDeviceMapper(queue, allocator)(expr)
+def transfer_to_device(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    return TransferToDeviceMapper(actx)(expr)
 
 
-def transfer_to_host(expr: ArrayOrNames, queue: CommandQueue,
-                     allocator: AllocatorBase = None) -> ArrayOrNames:
-    return TransferToHostMapper(queue, allocator)(expr)
+def transfer_to_host(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    return TransferToHostMapper(actx)(expr)
 
 # }}}
 
