@@ -140,9 +140,10 @@ class TransferToDeviceMapper(CopyMapper):
             raise ValueError("TransferToDeviceMapper: tried to transfer data that "
                              "is already on the device")
 
-        data = self.actx.from_numpy(expr.data).data
+        new_dw = self.actx.from_numpy(expr.data)
+        assert isinstance(new_dw, DataWrapper)
         return DataWrapper(
-            data=data,
+            data=new_dw.data,
             shape=expr.shape,
             axes=expr.axes,
             tags=expr.tags,
@@ -155,12 +156,15 @@ class TransferToHostMapper(CopyMapper):
         self.actx = actx
 
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         if not isinstance(expr.data, tga.TaggableCLArray):
             raise ValueError("TransferToHostMapper: tried to transfer data that "
                              "is already on the host")
 
         data = self.actx.to_numpy(expr.data)
+        assert isinstance(data, np.ndarray)
         return DataWrapper(
             data=data,
             shape=expr.shape,
