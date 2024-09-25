@@ -139,16 +139,17 @@ class TransferToDeviceMapper(CopyMapper):
         import numpy as np
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        if isinstance(expr.data, np.ndarray):
-            data = tga.to_device(self.queue, expr.data, allocator=self.allocator)
-            return DataWrapper(
-                data=data,
-                shape=expr.shape,
-                axes=expr.axes,
-                tags=expr.tags,
-                non_equality_tags=expr.non_equality_tags)
+        if not isinstance(expr.data, np.ndarray):
+            raise ValueError("TransferToDeviceMapper: tried to transfer data that "
+                             "is already on the device")
 
-        return super().map_data_wrapper(expr)
+        data = tga.to_device(self.queue, expr.data, allocator=self.allocator)
+        return DataWrapper(
+            data=data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
 
 
 class TransferToHostMapper(CopyMapper):
@@ -159,16 +160,17 @@ class TransferToHostMapper(CopyMapper):
 
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        if isinstance(expr.data, tga.TaggableCLArray):
-            data = expr.data.get()
-            return DataWrapper(
-                data=data,
-                shape=expr.shape,
-                axes=expr.axes,
-                tags=expr.tags,
-                non_equality_tags=expr.non_equality_tags)
+        if not isinstance(expr.data, tga.TaggableCLArray):
+            raise ValueError("TransferToHostMapper: tried to transfer data that "
+                             "is already on the host")
 
-        return super().map_data_wrapper(expr)
+        data = expr.data.get()
+        return DataWrapper(
+            data=data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
 
 
 def transfer_to_device(expr: ArrayOrNames, queue: CommandQueue,

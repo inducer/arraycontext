@@ -211,10 +211,8 @@ def test_transfer(actx_factory):
     assert ah != a
     assert isinstance(ah.data, np.ndarray)
 
-    ahh = transfer_to_host(ah, actx.queue, actx.allocator)
-    assert isinstance(ahh.data, np.ndarray)
-    assert ah != ahh  # copied DataWrappers compare unequal
-    assert ah != a
+    with pytest.raises(ValueError):
+        _ahh = transfer_to_host(ah, actx.queue, actx.allocator)
 
     ad = transfer_to_device(ah, actx.queue, actx.allocator)
     assert isinstance(ad.data, TaggableCLArray)
@@ -222,8 +220,8 @@ def test_transfer(actx_factory):
     assert ad != a  # copied DataWrappers compare unequal
     assert np.array_equal(a.data.get(), ad.data.get())
 
-    add = transfer_to_device(ad, actx.queue, actx.allocator)
-    assert add != ad  # copied DataWrappers compare unequal
+    with pytest.raises(ValueError):
+        _add = transfer_to_device(ad, actx.queue, actx.allocator)
 
     # }}}
 
