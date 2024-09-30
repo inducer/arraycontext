@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # {{{ test_pt_actx_key_stringification_uniqueness
 
 def test_pt_actx_key_stringification_uniqueness():
-    from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
+    from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
 
     assert (_ary_container_key_stringifier(((3, 2), 3))
             != _ary_container_key_stringifier((3, (2, 3))))
