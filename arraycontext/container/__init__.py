@@ -84,7 +84,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Hashable,
-    Iterable,
     Optional,
     Protocol,
     Sequence,
@@ -153,8 +152,6 @@ class ArrayContainer(Protocol):
     # This *is* used as a type annotation in dataclasses that are processed
     # by dataclass_array_container, where it's used to recognize attributes
     # that are container-typed.
-
-    pass
 
 
 ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
@@ -369,14 +366,16 @@ def get_container_context_recursively(ary: ArrayContainer) -> Optional[ArrayCont
 # FYI: This doesn't, and never should, make arraycontext directly depend on pymbolic.
 # (Though clearly there exists a dependency via loopy.)
 
-def _serialize_multivec_as_container(mv: MultiVector) -> Iterable[Tuple[Any, Any]]:
+def _serialize_multivec_as_container(mv: MultiVector) -> SerializedContainer:
     return list(mv.data.items())
 
 
-def _deserialize_multivec_as_container(template: MultiVector,
-        iterable: Iterable[Tuple[Any, Any]]) -> MultiVector:
+# FIXME: Ignored due to https://github.com/python/mypy/issues/13040
+def _deserialize_multivec_as_container(  # type: ignore[misc]
+        template: MultiVector,
+        serialized: SerializedContainer) -> MultiVector:
     from pymbolic.geometric_algebra import MultiVector
-    return MultiVector(dict(iterable), space=template.space)
+    return MultiVector(dict(serialized), space=template.space)
 
 
 def _get_container_context_opt_from_multivec(mv: MultiVector) -> None:
