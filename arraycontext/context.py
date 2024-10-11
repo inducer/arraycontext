@@ -281,7 +281,7 @@ class ArrayContext(ABC):
         :class:`ArrayContext`\ 's operations are legal for the types in
         *array_types*. Note that this tuple is *only* intended for use
         with :func:`isinstance`. Other uses are not allowed. This allows
-        for 'types' with overridden :meth:`class.__instancecheck__`.
+        for 'types' with overridden :meth:`type.__instancecheck__`.
 
     .. automethod:: freeze
     .. automethod:: thaw
