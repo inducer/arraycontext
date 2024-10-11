@@ -10,7 +10,7 @@ frozen. The execution contexts for the evaluations are specific to an
 :class:`~arraycontext.PytatoPyOpenCLArrayContext` uses :mod:`pyopencl` to
 JIT-compile and execute the array expressions.
 
-Following :mod:`pytato`-based array context are provided:
+The following :mod:`pytato`-based array context are provided:
 
 .. autoclass:: PytatoPyOpenCLArrayContext
 .. autoclass:: PytatoJAXArrayContext
