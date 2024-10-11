@@ -22,6 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+__doc__ = """
+.. autofunction:: transfer_to_device
+.. autofunction:: transfer_to_host
+"""
+
 
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Set, Tuple
 
@@ -129,6 +134,7 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
 
 
 class TransferToDeviceMapper(CopyMapper):
+    """A mapper to transfer all :class:`DataWrapper` instances to the CL device."""
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
         self.actx = actx
@@ -157,6 +163,7 @@ class TransferToDeviceMapper(CopyMapper):
 
 
 class TransferToHostMapper(CopyMapper):
+    """A mapper to transfer all :class:`DataWrapper` instances to the host."""
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
         self.actx = actx
@@ -169,13 +176,13 @@ class TransferToHostMapper(CopyMapper):
             raise ValueError("TransferToHostMapper: tried to transfer data that "
                              "is already on the host")
 
-        data = self.actx.to_numpy(expr.data)
-        assert isinstance(data, np.ndarray)
+        np_data = self.actx.to_numpy(expr.data)
+        assert isinstance(np_data, np.ndarray)
 
         # https://github.com/pylint-dev/pylint/issues/3893
         # pylint: disable=unexpected-keyword-arg
         return DataWrapper(
-            data=data,
+            data=np_data,
             shape=expr.shape,
             axes=expr.axes,
             tags=expr.tags,
@@ -183,10 +190,12 @@ class TransferToHostMapper(CopyMapper):
 
 
 def transfer_to_device(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer all :class:`DataWrapper` instances in *expr* to the CL device."""
     return TransferToDeviceMapper(actx)(expr)
 
 
 def transfer_to_host(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer all :class:`DataWrapper` instances in *expr* to the host."""
     return TransferToHostMapper(actx)(expr)
 
 # }}}

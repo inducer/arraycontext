@@ -20,6 +20,12 @@ Compiling a Python callable (Internal)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: arraycontext.impl.pytato.compile
+
+
+Utils
+^^^^^
+
+.. automodule:: arraycontext.impl.pytato.utils
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
