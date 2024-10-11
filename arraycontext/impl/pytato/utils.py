@@ -140,7 +140,8 @@ class TransferToDeviceMapper(CopyMapper):
             raise ValueError("TransferToDeviceMapper: tried to transfer data that "
                              "is already on the device")
 
-        # Ideally, this code should just return self.actx.from_numpy(expr.data).tagged(expr.tags),
+        # Ideally, this code should just do
+        # return self.actx.from_numpy(expr.data).tagged(expr.tags),
         # but there seems to be no way to transfer the non_equality_tags in that case.
         new_dw = self.actx.from_numpy(expr.data)
         assert isinstance(new_dw, DataWrapper)
