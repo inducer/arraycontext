@@ -145,6 +145,9 @@ class TransferToDeviceMapper(CopyMapper):
         # but there seems to be no way to transfer the non_equality_tags in that case.
         new_dw = self.actx.from_numpy(expr.data)
         assert isinstance(new_dw, DataWrapper)
+
+        # https://github.com/pylint-dev/pylint/issues/3893
+        # pylint: disable=unexpected-keyword-arg
         return DataWrapper(
             data=new_dw.data,
             shape=expr.shape,
@@ -168,6 +171,9 @@ class TransferToHostMapper(CopyMapper):
 
         data = self.actx.to_numpy(expr.data)
         assert isinstance(data, np.ndarray)
+
+        # https://github.com/pylint-dev/pylint/issues/3893
+        # pylint: disable=unexpected-keyword-arg
         return DataWrapper(
             data=data,
             shape=expr.shape,
