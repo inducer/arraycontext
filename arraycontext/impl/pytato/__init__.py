@@ -4,13 +4,13 @@ from __future__ import annotations
 __doc__ = """
 .. currentmodule:: arraycontext
 
-A :mod:`pytato`-based array context defers the evaluation of an array until its
+A :mod:`pytato`-based array context defers the evaluation of an array until it is
 frozen. The execution contexts for the evaluations are specific to an
-:class:`~arraycontext.ArrayContext` type. For ex.
+:class:`~arraycontext.ArrayContext` type. For example,
 :class:`~arraycontext.PytatoPyOpenCLArrayContext` uses :mod:`pyopencl` to
 JIT-compile and execute the array expressions.
 
-The following :mod:`pytato`-based array context are provided:
+The following :mod:`pytato`-based array contexts are provided:
 
 .. autoclass:: PytatoPyOpenCLArrayContext
 .. autoclass:: PytatoJAXArrayContext
@@ -242,7 +242,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
-    A :class:`ArrayContext` that uses :mod:`pytato` data types to represent
+    An :class:`ArrayContext` that uses :mod:`pytato` data types to represent
     the arrays targeting OpenCL for offloading operations.
 
     .. attribute:: queue

@@ -63,8 +63,6 @@ class NumpyNonObjectArray(metaclass=NumpyNonObjectArrayMetaclass):
 class NumpyArrayContext(ArrayContext):
     """
     A :class:`ArrayContext` that uses :class:`numpy.ndarray` to represent arrays.
-
-    .. automethod:: __init__
     """
 
     _loopy_transform_cache: dict[lp.TranslationUnit, lp.ExecutorBase]
