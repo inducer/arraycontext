@@ -134,7 +134,8 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
 
 
 class TransferToDeviceMapper(CopyMapper):
-    """A mapper to transfer all :class:`DataWrapper` instances to the CL device."""
+    """A mapper to transfer all :class:`~pytato.array.DataWrapper` instances to
+    the CL device."""
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
         self.actx = actx
@@ -163,7 +164,8 @@ class TransferToDeviceMapper(CopyMapper):
 
 
 class TransferToHostMapper(CopyMapper):
-    """A mapper to transfer all :class:`DataWrapper` instances to the host."""
+    """A mapper to transfer all :class:`~pytato.array.DataWrapper` instances to
+    the host."""
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
         self.actx = actx
@@ -190,12 +192,14 @@ class TransferToHostMapper(CopyMapper):
 
 
 def transfer_to_device(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
-    """Transfer all :class:`DataWrapper` instances in *expr* to the CL device."""
+    """Transfer all :class:`~pytato.array.DataWrapper` instances in *expr* to
+    the CL device."""
     return TransferToDeviceMapper(actx)(expr)
 
 
 def transfer_to_host(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
-    """Transfer all :class:`DataWrapper` instances in *expr* to the host."""
+    """Transfer all :class:`~pytato.array.DataWrapper` instances in *expr* to
+    the host."""
     return TransferToHostMapper(actx)(expr)
 
 # }}}
