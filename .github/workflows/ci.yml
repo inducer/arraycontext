@@ -36,6 +36,10 @@ jobs:
             run: |
                 USE_CONDA_BUILD=1
                 curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
+
+                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+                echo "- cupy" >> "$CONDA_ENVIRONMENT"
+
                 . ./prepare-and-run-pylint.sh "$(basename $GITHUB_REPOSITORY)" examples/*.py test/test_*.py
 
     mypy:
@@ -52,6 +56,7 @@ jobs:
                 # which conflicts with our mypy.python_version = '3.8' setting
                 CONDA_ENVIRONMENT=.test-conda-env-py3.yml
                 sed -i "s/jax/jax<0.4.31/" "$CONDA_ENVIRONMENT"
+                echo "- cupy" >> "$CONDA_ENVIRONMENT"
 
                 build_py_project_in_conda_env
                 python -m pip install mypy pytest
