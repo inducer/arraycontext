@@ -22,6 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+__doc__ = """
+.. autofunction:: transfer_to_device
+.. autofunction:: transfer_to_host
+"""
+
 
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Set, Tuple
 
@@ -36,9 +41,10 @@ from pytato.array import (
     make_placeholder,
 )
 from pytato.target.loopy import LoopyPyOpenCLTarget
-from pytato.transform import CopyMapper
+from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
 
+from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
 
 
@@ -121,6 +127,80 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
     def get_loopy_target(self) -> "lp.PyOpenCLTarget":
         from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+
+# }}}
+
+# {{{ Transfer mappers
+
+
+class TransferToDeviceMapper(CopyMapper):
+    """A mapper to transfer all :class:`~pytato.array.DataWrapper` instances to
+    the CL device."""
+    def __init__(self, actx: ArrayContext) -> None:
+        super().__init__()
+        self.actx = actx
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
+        if not isinstance(expr.data, np.ndarray):
+            raise ValueError("TransferToDeviceMapper: tried to transfer data that "
+                             "is already on the device")
+
+        # Ideally, this code should just do
+        # return self.actx.from_numpy(expr.data).tagged(expr.tags),
+        # but there seems to be no way to transfer the non_equality_tags in that case.
+        new_dw = self.actx.from_numpy(expr.data)
+        assert isinstance(new_dw, DataWrapper)
+
+        # https://github.com/pylint-dev/pylint/issues/3893
+        # pylint: disable=unexpected-keyword-arg
+        return DataWrapper(
+            data=new_dw.data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
+
+
+class TransferToHostMapper(CopyMapper):
+    """A mapper to transfer all :class:`~pytato.array.DataWrapper` instances to
+    the host."""
+    def __init__(self, actx: ArrayContext) -> None:
+        super().__init__()
+        self.actx = actx
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        if not isinstance(expr.data, tga.TaggableCLArray):
+            raise ValueError("TransferToHostMapper: tried to transfer data that "
+                             "is already on the host")
+
+        np_data = self.actx.to_numpy(expr.data)
+        assert isinstance(np_data, np.ndarray)
+
+        # https://github.com/pylint-dev/pylint/issues/3893
+        # pylint: disable=unexpected-keyword-arg
+        return DataWrapper(
+            data=np_data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
+
+
+def transfer_to_device(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer all :class:`~pytato.array.DataWrapper` instances in *expr* to
+    the CL device."""
+    return TransferToDeviceMapper(actx)(expr)
+
+
+def transfer_to_host(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer all :class:`~pytato.array.DataWrapper` instances in *expr* to
+    the host."""
+    return TransferToHostMapper(actx)(expr)
 
 # }}}
 
