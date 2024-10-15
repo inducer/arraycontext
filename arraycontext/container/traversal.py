@@ -175,9 +175,9 @@ def _multimap_array_container_impl(
 
                 new_args[i] = subary
 
-            result.append((key, frec(*new_args)))       # type: ignore[operator]
+            result.append((key, frec(*new_args)))
 
-        return process_container(template_ary, result)     # type: ignore[operator]
+        return process_container(template_ary, result)
 
     # }}}
 
