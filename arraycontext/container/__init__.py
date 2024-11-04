@@ -88,6 +88,7 @@ from typing import (
     Protocol,
     Sequence,
     Tuple,
+    TypeAlias,
     TypeVar,
 )
 
@@ -95,7 +96,6 @@ from typing import (
 # what 'np' is.
 import numpy
 import numpy as np
-from typing_extensions import TypeAlias
 
 from arraycontext.context import ArrayContext
 
