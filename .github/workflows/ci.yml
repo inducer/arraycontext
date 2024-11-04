@@ -48,11 +48,6 @@ jobs:
                 curl -L -O https://tiker.net/ci-support-v0
                 . ./ci-support-v0
 
-                # NOTE: jax>=0.4.31 requires python 3.10 and uses pattern matching
-                # which conflicts with our mypy.python_version = '3.8' setting
-                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
-                sed -i "s/jax/jax<0.4.31/" "$CONDA_ENVIRONMENT"
-
                 build_py_project_in_conda_env
                 python -m pip install mypy pytest
                 ./run-mypy.sh
