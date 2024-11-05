@@ -165,10 +165,11 @@ def _multimap_array_container_impl(
 
         for subarys in zip(
                 iterable_template,
-                *[serialize_container(_args[i]) for i in container_indices[1:]]
+                *[serialize_container(_args[i]) for i in container_indices[1:]],
+                strict=True
                 ):
             key = None
-            for i, (subkey, subary) in zip(container_indices, subarys):
+            for i, (subkey, subary) in zip(container_indices, subarys, strict=True):
                 if key is None:
                     key = subkey
                 else:
