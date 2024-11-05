@@ -159,18 +159,8 @@ THE SOFTWARE.
 """
 
 from abc import ABC, abstractmethod
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Mapping,
-    Optional,
-    Protocol,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, Union
 from warnings import warn
 
 import numpy as np
@@ -187,7 +177,7 @@ if TYPE_CHECKING:
 
 # {{{ typing
 
-ScalarLike = Union[int, float, complex, np.generic]
+ScalarLike = int | float | complex | np.generic
 
 SelfType = TypeVar("SelfType")
 
@@ -206,7 +196,7 @@ class Array(Protocol):
     """
 
     @property
-    def shape(self) -> Tuple[int, ...]:
+    def shape(self) -> tuple[int, ...]:
         ...
 
     @property
@@ -291,7 +281,7 @@ class ArrayContext(ABC):
     .. automethod:: compile
     """
 
-    array_types: Tuple[type, ...] = ()
+    array_types: tuple[type, ...] = ()
 
     def __init__(self) -> None:
         self.np = self._get_fake_numpy_namespace()
@@ -304,7 +294,7 @@ class ArrayContext(ABC):
         raise TypeError(f"unhashable type: '{type(self).__name__}'")
 
     def zeros(self,
-              shape: Union[int, Tuple[int, ...]],
+              shape: int | tuple[int, ...],
               dtype: "np.dtype[Any]") -> Array:
         warn(f"{type(self).__name__}.zeros is deprecated and will stop "
             "working in 2025. Use actx.np.zeros instead.",
@@ -340,7 +330,7 @@ class ArrayContext(ABC):
     @abstractmethod
     def call_loopy(self,
                    t_unit: "loopy.TranslationUnit",
-                   **kwargs: Any) -> Dict[str, Array]:
+                   **kwargs: Any) -> dict[str, Array]:
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.
 
@@ -423,7 +413,7 @@ class ArrayContext(ABC):
 
     @memoize_method
     def _get_einsum_prg(self,
-                        spec: str, arg_names: Tuple[str, ...],
+                        spec: str, arg_names: tuple[str, ...],
                         tagged: ToTagSetConvertible) -> "loopy.TranslationUnit":
         import loopy as lp
         from loopy.version import MOST_RECENT_LANGUAGE_VERSION
@@ -454,7 +444,7 @@ class ArrayContext(ABC):
     # [1] https://github.com/inducer/meshmode/issues/177
     def einsum(self,
                spec: str, *args: Array,
-               arg_names: Optional[Tuple[str, ...]] = None,
+               arg_names: tuple[str, ...] | None = None,
                tagged: ToTagSetConvertible = ()) -> Array:
         """Computes the result of Einstein summation following the
         convention in :func:`numpy.einsum`.

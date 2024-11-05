@@ -31,7 +31,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 from warnings import warn
 
 import numpy as np
@@ -82,9 +83,9 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def __init__(self,
             queue: pyopencl.CommandQueue,
-            allocator: Optional[pyopencl.tools.AllocatorBase] = None,
-            wait_event_queue_length: Optional[int] = None,
-            force_device_scalars: Optional[bool] = None) -> None:
+            allocator: pyopencl.tools.AllocatorBase | None = None,
+            wait_event_queue_length: int | None = None,
+            force_device_scalars: bool | None = None) -> None:
         r"""
         :arg wait_event_queue_length: The length of a queue of
             :class:`~pyopencl.Event` objects that are maintained by the
@@ -132,7 +133,7 @@ class PyOpenCLArrayContext(ArrayContext):
         self._passed_force_device_scalars = force_device_scalars is not None
 
         self._wait_event_queue_length = wait_event_queue_length
-        self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
+        self._kernel_name_to_wait_event_queue: dict[str, list[cl.Event]] = {}
 
         if queue.device.type & cl.device_type.GPU:
             if allocator is None:
@@ -150,7 +151,7 @@ class PyOpenCLArrayContext(ArrayContext):
                         stacklevel=2)
 
         self._loopy_transform_cache: \
-                Dict[lp.TranslationUnit, lp.TranslationUnit] = {}
+                dict[lp.TranslationUnit, lp.TranslationUnit] = {}
 
         # TODO: Ideally this should only be `(TaggableCLArray,)`, but
         # that would break the logic in the downstream users.
@@ -162,8 +163,8 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: Optional[Tuple[type, ...]] = None, *,
-            default_scalar: Optional[ScalarLike] = None,
+            allowed_types: tuple[type, ...] | None = None, *,
+            default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
