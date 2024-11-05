@@ -21,7 +21,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 from functools import partial, reduce
+from typing import cast
 
 import numpy as np
 
@@ -143,10 +145,9 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
         else:
             if len(serialized_x) != len(serialized_y):
                 return false_ary
-            return reduce(
-                    np.logical_and,
+            return np.logical_and.reduce(
                     [(true_ary if kx_i == ky_i else false_ary)
-                        and self.array_equal(x_i, y_i)
+                        and cast(np.ndarray, self.array_equal(x_i, y_i))
                         for (kx_i, x_i), (ky_i, y_i)
                         in zip(serialized_x, serialized_y)],
                     true_ary)

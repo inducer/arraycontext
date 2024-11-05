@@ -32,8 +32,9 @@ THE SOFTWARE.
 import abc
 import itertools
 import logging
+from collections.abc import Callable, Hashable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, FrozenSet, Mapping, Tuple, Type
+from typing import Any
 
 import numpy as np
 from immutabledict import immutabledict
@@ -106,7 +107,7 @@ class LeafArrayDescriptor(AbstractInputDescriptor):
 
 # {{{ utilities
 
-def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
+def _ary_container_key_stringifier(keys: tuple[Any, ...]) -> str:
     """
     Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
     array-container's component's key. Goals of this routine:
@@ -116,7 +117,7 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     * (informal) Shorter identifiers are preferred
     """
     def _rec_str(key: Any) -> str:
-        if isinstance(key, (str, int)):
+        if isinstance(key, str | int):
             return str(key)
         elif isinstance(key, tuple):
             # t in '_actx_t': stands for tuple
@@ -128,11 +129,11 @@ def _ary_container_key_stringifier(keys: Tuple[Any, ...]) -> str:
     return "_".join(_rec_str(key) for key in keys)
 
 
-def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
+def _get_arg_id_to_arg_and_arg_id_to_descr(args: tuple[Any, ...],
                                            kwargs: Mapping[str, Any]
                                            ) -> \
-            Tuple[Mapping[Tuple[Any, ...], Any],
-                  Mapping[Tuple[Any, ...], AbstractInputDescriptor]]:
+            tuple[Mapping[tuple[Hashable, ...], Any],
+                  Mapping[tuple[Hashable, ...], AbstractInputDescriptor]]:
     """
     Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Extracts
     mappings from argument id to argument values and from argument id to
@@ -140,8 +141,8 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: Tuple[Any, ...],
     :attr:`CompiledFunction.input_id_to_name_in_program` for argument-id's
     representation.
     """
-    arg_id_to_arg: Dict[Tuple[Any, ...], Any] = {}
-    arg_id_to_descr: Dict[Tuple[Any, ...], AbstractInputDescriptor] = {}
+    arg_id_to_arg: dict[tuple[Hashable, ...], Any] = {}
+    arg_id_to_descr: dict[tuple[Hashable, ...], AbstractInputDescriptor] = {}
 
     for kw, arg in itertools.chain(enumerate(args),
                                    kwargs.items()):
@@ -259,7 +260,7 @@ class BaseLazilyCompilingFunctionCaller:
 
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
-    program_cache: Dict[Mapping[Tuple[Any, ...], AbstractInputDescriptor],
+    program_cache: dict[Mapping[tuple[Hashable, ...], AbstractInputDescriptor],
                         "CompiledFunction"] = field(default_factory=lambda: {})
 
     # {{{ abstract interface
@@ -269,11 +270,11 @@ class BaseLazilyCompilingFunctionCaller:
 
     @property
     def compiled_function_returning_array_container_class(
-            self) -> Type["CompiledFunction"]:
+            self) -> type["CompiledFunction"]:
         raise NotImplementedError
 
     @property
-    def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
+    def compiled_function_returning_array_class(self) -> type["CompiledFunction"]:
         raise NotImplementedError
 
     # }}}
@@ -382,11 +383,11 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
 
     @property
     def compiled_function_returning_array_container_class(
-            self) -> Type["CompiledFunction"]:
+            self) -> type["CompiledFunction"]:
         return CompiledPyOpenCLFunctionReturningArrayContainer
 
     @property
-    def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
+    def compiled_function_returning_array_class(self) -> type["CompiledFunction"]:
         return CompiledPyOpenCLFunctionReturningArray
 
     def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays, *, prg_id=None):
@@ -481,11 +482,11 @@ class LazilyCompilingFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller):
 class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
     @property
     def compiled_function_returning_array_container_class(
-            self) -> Type["CompiledFunction"]:
+            self) -> type["CompiledFunction"]:
         return CompiledJAXFunctionReturningArrayContainer
 
     @property
-    def compiled_function_returning_array_class(self) -> Type["CompiledFunction"]:
+    def compiled_function_returning_array_class(self) -> type["CompiledFunction"]:
         return CompiledJAXFunctionReturningArray
 
     def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays, *, prg_id=None):
@@ -627,10 +628,10 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
     """
     actx: PytatoPyOpenCLArrayContext
     pytato_program: pt.target.BoundProgram
-    input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
-    output_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
-    name_in_program_to_tags: Mapping[str, FrozenSet[Tag]]
-    name_in_program_to_axes: Mapping[str, Tuple[pt.Axis, ...]]
+    input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
+    output_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
+    name_in_program_to_tags: Mapping[str, frozenset[Tag]]
+    name_in_program_to_axes: Mapping[str, tuple[pt.Axis, ...]]
     output_template: ArrayContainer
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
@@ -670,9 +671,9 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
     """
     actx: PytatoPyOpenCLArrayContext
     pytato_program: pt.target.BoundProgram
-    input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
-    output_tags: FrozenSet[Tag]
-    output_axes: Tuple[pt.Axis, ...]
+    input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
+    output_tags: frozenset[Tag]
+    output_axes: tuple[pt.Axis, ...]
     output_name: str
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
@@ -719,10 +720,10 @@ class CompiledJAXFunctionReturningArrayContainer(CompiledFunction):
     """
     actx: PytatoJAXArrayContext
     pytato_program: pt.target.BoundProgram
-    input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
-    output_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
-    name_in_program_to_tags: Mapping[str, FrozenSet[Tag]]
-    name_in_program_to_axes: Mapping[str, Tuple[pt.Axis, ...]]
+    input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
+    output_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
+    name_in_program_to_tags: Mapping[str, frozenset[Tag]]
+    name_in_program_to_axes: Mapping[str, tuple[pt.Axis, ...]]
     output_template: ArrayContainer
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
@@ -750,9 +751,9 @@ class CompiledJAXFunctionReturningArray(CompiledFunction):
     """
     actx: PytatoJAXArrayContext
     pytato_program: pt.target.BoundProgram
-    input_id_to_name_in_program: Mapping[Tuple[Any, ...], str]
-    output_tags: FrozenSet[Tag]
-    output_axes: Tuple[pt.Axis, ...]
+    input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
+    output_tags: frozenset[Tag]
+    output_axes: tuple[pt.Axis, ...]
     output_name: str
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:

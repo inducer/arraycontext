@@ -27,7 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Callable, Optional, Tuple
+from collections.abc import Callable
 
 import numpy as np
 
@@ -63,8 +63,8 @@ class EagerJAXArrayContext(ArrayContext):
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: Optional[Tuple[type, ...]] = None, *,
-            default_scalar: Optional[ScalarLike] = None,
+            allowed_types: tuple[type, ...] | None = None, *,
+            default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
         if allowed_types is None:
             allowed_types = self.array_types
