@@ -31,7 +31,7 @@ THE SOFTWARE.
 """
 
 from dataclasses import Field, fields, is_dataclass
-from typing import Tuple, Union, get_args, get_origin
+from typing import Union, get_args, get_origin
 
 from arraycontext.container import is_array_container_type
 
@@ -100,7 +100,7 @@ def dataclass_array_container(cls: type) -> type:
                 _BaseGenericAlias,
                 _SpecialForm,
             )
-            if isinstance(f.type, (_BaseGenericAlias, _SpecialForm)):
+            if isinstance(f.type, _BaseGenericAlias | _SpecialForm):
                 # NOTE: anything except a Union is not allowed
                 raise TypeError(
                         f"Typing annotation not supported on field '{f.name}': "
@@ -125,8 +125,8 @@ def dataclass_array_container(cls: type) -> type:
 
 def inject_dataclass_serialization(
         cls: type,
-        array_fields: Tuple[Field, ...],
-        non_array_fields: Tuple[Field, ...]) -> type:
+        array_fields: tuple[Field, ...],
+        non_array_fields: tuple[Field, ...]) -> type:
     """Implements :func:`~arraycontext.serialize_container` and
     :func:`~arraycontext.deserialize_container` for the given dataclass *cls*.
 

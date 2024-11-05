@@ -539,7 +539,8 @@ def with_container_arithmetic(
                     _format_binary_op_str(op_str, expr_arg1, expr_arg2)
                     for (key_arg1, expr_arg1), (key_arg2, expr_arg2) in zip(
                         cls._serialize_init_arrays_code("arg1").items(),
-                        cls._serialize_init_arrays_code("arg2").items())
+                        cls._serialize_init_arrays_code("arg2").items(),
+                        strict=True)
                     })
             bcast_init_args_arg1_is_outer = cls._deserialize_init_arrays_code("arg1", {
                     key_arg1: _format_binary_op_str(op_str, expr_arg1, "arg2")

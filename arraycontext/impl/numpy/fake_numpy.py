@@ -149,8 +149,8 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                     [(true_ary if kx_i == ky_i else false_ary)
                         and cast(np.ndarray, self.array_equal(x_i, y_i))
                         for (kx_i, x_i), (ky_i, y_i)
-                        in zip(serialized_x, serialized_y)],
-                    true_ary)
+                        in zip(serialized_x, serialized_y, strict=True)],
+                    initial=true_ary)
 
     def arange(self, *args, **kwargs):
         return np.arange(*args, **kwargs)

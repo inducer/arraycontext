@@ -236,7 +236,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                         [(true_ary if kx_i == ky_i else false_ary)
                             and rec_equal(x_i, y_i)
                             for (kx_i, x_i), (ky_i, y_i)
-                            in zip(serialized_x, serialized_y)],
+                            in zip(serialized_x, serialized_y, strict=True)],
                         true_ary)
 
         return rec_equal(a, b)
@@ -346,7 +346,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def where(self, criterion, then, else_):
         def where_inner(inner_crit, inner_then, inner_else):
-            if isinstance(inner_crit, (bool, np.bool_)):
+            if isinstance(inner_crit, bool | np.bool_):
                 return inner_then if inner_crit else inner_else
             return cl_array.if_positive(inner_crit != 0, inner_then, inner_else,
                     queue=self._array_context.queue)
