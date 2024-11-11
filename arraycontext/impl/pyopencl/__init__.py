@@ -313,15 +313,8 @@ class PyOpenCLArrayContext(ArrayContext):
             if "i1" in all_inames:
                 inner_iname = "i1"
 
-        elif not all_inames:
-            # no loops, nothing to transform
-            return t_unit
-
         else:
-            raise RuntimeError(
-                "Unable to reason what outer_iname and inner_iname "
-                f"needs to be; all_inames is given as: {all_inames}"
-            )
+            return t_unit
 
         if inner_iname is not None:
             t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")
