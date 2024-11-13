@@ -255,7 +255,7 @@ class MyContainerDOFBcast:
 
 def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     from numbers import Number
-    if isinstance(shapes, (Number, tuple)):
+    if isinstance(shapes, Number | tuple):
         shapes = [shapes]
 
     x = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
@@ -796,7 +796,7 @@ def test_container_map_on_device_scalar(actx_factory):
         rec_map_reduce_array_container,
     )
 
-    for size, ary in zip(expected_sizes, arys[:-1]):
+    for size, ary in zip(expected_sizes, arys[:-1], strict=True):
         result = map_array_container(lambda x: x, ary)
         assert actx.to_numpy(actx.np.array_equal(result, ary))
         result = rec_map_array_container(lambda x: x, ary)
@@ -827,7 +827,8 @@ def test_container_map(actx_factory):
                 subarray for _, subarray in arg1_iterable]
             arg2_subarrays = [
                 subarray for _, subarray in arg2_iterable]
-            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays,
+                                            strict=True):
                 _check_allclose(f, subarray1, subarray2)
 
     def func(x):
@@ -880,7 +881,8 @@ def test_container_multimap(actx_factory):
                 subarray for _, subarray in arg1_iterable]
             arg2_subarrays = [
                 subarray for _, subarray in arg2_iterable]
-            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays,
+                                            strict=True):
                 _check_allclose(f, subarray1, subarray2)
 
     def func_all_scalar(x, y):
@@ -1072,7 +1074,7 @@ def test_flatten_array_container(actx_factory, shapes):
 
     # {{{ complex to real
 
-    if isinstance(shapes, (int, tuple)):
+    if isinstance(shapes, int | tuple):
         shapes = [shapes]
 
     ary = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
@@ -1556,7 +1558,7 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
 def test_tagging(actx_factory):
     actx = actx_factory()
 
-    if isinstance(actx, (NumpyArrayContext, EagerJAXArrayContext)):
+    if isinstance(actx, NumpyArrayContext | EagerJAXArrayContext):
         pytest.skip(f"{type(actx)} has no tagging support")
 
     from pytools.tag import Tag

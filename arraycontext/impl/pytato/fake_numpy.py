@@ -203,7 +203,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                         [(true_ary if kx_i == ky_i else false_ary)
                             and rec_equal(x_i, y_i)
                             for (kx_i, x_i), (ky_i, y_i)
-                            in zip(serialized_x, serialized_y)],
+                            in zip(serialized_x, serialized_y, strict=True)],
                         true_ary)
 
         return cast(Array, rec_equal(a, b))

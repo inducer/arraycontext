@@ -53,17 +53,8 @@ THE SOFTWARE.
 
 import abc
 import sys
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    FrozenSet,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -97,7 +88,7 @@ logger = logging.getLogger(__name__)
 
 # {{{ tag conversion
 
-def _preprocess_array_tags(tags: ToTagSetConvertible) -> FrozenSet[Tag]:
+def _preprocess_array_tags(tags: ToTagSetConvertible) -> frozenset[Tag]:
     tags = normalize_tags(tags)
 
     name_hints = [tag for tag in tags if isinstance(tag, NameHint)]
@@ -141,7 +132,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     def __init__(
             self, *,
-            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None
+            compile_trace_callback: Callable[[Any, str, Any], None] | None = None
             ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
@@ -154,10 +145,10 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         super().__init__()
 
         import pytato as pt
-        self._freeze_prg_cache: Dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
-        self._dag_transform_cache: Dict[
+        self._freeze_prg_cache: dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
+        self._dag_transform_cache: dict[
                 pt.DictOfNamedArrays,
-                Tuple[pt.DictOfNamedArrays, str]] = {}
+                tuple[pt.DictOfNamedArrays, str]] = {}
 
         if compile_trace_callback is None:
             def _compile_trace_callback(what, stage, ir):
@@ -172,7 +163,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         return PytatoFakeNumpyNamespace(self)
 
     @abc.abstractproperty
-    def _frozen_array_types(self) -> Tuple[Type, ...]:
+    def _frozen_array_types(self) -> tuple[type, ...]:
         """
         Returns valid frozen array types for the array context.
         """
@@ -262,11 +253,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
     def __init__(
             self, queue: cl.CommandQueue, allocator=None, *,
-            use_memory_pool: Optional[bool] = None,
-            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None,
+            use_memory_pool: bool | None = None,
+            compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
 
             # do not use: only for testing
-            _force_svm_arg_limit: Optional[int] = None,
+            _force_svm_arg_limit: int | None = None,
             ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
@@ -328,14 +319,14 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         self._force_svm_arg_limit = _force_svm_arg_limit
 
     @property
-    def _frozen_array_types(self) -> Tuple[Type, ...]:
+    def _frozen_array_types(self) -> tuple[type, ...]:
         import pyopencl.array as cla
         return (cla.Array,)
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: Optional[Tuple[type, ...]] = None, *,
-            default_scalar: Optional[ScalarLike] = None,
+            allowed_types: tuple[type, ...] | None = None, *,
+            default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
         import pytato as pt
 
@@ -458,13 +449,13 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             get_cl_axes_from_pt_axes,
         )
 
-        array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray, pt.Array]] = {}
-        key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
-        key_to_pt_arrays: Dict[str, pt.Array] = {}
+        array_as_dict: dict[str, cla.Array | TaggableCLArray | pt.Array] = {}
+        key_to_frozen_subary: dict[str, TaggableCLArray] = {}
+        key_to_pt_arrays: dict[str, pt.Array] = {}
 
         def _record_leaf_ary_in_dict(
-                key: Tuple[Any, ...],
-                ary: Union[cla.Array, TaggableCLArray, pt.Array]) -> None:
+                key: tuple[Any, ...],
+                ary: cla.Array | TaggableCLArray | pt.Array) -> None:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             array_as_dict[key_str] = ary
 
@@ -504,7 +495,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
-        def _to_frozen(key: Tuple[Any, ...], ary) -> TaggableCLArray:
+        def _to_frozen(key: tuple[Any, ...], ary) -> TaggableCLArray:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             return key_to_frozen_subary[key_str]
 
@@ -691,7 +682,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         return pt.einsum(spec, *[
             preprocess_arg(name, arg)
-            for name, arg in zip(arg_names, args)
+            for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
 
     def clone(self):
@@ -712,8 +703,9 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     """
 
     def __init__(self,
-            *, compile_trace_callback: Optional[Callable[[Any, str, Any], None]]
-             = None) -> None:
+            *,
+            compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
+            ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
             *(what, stage, ir)*, where *what* identifies the object
@@ -728,14 +720,14 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         self.array_types = (pt.Array, jnp.ndarray)
 
     @property
-    def _frozen_array_types(self) -> Tuple[Type, ...]:
+    def _frozen_array_types(self) -> tuple[type, ...]:
         import jax.numpy as jnp
         return (jnp.ndarray, )
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: Optional[Tuple[type, ...]] = None, *,
-            default_scalar: Optional[ScalarLike] = None,
+            allowed_types: tuple[type, ...] | None = None, *,
+            default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
         if allowed_types is None:
             allowed_types = self.array_types
@@ -789,12 +781,12 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
 
-        array_as_dict: Dict[str, Union[jnp.ndarray, pt.Array]] = {}
-        key_to_frozen_subary: Dict[str, jnp.ndarray] = {}
-        key_to_pt_arrays: Dict[str, pt.Array] = {}
+        array_as_dict: dict[str, jnp.ndarray | pt.Array] = {}
+        key_to_frozen_subary: dict[str, jnp.ndarray] = {}
+        key_to_pt_arrays: dict[str, pt.Array] = {}
 
-        def _record_leaf_ary_in_dict(key: Tuple[Any, ...],
-                                     ary: Union[jnp.ndarray, pt.Array]) -> None:
+        def _record_leaf_ary_in_dict(key: tuple[Any, ...],
+                                     ary: jnp.ndarray | pt.Array) -> None:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             array_as_dict[key_str] = ary
 
@@ -818,7 +810,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
-        def _to_frozen(key: Tuple[Any, ...], ary) -> jnp.ndarray:
+        def _to_frozen(key: tuple[Any, ...], ary) -> jnp.ndarray:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             return key_to_frozen_subary[key_str]
 
@@ -919,7 +911,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         return pt.einsum(spec, *[
             preprocess_arg(name, arg)
-            for name, arg in zip(arg_names, args)
+            for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
 
     def clone(self):
