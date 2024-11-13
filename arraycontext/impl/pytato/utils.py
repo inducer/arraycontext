@@ -99,6 +99,7 @@ def _normalize_pt_expr(
     """
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
     normalized_expr = normalize_mapper(expr)
+    assert isinstance(normalized_expr, AbstractResultWithNamedArrays)
     return normalized_expr, normalize_mapper.bound_arguments
 
 
