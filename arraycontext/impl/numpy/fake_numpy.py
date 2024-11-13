@@ -148,7 +148,7 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                     [(true_ary if kx_i == ky_i else false_ary)
                         and self.array_equal(x_i, y_i)
                         for (kx_i, x_i), (ky_i, y_i)
-                        in zip(serialized_x, serialized_y)],
+                        in zip(serialized_x, serialized_y, strict=True)],
                     true_ary)
 
     def arange(self, *args, **kwargs):

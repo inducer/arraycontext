@@ -685,7 +685,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         return pt.einsum(spec, *[
             preprocess_arg(name, arg)
-            for name, arg in zip(arg_names, args)
+            for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
 
     def clone(self):
@@ -913,7 +913,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         return pt.einsum(spec, *[
             preprocess_arg(name, arg)
-            for name, arg in zip(arg_names, args)
+            for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
 
     def clone(self):

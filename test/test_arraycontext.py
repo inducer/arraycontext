@@ -796,7 +796,7 @@ def test_container_map_on_device_scalar(actx_factory):
         rec_map_reduce_array_container,
     )
 
-    for size, ary in zip(expected_sizes, arys[:-1]):
+    for size, ary in zip(expected_sizes, arys[:-1], strict=True):
         result = map_array_container(lambda x: x, ary)
         assert actx.to_numpy(actx.np.array_equal(result, ary))
         result = rec_map_array_container(lambda x: x, ary)
@@ -827,7 +827,8 @@ def test_container_map(actx_factory):
                 subarray for _, subarray in arg1_iterable]
             arg2_subarrays = [
                 subarray for _, subarray in arg2_iterable]
-            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+            for subarray1, subarray2 in zip(
+                        arg1_subarrays, arg2_subarrays, strict=True):
                 _check_allclose(f, subarray1, subarray2)
 
     def func(x):
@@ -880,7 +881,8 @@ def test_container_multimap(actx_factory):
                 subarray for _, subarray in arg1_iterable]
             arg2_subarrays = [
                 subarray for _, subarray in arg2_iterable]
-            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+            for subarray1, subarray2 in zip(
+                    arg1_subarrays, arg2_subarrays, strict=True):
                 _check_allclose(f, subarray1, subarray2)
 
     def func_all_scalar(x, y):
