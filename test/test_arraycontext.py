@@ -23,7 +23,6 @@ THE SOFTWARE.
 import logging
 from dataclasses import dataclass
 from functools import partial
-from typing import Union
 
 import numpy as np
 import pytest
@@ -216,9 +215,9 @@ def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type:
 @dataclass(frozen=True)
 class MyContainer:
     name: str
-    mass: Union[DOFArray, np.ndarray]
+    mass: DOFArray | np.ndarray
     momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
+    enthalpy: DOFArray | np.ndarray
 
     __array_ufunc__ = None
 
@@ -241,9 +240,9 @@ class MyContainer:
 @dataclass(frozen=True)
 class MyContainerDOFBcast:
     name: str
-    mass: Union[DOFArray, np.ndarray]
+    mass: DOFArray | np.ndarray
     momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
+    enthalpy: DOFArray | np.ndarray
 
     @property
     def array_context(self):
@@ -255,7 +254,7 @@ class MyContainerDOFBcast:
 
 def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     from numbers import Number
-    if isinstance(shapes, (Number, tuple)):
+    if isinstance(shapes, Number | tuple):
         shapes = [shapes]
 
     x = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
@@ -1074,7 +1073,7 @@ def test_flatten_array_container(actx_factory, shapes):
 
     # {{{ complex to real
 
-    if isinstance(shapes, (int, tuple)):
+    if isinstance(shapes, int | tuple):
         shapes = [shapes]
 
     ary = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
@@ -1558,7 +1557,7 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
 def test_tagging(actx_factory):
     actx = actx_factory()
 
-    if isinstance(actx, (NumpyArrayContext, EagerJAXArrayContext)):
+    if isinstance(actx, NumpyArrayContext | EagerJAXArrayContext):
         pytest.skip(f"{type(actx)} has no tagging support")
 
     from pytools.tag import Tag

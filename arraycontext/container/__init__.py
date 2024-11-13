@@ -79,15 +79,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from collections.abc import Hashable, Sequence
 from functools import singledispatch
 from typing import (
     TYPE_CHECKING,
     Any,
-    Hashable,
-    Optional,
     Protocol,
-    Sequence,
-    Tuple,
     TypeAlias,
     TypeVar,
 )
@@ -162,7 +159,7 @@ class NotAnArrayContainerError(TypeError):
 
 
 SerializationKey: TypeAlias = Hashable
-SerializedContainer: TypeAlias = Sequence[Tuple[SerializationKey, "ArrayOrContainer"]]
+SerializedContainer: TypeAlias = Sequence[tuple[SerializationKey, "ArrayOrContainer"]]
 
 
 @singledispatch
@@ -249,7 +246,7 @@ def is_array_container(ary: Any) -> bool:
 
 
 @singledispatch
-def get_container_context_opt(ary: ArrayContainer) -> Optional[ArrayContext]:
+def get_container_context_opt(ary: ArrayContainer) -> ArrayContext | None:
     """Retrieves the :class:`ArrayContext` from the container, if any.
 
     This function is not recursive, so it will only search at the root level
@@ -303,7 +300,7 @@ def _deserialize_ndarray_container(  # type: ignore[misc]
 # {{{ get_container_context_recursively
 
 def get_container_context_recursively_opt(
-        ary: ArrayContainer) -> Optional[ArrayContext]:
+        ary: ArrayContainer) -> ArrayContext | None:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 
@@ -337,7 +334,7 @@ def get_container_context_recursively_opt(
         return actx
 
 
-def get_container_context_recursively(ary: ArrayContainer) -> Optional[ArrayContext]:
+def get_container_context_recursively(ary: ArrayContainer) -> ArrayContext | None:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 

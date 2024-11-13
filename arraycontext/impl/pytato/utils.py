@@ -23,7 +23,8 @@ THE SOFTWARE.
 """
 
 
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Set, Tuple
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 
 from pytato.array import (
     AbstractResultWithNamedArrays,
@@ -54,9 +55,9 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
     """
     def __init__(self) -> None:
         super().__init__()
-        self.bound_arguments: Dict[str, Any] = {}
+        self.bound_arguments: dict[str, Any] = {}
         self.vng = UniqueNameGenerator()
-        self.seen_inputs: Set[str] = set()
+        self.seen_inputs: set[str] = set()
 
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         if expr.name is not None:
@@ -87,7 +88,7 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
 
 def _normalize_pt_expr(
         expr: DictOfNamedArrays
-        ) -> Tuple[AbstractResultWithNamedArrays, Mapping[str, Any]]:
+        ) -> tuple[AbstractResultWithNamedArrays, Mapping[str, Any]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
     normalized form of *expr*, with all instances of
@@ -102,11 +103,11 @@ def _normalize_pt_expr(
     return normalized_expr, normalize_mapper.bound_arguments
 
 
-def get_pt_axes_from_cl_axes(axes: Tuple[ClAxis, ...]) -> Tuple[PtAxis, ...]:
+def get_pt_axes_from_cl_axes(axes: tuple[ClAxis, ...]) -> tuple[PtAxis, ...]:
     return tuple(PtAxis(axis.tags) for axis in axes)
 
 
-def get_cl_axes_from_pt_axes(axes: Tuple[PtAxis, ...]) -> Tuple[ClAxis, ...]:
+def get_cl_axes_from_pt_axes(axes: tuple[PtAxis, ...]) -> tuple[ClAxis, ...]:
     return tuple(ClAxis(axis.tags) for axis in axes)
 
 

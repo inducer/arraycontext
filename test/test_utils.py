@@ -49,7 +49,6 @@ def test_pt_actx_key_stringification_uniqueness():
 
 def test_dataclass_array_container() -> None:
     from dataclasses import dataclass, field
-    from typing import Optional
 
     from arraycontext import dataclass_array_container
 
@@ -71,7 +70,7 @@ def test_dataclass_array_container() -> None:
     @dataclass
     class ArrayContainerWithOptional:
         x: np.ndarray
-        y: Optional[np.ndarray]
+        y: np.ndarray | None
 
     with pytest.raises(TypeError):
         # NOTE: cannot have wrapped annotations (here by `Optional`)
@@ -113,7 +112,6 @@ def test_dataclass_array_container() -> None:
 
 def test_dataclass_container_unions() -> None:
     from dataclasses import dataclass
-    from typing import Union
 
     from arraycontext import Array, dataclass_array_container
 
@@ -122,7 +120,7 @@ def test_dataclass_container_unions() -> None:
     @dataclass
     class ArrayContainerWithUnion:
         x: np.ndarray
-        y: Union[np.ndarray, Array]
+        y: np.ndarray | Array
 
     dataclass_array_container(ArrayContainerWithUnion)
 
@@ -133,7 +131,7 @@ def test_dataclass_container_unions() -> None:
     @dataclass
     class ArrayContainerWithWrongUnion:
         x: np.ndarray
-        y: Union[np.ndarray, float]
+        y: np.ndarray | float
 
     with pytest.raises(TypeError):
         # NOTE: float is not an ArrayContainer, so y should fail

@@ -31,7 +31,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable, Dict, Sequence, Type, Union
+from collections.abc import Callable, Sequence
+from typing import Any
 
 from arraycontext import NumpyArrayContext
 from arraycontext.context import ArrayContext
@@ -245,7 +246,7 @@ class _PytestNumpyArrayContextFactory(PytestArrayContextFactory):
 
 
 _ARRAY_CONTEXT_FACTORY_REGISTRY: \
-        Dict[str, Type[PytestArrayContextFactory]] = {
+        dict[str, type[PytestArrayContextFactory]] = {
                 "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
                 "pytato:pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
                 "pytato:jax": _PytestPytatoJaxArrayContextFactory,
@@ -256,7 +257,7 @@ _ARRAY_CONTEXT_FACTORY_REGISTRY: \
 
 def register_pytest_array_context_factory(
         name: str,
-        factory: Type[PytestArrayContextFactory]) -> None:
+        factory: type[PytestArrayContextFactory]) -> None:
     if name in _ARRAY_CONTEXT_FACTORY_REGISTRY:
         raise ValueError(f"factory '{name}' already exists")
 
@@ -268,7 +269,7 @@ def register_pytest_array_context_factory(
 # {{{ pytest integration
 
 def pytest_generate_tests_for_array_contexts(
-        factories: Sequence[Union[str, Type[PytestArrayContextFactory]]], *,
+        factories: Sequence[str | type[PytestArrayContextFactory]], *,
         factory_arg_name: str = "actx_factory",
         ) -> Callable[[Any], None]:
     """Parametrize tests for pytest to use an :class:`~arraycontext.ArrayContext`.
