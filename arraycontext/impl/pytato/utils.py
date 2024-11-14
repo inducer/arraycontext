@@ -1,6 +1,6 @@
 __doc__ = """
-.. autofunction:: transfer_to_device
-.. autofunction:: transfer_to_host
+.. autofunction:: transfer_from_numpy
+.. autofunction:: transfer_to_numpy
 """
 
 
@@ -133,12 +133,14 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
 
 # }}}
 
+
 # {{{ Transfer mappers
 
-
-class TransferToDeviceMapper(CopyMapper):
-    """A mapper to transfer all :class:`~pytato.array.DataWrapper` instances to
-    the CL device."""
+class TransferFromNumpyMapper(CopyMapper):
+    """A mapper to transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be device arrays, using
+    :meth:`~arraycontext.ArrayContext.from_numpy`.
+    """
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
         self.actx = actx
@@ -147,7 +149,7 @@ class TransferToDeviceMapper(CopyMapper):
         import numpy as np
 
         if not isinstance(expr.data, np.ndarray):
-            raise ValueError("TransferToDeviceMapper: tried to transfer data that "
+            raise ValueError("TransferFromNumpyMapper: tried to transfer data that "
                              "is already on the device")
 
         # Ideally, this code should just do
@@ -166,9 +168,11 @@ class TransferToDeviceMapper(CopyMapper):
             non_equality_tags=expr.non_equality_tags)
 
 
-class TransferToHostMapper(CopyMapper):
-    """A mapper to transfer all :class:`~pytato.array.DataWrapper` instances to
-    the host."""
+class TransferToNumpyMapper(CopyMapper):
+    """A mapper to transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be :class:`numpy.ndarray` instances, using
+    :meth:`~arraycontext.ArrayContext.to_numpy`.
+    """
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
         self.actx = actx
@@ -178,7 +182,7 @@ class TransferToHostMapper(CopyMapper):
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         if not isinstance(expr.data, tga.TaggableCLArray):
-            raise ValueError("TransferToHostMapper: tried to transfer data that "
+            raise ValueError("TransferToNumpyMapper: tried to transfer data that "
                              "is already on the host")
 
         np_data = self.actx.to_numpy(expr.data)
@@ -194,16 +198,20 @@ class TransferToHostMapper(CopyMapper):
             non_equality_tags=expr.non_equality_tags)
 
 
-def transfer_to_device(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
-    """Transfer all :class:`~pytato.array.DataWrapper` instances in *expr* to
-    the CL device."""
-    return TransferToDeviceMapper(actx)(expr)
+def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be device arrays, using
+    :meth:`~arraycontext.ArrayContext.from_numpy`.
+    """
+    return TransferFromNumpyMapper(actx)(expr)
 
 
-def transfer_to_host(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
-    """Transfer all :class:`~pytato.array.DataWrapper` instances in *expr* to
-    the host."""
-    return TransferToHostMapper(actx)(expr)
+def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be :class:`numpy.ndarray` instances, using
+    :meth:`~arraycontext.ArrayContext.to_numpy`.
+    """
+    return TransferToNumpyMapper(actx)(expr)
 
 # }}}
 

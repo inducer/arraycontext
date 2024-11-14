@@ -205,18 +205,18 @@ def test_transfer(actx_factory):
     from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
     assert isinstance(a.data, TaggableCLArray)
 
-    from arraycontext.impl.pytato.utils import transfer_to_device, transfer_to_host
+    from arraycontext.impl.pytato.utils import transfer_from_numpy, transfer_to_numpy
 
-    ah = transfer_to_host(a, actx)
+    ah = transfer_to_numpy(a, actx)
     assert ah != a
     assert a.tags == ah.tags
     assert a.non_equality_tags == ah.non_equality_tags
     assert isinstance(ah.data, np.ndarray)
 
     with pytest.raises(ValueError):
-        _ahh = transfer_to_host(ah, actx)
+        _ahh = transfer_to_numpy(ah, actx)
 
-    ad = transfer_to_device(ah, actx)
+    ad = transfer_from_numpy(ah, actx)
     assert isinstance(ad.data, TaggableCLArray)
     assert ad != ah
     assert ad != a  # copied DataWrappers compare unequal
@@ -225,7 +225,7 @@ def test_transfer(actx_factory):
     assert np.array_equal(a.data.get(), ad.data.get())
 
     with pytest.raises(ValueError):
-        _add = transfer_to_device(ad, actx)
+        _add = transfer_from_numpy(ad, actx)
 
     # }}}
 
@@ -235,11 +235,11 @@ def test_transfer(actx_factory):
         "a_expr": a + 2
         })
 
-    dagh = transfer_to_host(dag, actx)
+    dagh = transfer_to_numpy(dag, actx)
     assert dagh != dag
     assert isinstance(dagh["a_expr"].expr.bindings["_in0"].data, np.ndarray)
 
-    daghd = transfer_to_device(dagh, actx)
+    daghd = transfer_from_numpy(dagh, actx)
     assert isinstance(daghd["a_expr"].expr.bindings["_in0"].data, TaggableCLArray)
 
     # }}}
