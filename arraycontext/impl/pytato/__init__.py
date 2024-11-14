@@ -631,8 +631,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     rec_keyed_map_array_container(_to_frozen, array),
                     actx=None)
 
-        pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
-                key_to_pt_arrays)
+        dag = pt.transform.deduplicate(
+            pt.make_dict_of_named_arrays(key_to_pt_arrays))
 
         # FIXME: Remove this if/when _normalize_pt_expr gets support for functions
         pt_dict_of_named_arrays = pt.tag_all_calls_to_be_inlined(
