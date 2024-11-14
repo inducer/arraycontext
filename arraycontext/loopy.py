@@ -27,7 +27,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import ClassVar, Mapping
+from collections.abc import Mapping
+from typing import ClassVar
 
 import numpy as np
 
@@ -88,7 +89,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
         from islpy import make_zero_and_vars
         v = make_zero_and_vars(var_names, params=size_names)
         domain = v[0].domain()
-        for vname, sname in zip(var_names, size_names):
+        for vname, sname in zip(var_names, size_names, strict=True):
             domain = domain & v[0].le_set(v[vname]) & v[vname].lt_set(v[sname])
 
         domain_bset, = domain.get_basic_sets()

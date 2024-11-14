@@ -34,7 +34,8 @@ THE SOFTWARE.
 """
 
 import enum
-from typing import Any, Callable, Optional, Tuple, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, TypeVar
 from warnings import warn
 
 import numpy as np
@@ -90,7 +91,7 @@ _BINARY_OP_AND_DUNDER = [
         ]
 
 
-def _format_unary_op_str(op_str: str, arg1: Union[Tuple[str, ...], str]) -> str:
+def _format_unary_op_str(op_str: str, arg1: tuple[str, ...] | str) -> str:
     if isinstance(arg1, tuple):
         arg1_entry, arg1_container = arg1
         return (f"{op_str.format(arg1_entry)} "
@@ -100,20 +101,14 @@ def _format_unary_op_str(op_str: str, arg1: Union[Tuple[str, ...], str]) -> str:
 
 
 def _format_binary_op_str(op_str: str,
-        arg1: Union[Tuple[str, str], str],
-        arg2: Union[Tuple[str, str], str]) -> str:
+        arg1: tuple[str, str] | str,
+        arg2: tuple[str, str] | str) -> str:
     if isinstance(arg1, tuple) and isinstance(arg2, tuple):
-        import sys
-        if sys.version_info >= (3, 10):
-            strict_arg = ", strict=__debug__"
-        else:
-            strict_arg = ""
-
         arg1_entry, arg1_container = arg1
         arg2_entry, arg2_container = arg2
         return (f"{op_str.format(arg1_entry, arg2_entry)} "
                 f"for {arg1_entry}, {arg2_entry} "
-                f"in zip({arg1_container}, {arg2_container}{strict_arg})")
+                f"in zip({arg1_container}, {arg2_container}, strict=__debug__)")
 
     elif isinstance(arg1, tuple):
         arg1_entry, arg1_container = arg1
@@ -160,23 +155,23 @@ class ComplainingNumpyNonObjectArray(metaclass=ComplainingNumpyNonObjectArrayMet
 
 def with_container_arithmetic(
             *,
-            number_bcasts_across: Optional[bool] = None,
-            bcasts_across_obj_array: Optional[bool] = None,
-            container_types_bcast_across: Optional[Tuple[type, ...]] = None,
+            number_bcasts_across: bool | None = None,
+            bcasts_across_obj_array: bool | None = None,
+            container_types_bcast_across: tuple[type, ...] | None = None,
             arithmetic: bool = True,
             matmul: bool = False,
             bitwise: bool = False,
             shift: bool = False,
-            _cls_has_array_context_attr: Optional[bool] = None,
-            eq_comparison: Optional[bool] = None,
-            rel_comparison: Optional[bool] = None,
+            _cls_has_array_context_attr: bool | None = None,
+            eq_comparison: bool | None = None,
+            rel_comparison: bool | None = None,
 
             # deprecated:
-            bcast_number: Optional[bool] = None,
-            bcast_obj_array: Optional[bool] = None,
+            bcast_number: bool | None = None,
+            bcast_obj_array: bool | None = None,
             bcast_numpy_array: bool = False,
-            _bcast_actx_array_type: Optional[bool] = None,
-            bcast_container_types: Optional[Tuple[type, ...]] = None,
+            _bcast_actx_array_type: bool | None = None,
+            bcast_container_types: tuple[type, ...] | None = None,
         ) -> Callable[[type], type]:
     """A class decorator that implements built-in operators for array containers
     by propagating the operations to the elements of the container.
@@ -482,7 +477,7 @@ def with_container_arithmetic(
             assert k1 == k2
             return k1
 
-        def tup_str(t: Tuple[str, ...]) -> str:
+        def tup_str(t: tuple[str, ...]) -> str:
             if not t:
                 return "()"
             else:
@@ -544,7 +539,8 @@ def with_container_arithmetic(
                     _format_binary_op_str(op_str, expr_arg1, expr_arg2)
                     for (key_arg1, expr_arg1), (key_arg2, expr_arg2) in zip(
                         cls._serialize_init_arrays_code("arg1").items(),
-                        cls._serialize_init_arrays_code("arg2").items())
+                        cls._serialize_init_arrays_code("arg2").items(),
+                        strict=True)
                     })
             bcast_init_args_arg1_is_outer = cls._deserialize_init_arrays_code("arg1", {
                     key_arg1: _format_binary_op_str(op_str, expr_arg1, "arg2")

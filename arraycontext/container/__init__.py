@@ -79,24 +79,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from collections.abc import Hashable, Sequence
 from functools import singledispatch
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Hashable,
-    Iterable,
-    Optional,
-    Protocol,
-    Sequence,
-    Tuple,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar
 
 # For use in singledispatch type annotations, because sphinx can't figure out
 # what 'np' is.
 import numpy
 import numpy as np
-from typing_extensions import TypeAlias
 
 from arraycontext.context import ArrayContext
 
@@ -154,8 +144,6 @@ class ArrayContainer(Protocol):
     # by dataclass_array_container, where it's used to recognize attributes
     # that are container-typed.
 
-    pass
-
 
 ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
 
@@ -165,7 +153,7 @@ class NotAnArrayContainerError(TypeError):
 
 
 SerializationKey: TypeAlias = Hashable
-SerializedContainer: TypeAlias = Sequence[Tuple[SerializationKey, "ArrayOrContainer"]]
+SerializedContainer: TypeAlias = Sequence[tuple[SerializationKey, "ArrayOrContainer"]]
 
 
 @singledispatch
@@ -252,7 +240,7 @@ def is_array_container(ary: Any) -> bool:
 
 
 @singledispatch
-def get_container_context_opt(ary: ArrayContainer) -> Optional[ArrayContext]:
+def get_container_context_opt(ary: ArrayContainer) -> ArrayContext | None:
     """Retrieves the :class:`ArrayContext` from the container, if any.
 
     This function is not recursive, so it will only search at the root level
@@ -306,7 +294,7 @@ def _deserialize_ndarray_container(  # type: ignore[misc]
 # {{{ get_container_context_recursively
 
 def get_container_context_recursively_opt(
-        ary: ArrayContainer) -> Optional[ArrayContext]:
+        ary: ArrayContainer) -> ArrayContext | None:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 
@@ -340,7 +328,7 @@ def get_container_context_recursively_opt(
         return actx
 
 
-def get_container_context_recursively(ary: ArrayContainer) -> Optional[ArrayContext]:
+def get_container_context_recursively(ary: ArrayContainer) -> ArrayContext | None:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 
@@ -369,14 +357,16 @@ def get_container_context_recursively(ary: ArrayContainer) -> Optional[ArrayCont
 # FYI: This doesn't, and never should, make arraycontext directly depend on pymbolic.
 # (Though clearly there exists a dependency via loopy.)
 
-def _serialize_multivec_as_container(mv: MultiVector) -> Iterable[Tuple[Any, Any]]:
+def _serialize_multivec_as_container(mv: MultiVector) -> SerializedContainer:
     return list(mv.data.items())
 
 
-def _deserialize_multivec_as_container(template: MultiVector,
-        iterable: Iterable[Tuple[Any, Any]]) -> MultiVector:
+# FIXME: Ignored due to https://github.com/python/mypy/issues/13040
+def _deserialize_multivec_as_container(  # type: ignore[misc]
+        template: MultiVector,
+        serialized: SerializedContainer) -> MultiVector:
     from pymbolic.geometric_algebra import MultiVector
-    return MultiVector(dict(iterable), space=template.space)
+    return MultiVector(dict(serialized), space=template.space)
 
 
 def _get_container_context_opt_from_multivec(mv: MultiVector) -> None:

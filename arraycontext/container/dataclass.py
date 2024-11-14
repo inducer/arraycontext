@@ -31,7 +31,7 @@ THE SOFTWARE.
 """
 
 from dataclasses import Field, fields, is_dataclass
-from typing import Tuple, Union, get_args, get_origin
+from typing import Union, get_args, get_origin
 
 from arraycontext.container import is_array_container_type
 
@@ -83,14 +83,15 @@ def dataclass_array_container(cls: type) -> type:
                         f"Field '{f.name}' union contains non-array container "
                         "arguments. All arguments must be array containers.")
 
+        if isinstance(f.type, str):
+            raise TypeError(
+                f"String annotation on field '{f.name}' not supported. "
+                "(this may be due to 'from __future__ import annotations')")
+
         if __debug__:
             if not f.init:
                 raise ValueError(
-                        f"'init=False' field not allowed: '{f.name}'")
-
-            if isinstance(f.type, str):
-                raise TypeError(
-                        f"string annotation on field '{f.name}' not supported")
+                        f"Field with 'init=False' not allowed: '{f.name}'")
 
             # NOTE:
             # * `_BaseGenericAlias` catches `List`, `Tuple`, etc.
@@ -99,15 +100,15 @@ def dataclass_array_container(cls: type) -> type:
                 _BaseGenericAlias,
                 _SpecialForm,
             )
-            if isinstance(f.type, (_BaseGenericAlias, _SpecialForm)):
+            if isinstance(f.type, _BaseGenericAlias | _SpecialForm):
                 # NOTE: anything except a Union is not allowed
                 raise TypeError(
-                        f"typing annotation not supported on field '{f.name}': "
+                        f"Typing annotation not supported on field '{f.name}': "
                         f"'{f.type!r}'")
 
             if not isinstance(f.type, type):
                 raise TypeError(
-                        f"field '{f.name}' not an instance of 'type': "
+                        f"Field '{f.name}' not an instance of 'type': "
                         f"'{f.type!r}'")
 
         return is_array_type(f.type)
@@ -124,8 +125,8 @@ def dataclass_array_container(cls: type) -> type:
 
 def inject_dataclass_serialization(
         cls: type,
-        array_fields: Tuple[Field, ...],
-        non_array_fields: Tuple[Field, ...]) -> type:
+        array_fields: tuple[Field, ...],
+        non_array_fields: tuple[Field, ...]) -> type:
     """Implements :func:`~arraycontext.serialize_container` and
     :func:`~arraycontext.deserialize_container` for the given dataclass *cls*.
 
