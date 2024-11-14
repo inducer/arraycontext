@@ -1,3 +1,9 @@
+__doc__ = """
+.. autofunction:: transfer_from_numpy
+.. autofunction:: transfer_to_numpy
+"""
+
+
 __copyright__ = """
 Copyright (C) 2021 University of Illinois Board of Trustees
 """
@@ -22,6 +28,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
@@ -36,9 +43,10 @@ from pytato.array import (
     make_placeholder,
 )
 from pytato.target.loopy import LoopyPyOpenCLTarget
-from pytato.transform import CopyMapper
+from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
 
+from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
 
 
@@ -122,6 +130,88 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
     def get_loopy_target(self) -> "lp.PyOpenCLTarget":
         from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
+
+# }}}
+
+
+# {{{ Transfer mappers
+
+class TransferFromNumpyMapper(CopyMapper):
+    """A mapper to transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be device arrays, using
+    :meth:`~arraycontext.ArrayContext.from_numpy`.
+    """
+    def __init__(self, actx: ArrayContext) -> None:
+        super().__init__()
+        self.actx = actx
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
+        if not isinstance(expr.data, np.ndarray):
+            raise ValueError("TransferFromNumpyMapper: tried to transfer data that "
+                             "is already on the device")
+
+        # Ideally, this code should just do
+        # return self.actx.from_numpy(expr.data).tagged(expr.tags),
+        # but there seems to be no way to transfer the non_equality_tags in that case.
+        new_dw = self.actx.from_numpy(expr.data)
+        assert isinstance(new_dw, DataWrapper)
+
+        # https://github.com/pylint-dev/pylint/issues/3893
+        # pylint: disable=unexpected-keyword-arg
+        return DataWrapper(
+            data=new_dw.data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
+
+
+class TransferToNumpyMapper(CopyMapper):
+    """A mapper to transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be :class:`numpy.ndarray` instances, using
+    :meth:`~arraycontext.ArrayContext.to_numpy`.
+    """
+    def __init__(self, actx: ArrayContext) -> None:
+        super().__init__()
+        self.actx = actx
+
+    def map_data_wrapper(self, expr: DataWrapper) -> Array:
+        import numpy as np
+
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        if not isinstance(expr.data, tga.TaggableCLArray):
+            raise ValueError("TransferToNumpyMapper: tried to transfer data that "
+                             "is already on the host")
+
+        np_data = self.actx.to_numpy(expr.data)
+        assert isinstance(np_data, np.ndarray)
+
+        # https://github.com/pylint-dev/pylint/issues/3893
+        # pylint: disable=unexpected-keyword-arg
+        return DataWrapper(
+            data=np_data,
+            shape=expr.shape,
+            axes=expr.axes,
+            tags=expr.tags,
+            non_equality_tags=expr.non_equality_tags)
+
+
+def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be device arrays, using
+    :meth:`~arraycontext.ArrayContext.from_numpy`.
+    """
+    return TransferFromNumpyMapper(actx)(expr)
+
+
+def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+    """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
+    instances to be :class:`numpy.ndarray` instances, using
+    :meth:`~arraycontext.ArrayContext.to_numpy`.
+    """
+    return TransferToNumpyMapper(actx)(expr)
 
 # }}}
 

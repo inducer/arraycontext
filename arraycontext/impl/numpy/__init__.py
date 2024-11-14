@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 
-"""
+__doc__ = """
 .. currentmodule:: arraycontext
 
-A mod :`numpy`-based array context.
+A :mod:`numpy`-based array context.
 
 .. autoclass:: NumpyArrayContext
 """
