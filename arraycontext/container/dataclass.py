@@ -59,6 +59,8 @@ def dataclass_array_container(cls: type) -> type:
       array containers, even if they wrap one.
     """
 
+    from types import GenericAlias, UnionType
+
     assert is_dataclass(cls)
 
     def is_array_field(f: Field) -> bool:
@@ -75,7 +77,8 @@ def dataclass_array_container(cls: type) -> type:
         # This is not set in stone, but mostly driven by current usage!
 
         origin = get_origin(f.type)
-        if origin is Union:
+        # NOTE: `UnionType` is returned when using `Type1 | Type2`
+        if origin in (Union, UnionType):
             if all(is_array_type(arg) for arg in get_args(f.type)):
                 return True
             else:
@@ -94,13 +97,14 @@ def dataclass_array_container(cls: type) -> type:
                         f"Field with 'init=False' not allowed: '{f.name}'")
 
             # NOTE:
+            # * `GenericAlias` catches typed `list`, `tuple`, etc.
             # * `_BaseGenericAlias` catches `List`, `Tuple`, etc.
             # * `_SpecialForm` catches `Any`, `Literal`, etc.
             from typing import (  # type: ignore[attr-defined]
                 _BaseGenericAlias,
                 _SpecialForm,
             )
-            if isinstance(f.type, _BaseGenericAlias | _SpecialForm):
+            if isinstance(f.type, GenericAlias | _BaseGenericAlias | _SpecialForm):
                 # NOTE: anything except a Union is not allowed
                 raise TypeError(
                         f"Typing annotation not supported on field '{f.name}': "
