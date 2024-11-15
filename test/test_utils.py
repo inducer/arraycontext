@@ -49,9 +49,9 @@ def test_pt_actx_key_stringification_uniqueness():
 
 def test_dataclass_array_container() -> None:
     from dataclasses import dataclass, field
-    from typing import Optional
+    from typing import Optional, Tuple  # noqa: UP035
 
-    from arraycontext import dataclass_array_container
+    from arraycontext import Array, dataclass_array_container
 
     # {{{ string fields
 
@@ -60,7 +60,7 @@ def test_dataclass_array_container() -> None:
         x: np.ndarray
         y: "np.ndarray"
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="String annotation on field 'y'"):
         # NOTE: cannot have string annotations in container
         dataclass_array_container(ArrayContainerWithStringTypes)
 
@@ -73,9 +73,29 @@ def test_dataclass_array_container() -> None:
         x: np.ndarray
         y: Optional[np.ndarray]
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="Field 'y' union contains non-array"):
         # NOTE: cannot have wrapped annotations (here by `Optional`)
         dataclass_array_container(ArrayContainerWithOptional)
+
+    # }}}
+
+    # {{{ type annotations
+
+    @dataclass
+    class ArrayContainerWithTuple:
+        x: Array
+        y: Tuple[Array, Array]
+
+    with pytest.raises(TypeError, match="Typing annotation not supported on field 'y'"):
+        dataclass_array_container(ArrayContainerWithTuple)
+
+    @dataclass
+    class ArrayContainerWithTupleAlt:
+        x: Array
+        y: tuple[Array, Array]
+
+    with pytest.raises(TypeError, match="Typing annotation not supported on field 'y'"):
+        dataclass_array_container(ArrayContainerWithTupleAlt)
 
     # }}}
 
@@ -87,15 +107,13 @@ def test_dataclass_array_container() -> None:
         y: np.ndarray = field(default_factory=lambda: np.zeros(42),
                               init=False, repr=False)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Field with 'init=False' not allowed"):
         # NOTE: init=False fields are not allowed
         dataclass_array_container(ArrayContainerWithInitFalse)
 
     # }}}
 
     # {{{ device arrays
-
-    from arraycontext import Array
 
     @dataclass
     class ArrayContainerWithArray:
@@ -126,6 +144,13 @@ def test_dataclass_container_unions() -> None:
 
     dataclass_array_container(ArrayContainerWithUnion)
 
+    @dataclass
+    class ArrayContainerWithUnionAlt:
+        x: np.ndarray
+        y: np.ndarray | Array
+
+    dataclass_array_container(ArrayContainerWithUnionAlt)
+
     # }}}
 
     # {{{ non-container union
@@ -135,11 +160,25 @@ def test_dataclass_container_unions() -> None:
         x: np.ndarray
         y: Union[np.ndarray, float]
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="Field 'y' union contains non-array container"):
         # NOTE: float is not an ArrayContainer, so y should fail
         dataclass_array_container(ArrayContainerWithWrongUnion)
 
     # }}}
+
+    # {{{ optional union
+
+    @dataclass
+    class ArrayContainerWithOptionalUnion:
+        x: np.ndarray
+        y: np.ndarray | None
+
+    with pytest.raises(TypeError, match="Field 'y' union contains non-array container"):
+        # NOTE: None is not an ArrayContainer, so y should fail
+        dataclass_array_container(ArrayContainerWithWrongUnion)
+
+    # }}}
+
 
 # }}}
 
