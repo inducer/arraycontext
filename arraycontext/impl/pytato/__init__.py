@@ -1,13 +1,16 @@
-"""
+from __future__ import annotations
+
+
+__doc__ = """
 .. currentmodule:: arraycontext
 
-A :mod:`pytato`-based array context defers the evaluation of an array until its
+A :mod:`pytato`-based array context defers the evaluation of an array until it is
 frozen. The execution contexts for the evaluations are specific to an
-:class:`~arraycontext.ArrayContext` type. For ex.
+:class:`~arraycontext.ArrayContext` type. For example,
 :class:`~arraycontext.PytatoPyOpenCLArrayContext` uses :mod:`pyopencl` to
 JIT-compile and execute the array expressions.
 
-Following :mod:`pytato`-based array context are provided:
+The following :mod:`pytato`-based array contexts are provided:
 
 .. autoclass:: PytatoPyOpenCLArrayContext
 .. autoclass:: PytatoJAXArrayContext
@@ -17,6 +20,12 @@ Compiling a Python callable (Internal)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: arraycontext.impl.pytato.compile
+
+
+Utils
+^^^^^
+
+.. automodule:: arraycontext.impl.pytato.utils
 """
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -44,26 +53,32 @@ THE SOFTWARE.
 
 import abc
 import sys
-from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Optional, Tuple, Type, Union)
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 
-from arraycontext.container.traversal import (
-    rec_map_array_container, with_array_context)
-from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
+from arraycontext.container.traversal import rec_map_array_container, with_array_context
+from arraycontext.context import (
+    Array,
+    ArrayContext,
+    ArrayOrContainer,
+    ScalarLike,
+    UntransformedCodeWarning,
+)
 from arraycontext.metadata import NameHint
 
 
 if TYPE_CHECKING:
+    import loopy as lp
     import pyopencl as cl
     import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
-    import pyopencl as cl  # noqa: F811
+    import pyopencl as cl
 
 import logging
 
@@ -73,7 +88,7 @@ logger = logging.getLogger(__name__)
 
 # {{{ tag conversion
 
-def _preprocess_array_tags(tags: ToTagSetConvertible) -> FrozenSet[Tag]:
+def _preprocess_array_tags(tags: ToTagSetConvertible) -> frozenset[Tag]:
     tags = normalize_tags(tags)
 
     name_hints = [tag for tag in tags if isinstance(tag, NameHint)]
@@ -90,7 +105,7 @@ def _preprocess_array_tags(tags: ToTagSetConvertible) -> FrozenSet[Tag]:
                     f"arraycontext.metadata.NameHint('{name_hint.name}') "
                     "to pytato.tags.PrefixNamed, "
                     f"PrefixNamed('{prefix_named.prefix}') "
-                    "was already present.")
+                    "was already present.", stacklevel=1)
 
         tags = (
                 (tags | frozenset({PrefixNamed(name_hint.name)}))
@@ -117,7 +132,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     def __init__(
             self, *,
-            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None
+            compile_trace_callback: Callable[[Any, str, Any], None] | None = None
             ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
@@ -129,12 +144,11 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         super().__init__()
 
-        import loopy as lp
         import pytato as pt
-        self._freeze_prg_cache: Dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
-        self._dag_transform_cache: Dict[
+        self._freeze_prg_cache: dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
+        self._dag_transform_cache: dict[
                 pt.DictOfNamedArrays,
-                Tuple[pt.DictOfNamedArrays, str]] = {}
+                tuple[pt.DictOfNamedArrays, str]] = {}
 
         if compile_trace_callback is None:
             def _compile_trace_callback(what, stage, ir):
@@ -149,31 +163,15 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         return PytatoFakeNumpyNamespace(self)
 
     @abc.abstractproperty
-    def _frozen_array_types(self) -> Tuple[Type, ...]:
+    def _frozen_array_types(self) -> tuple[type, ...]:
         """
         Returns valid frozen array types for the array context.
         """
 
-    # {{{ ArrayContext interface
-
-    def empty(self, shape, dtype):
-        raise NotImplementedError(
-            f"{type(self).__name__}.empty is not supported")
-
-    def zeros(self, shape, dtype):
-        import pytato as pt
-        return pt.zeros(shape, dtype)
-
-    def empty_like(self, ary):
-        raise NotImplementedError(
-            f"{type(self).__name__}.empty_like is not supported")
-
-    # }}}
-
     # {{{ compilation
 
-    def transform_dag(self, dag: "pytato.DictOfNamedArrays"
-                      ) -> "pytato.DictOfNamedArrays":
+    def transform_dag(self, dag: pytato.DictOfNamedArrays
+                      ) -> pytato.DictOfNamedArrays:
         """
         Returns a transformed version of *dag*. Sub-classes are supposed to
         override this method to implement context-specific transformations on
@@ -186,10 +184,22 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         return dag
 
-    def transform_loopy_program(self, t_unit):
-        raise ValueError(
-            f"{type(self).__name__} does not implement transform_loopy_program. "
-            "Sub-classes are supposed to implement it.")
+    def transform_loopy_program(self, t_unit: lp.TranslationUnit) -> lp.TranslationUnit:
+        from warnings import warn
+        warn("Using the base "
+                f"{type(self).__name__}.transform_loopy_program "
+                "to transform a translation unit. "
+                "This is a no-op and will result in unoptimized C code for"
+                "the requested optimization, all in a single statement."
+                "This will work, but is unlikely to be performant."
+                f"Instead, subclass {type(self).__name__} and implement "
+                "the specific transform logic required to transform the program "
+                "for your package or application. Check higher-level packages "
+                "(e.g. meshmode), which may already have subclasses you may want "
+                "to build on.",
+                UntransformedCodeWarning, stacklevel=2)
+
+        return t_unit
 
     @abc.abstractmethod
     def einsum(self, spec, *args, arg_names=None, tagged=()):
@@ -223,7 +233,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
-    A :class:`ArrayContext` that uses :mod:`pytato` data types to represent
+    An :class:`ArrayContext` that uses :mod:`pytato` data types to represent
     the arrays targeting OpenCL for offloading operations.
 
     .. attribute:: queue
@@ -242,12 +252,12 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     .. automethod:: compile
     """
     def __init__(
-            self, queue: "cl.CommandQueue", allocator=None, *,
-            use_memory_pool: Optional[bool] = None,
-            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None,
+            self, queue: cl.CommandQueue, allocator=None, *,
+            use_memory_pool: bool | None = None,
+            compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
 
             # do not use: only for testing
-            _force_svm_arg_limit: Optional[int] = None,
+            _force_svm_arg_limit: int | None = None,
             ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
@@ -309,14 +319,14 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         self._force_svm_arg_limit = _force_svm_arg_limit
 
     @property
-    def _frozen_array_types(self) -> Tuple[Type, ...]:
+    def _frozen_array_types(self) -> tuple[type, ...]:
         import pyopencl.array as cla
         return (cla.Array,)
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: Optional[Tuple[type, ...]] = None, *,
-            default_scalar: Optional[ScalarLike] = None,
+            allowed_types: tuple[type, ...] | None = None, *,
+            default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
         import pytato as pt
 
@@ -350,14 +360,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         return rec_map_array_container(_wrapper, array)
 
     # {{{ ArrayContext interface
-
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import pytato as pt
@@ -411,17 +413,20 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
                 from warnings import warn
                 warn("Running on an Nvidia GPU, reducing the argument "
-                    f"size limit from 4352 to {limit}.")
+                    f"size limit from 4352 to {limit}.", stacklevel=1)
             else:
                 limit = dev.max_parameter_size
 
             if self._force_svm_arg_limit is not None:
                 limit = self._force_svm_arg_limit
 
-            logger.info(f"limiting argument buffer size for {dev} to {limit} bytes")
+            logger.info(
+                    "limiting argument buffer size for %s to %d bytes",
+                    dev, limit)
 
             from arraycontext.impl.pytato.utils import (
-                ArgSizeLimitingPytatoLoopyPyOpenCLTarget)
+                ArgSizeLimitingPytatoLoopyPyOpenCLTarget,
+            )
             return ArgSizeLimitingPytatoLoopyPyOpenCLTarget(limit)
         else:
             return super().get_target()
@@ -435,18 +440,22 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pyopencl.taggable_cl_array import (
-            TaggableCLArray, to_tagged_cl_array)
+            TaggableCLArray,
+            to_tagged_cl_array,
+        )
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
         from arraycontext.impl.pytato.utils import (
-            _normalize_pt_expr, get_cl_axes_from_pt_axes)
+            _normalize_pt_expr,
+            get_cl_axes_from_pt_axes,
+        )
 
-        array_as_dict: Dict[str, Union[cla.Array, TaggableCLArray, pt.Array]] = {}
-        key_to_frozen_subary: Dict[str, TaggableCLArray] = {}
-        key_to_pt_arrays: Dict[str, pt.Array] = {}
+        array_as_dict: dict[str, cla.Array | TaggableCLArray | pt.Array] = {}
+        key_to_frozen_subary: dict[str, TaggableCLArray] = {}
+        key_to_pt_arrays: dict[str, pt.Array] = {}
 
         def _record_leaf_ary_in_dict(
-                key: Tuple[Any, ...],
-                ary: Union[cla.Array, TaggableCLArray, pt.Array]) -> None:
+                key: tuple[Any, ...],
+                ary: cla.Array | TaggableCLArray | pt.Array) -> None:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             array_as_dict[key_str] = ary
 
@@ -486,6 +495,16 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
+        def _to_frozen(key: tuple[Any, ...], ary) -> TaggableCLArray:
+            key_str = "_ary" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        if not key_to_pt_arrays:
+            # all cl arrays => no need to perform any codegen
+            return with_array_context(
+                    rec_keyed_map_array_container(_to_frozen, array),
+                    actx=None)
+
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 key_to_pt_arrays)
         normalized_expr, bound_arguments = _normalize_pt_expr(
@@ -517,12 +536,17 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                         transformed_dag, function_name)
 
             from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
+            opts = _DEFAULT_LOOPY_OPTIONS
+            assert opts.return_dict
+
             pt_prg = pt.generate_loopy(transformed_dag,
-                                       options=_DEFAULT_LOOPY_OPTIONS,
+                                       options=opts,
                                        cl_device=self.queue.device,
                                        function_name=function_name,
-                                       target=self.get_target())
-            pt_prg = pt_prg.with_transformed_program(self.transform_loopy_program)
+                                       target=self.get_target()
+                                       ).bind_to_context(self.context)
+            pt_prg = pt_prg.with_transformed_translation_unit(
+                    self.transform_loopy_program)
             self._freeze_prg_cache[normalized_expr] = pt_prg
         else:
             transformed_dag, function_name = (
@@ -543,10 +567,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     tags=transformed_dag[k].expr.tags)
                for k, v in out_dict.items()}
         }
-
-        def _to_frozen(key: Tuple[Any, ...], ary) -> TaggableCLArray:
-            key_str = "_ary" + _ary_container_key_stringifier(key)
-            return key_to_frozen_subary[key_str]
 
         return with_array_context(
                 rec_keyed_map_array_container(_to_frozen, array),
@@ -597,7 +617,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         processed_kwargs = {}
 
         for kw, arg in sorted(kwargs.items()):
-            if isinstance(arg, (pt.Array,) + SCALAR_CLASSES):
+            if isinstance(arg, (pt.Array, *SCALAR_CLASSES)):
                 pass
             elif isinstance(arg, TaggableCLArray):
                 arg = self.thaw(arg)
@@ -618,8 +638,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         return LazilyPyOpenCLCompilingFunctionCaller(self,
                                                      f, single_version_only)
 
-    def transform_dag(self, dag: "pytato.DictOfNamedArrays"
-                      ) -> "pytato.DictOfNamedArrays":
+    def transform_dag(self, dag: pytato.DictOfNamedArrays
+                      ) -> pytato.DictOfNamedArrays:
         import pytato as pt
         dag = pt.transform.materialize_with_mpms(dag)
         return dag
@@ -664,7 +684,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         return pt.einsum(spec, *[
             preprocess_arg(name, arg)
-            for name, arg in zip(arg_names, args)
+            for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
 
     def clone(self):
@@ -685,8 +705,9 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     """
 
     def __init__(self,
-            *, compile_trace_callback: Optional[Callable[[Any, str, Any], None]]
-             = None) -> None:
+            *,
+            compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
+            ) -> None:
         """
         :arg compile_trace_callback: A function of three arguments
             *(what, stage, ir)*, where *what* identifies the object
@@ -696,20 +717,19 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             unstable.
         """
         import jax.numpy as jnp
-
         import pytato as pt
         super().__init__(compile_trace_callback=compile_trace_callback)
         self.array_types = (pt.Array, jnp.ndarray)
 
     @property
-    def _frozen_array_types(self) -> Tuple[Type, ...]:
+    def _frozen_array_types(self) -> tuple[type, ...]:
         import jax.numpy as jnp
         return (jnp.ndarray, )
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: Optional[Tuple[type, ...]] = None, *,
-            default_scalar: Optional[ScalarLike] = None,
+            allowed_types: tuple[type, ...] | None = None, *,
+            default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
         if allowed_types is None:
             allowed_types = self.array_types
@@ -732,17 +752,8 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
     # {{{ ArrayContext interface
 
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
-
     def from_numpy(self, array):
         import jax
-
         import pytato as pt
 
         def _from_numpy(ary):
@@ -767,18 +778,17 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             return array
 
         import jax.numpy as jnp
-
         import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
         from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
 
-        array_as_dict: Dict[str, Union[jnp.ndarray, pt.Array]] = {}
-        key_to_frozen_subary: Dict[str, jnp.ndarray] = {}
-        key_to_pt_arrays: Dict[str, pt.Array] = {}
+        array_as_dict: dict[str, jnp.ndarray | pt.Array] = {}
+        key_to_frozen_subary: dict[str, jnp.ndarray] = {}
+        key_to_pt_arrays: dict[str, pt.Array] = {}
 
-        def _record_leaf_ary_in_dict(key: Tuple[Any, ...],
-                                     ary: Union[jnp.ndarray, pt.Array]) -> None:
+        def _record_leaf_ary_in_dict(key: tuple[Any, ...],
+                                     ary: jnp.ndarray | pt.Array) -> None:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             array_as_dict[key_str] = ary
 
@@ -802,6 +812,16 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
+        def _to_frozen(key: tuple[Any, ...], ary) -> jnp.ndarray:
+            key_str = "_ary" + _ary_container_key_stringifier(key)
+            return key_to_frozen_subary[key_str]
+
+        if not key_to_pt_arrays:
+            # all cl arrays => no need to perform any codegen
+            return with_array_context(
+                    rec_keyed_map_array_container(_to_frozen, array),
+                    actx=None)
+
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(key_to_pt_arrays)
         transformed_dag = self.transform_dag(pt_dict_of_named_arrays)
         pt_prg = pt.generate_jax(transformed_dag, jit=True)
@@ -813,10 +833,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             **{k: v.block_until_ready()
                for k, v in out_dict.items()}
         }
-
-        def _to_frozen(key: Tuple[Any, ...], ary) -> jnp.ndarray:
-            key_str = "_ary" + _ary_container_key_stringifier(key)
-            return key_to_frozen_subary[key_str]
 
         return with_array_context(
             rec_keyed_map_array_container(_to_frozen, array),
@@ -898,7 +914,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         return pt.einsum(spec, *[
             preprocess_arg(name, arg)
-            for name, arg in zip(arg_names, args)
+            for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
 
     def clone(self):

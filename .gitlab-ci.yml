@@ -1,6 +1,6 @@
 Python 3 POCL:
   script: |
-    export PYOPENCL_TEST=portable:pthread
+    export PYOPENCL_TEST=portable:cpu
     export EXTRA_INSTALL="jax[cpu]"
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
     . ./build-and-test-py-project.sh
@@ -52,7 +52,7 @@ Python 3 POCL Nvidia Titan V:
 Python 3 POCL Examples:
   script:
   - test -n "$SKIP_EXAMPLES" && exit
-  - export PYOPENCL_TEST=portable:pthread
+  - export PYOPENCL_TEST=portable:cpu
   - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
   - ". ./build-py-project-and-run-examples.sh"
   tags:
@@ -64,6 +64,8 @@ Python 3 POCL Examples:
 
 Python 3 Conda:
   script: |
+    export PYOPENCL_TEST=portable:cpu
+
     # Avoid crashes like https://gitlab.tiker.net/inducer/arraycontext/-/jobs/536021
     sed -i 's/jax/jax !=0.4.6/' .test-conda-env-py3.yml
 
@@ -84,12 +86,12 @@ Documentation:
   tags:
   - python3
 
-Flake8:
+Ruff:
   script:
-  - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/prepare-and-run-flake8.sh
-  - . ./prepare-and-run-flake8.sh "$CI_PROJECT_NAME" test examples
+  - pipx install ruff
+  - ruff check
   tags:
-  - python3
+  - docker-runner
   except:
   - tags
 
@@ -105,11 +107,12 @@ Pylint:
 
 Mypy:
   script: |
-    EXTRA_INSTALL="jax[cpu]"
+    EXTRA_INSTALL="mypy pytest"
+
     curl -L -O https://tiker.net/ci-support-v0
     . ./ci-support-v0
+
     build_py_project_in_venv
-    python -m pip install mypy pytest
     ./run-mypy.sh
   tags:
   - python3

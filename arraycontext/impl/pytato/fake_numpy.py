@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
+from typing import Any, cast
 
 import numpy as np
 
@@ -29,8 +30,11 @@ import pytato as pt
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-    rec_map_array_container, rec_map_reduce_array_container,
-    rec_multimap_array_container)
+    rec_map_array_container,
+    rec_map_reduce_array_container,
+    rec_multimap_array_container,
+)
+from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
@@ -50,19 +54,29 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         :ref:`Pytato docs <pytato:memory-layout>` for more on this.
     """
 
-    _pt_funcs = frozenset({
+    _pt_unary_funcs = frozenset({
         "sin", "cos", "tan", "arcsin", "arccos", "arctan",
         "sinh", "cosh", "tanh", "exp", "log", "log10",
-        "sqrt", "abs", "isnan"
+        "sqrt", "abs", "isnan", "real", "imag", "conj",
+        "logical_not",
         })
+
+    _pt_multi_ary_funcs = frozenset({
+        "arctan2", "equal", "greater", "greater_equal", "less", "less_equal",
+        "not_equal", "minimum", "maximum", "where", "logical_and", "logical_or",
+    })
 
     def _get_fake_numpy_linalg_namespace(self):
         return PytatoFakeNumpyLinalgNamespace(self._array_context)
 
     def __getattr__(self, name):
-        if name in self._pt_funcs:
+        if name in self._pt_unary_funcs:
             from functools import partial
             return partial(rec_map_array_container, getattr(pt, name))
+
+        if name in self._pt_multi_ary_funcs:
+            from functools import partial
+            return partial(rec_multimap_array_container, getattr(pt, name))
 
         return super().__getattr__(name)
 
@@ -71,9 +85,13 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ array creation routines
 
+    def zeros(self, shape, dtype):
+        return pt.zeros(shape, dtype)
+
     def zeros_like(self, ary):
         def _zeros_like(array):
-            return self._array_context.zeros(array.shape, array.dtype)
+            return self._array_context.zeros(
+                array.shape, array.dtype).copy(axes=array.axes, tags=array.tags)
 
         return self._array_context._rec_map_container(
             _zeros_like, ary, default_scalar=0)
@@ -83,10 +101,17 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def full_like(self, ary, fill_value):
         def _full_like(subary):
-            return pt.full(subary.shape, fill_value, subary.dtype)
+            return pt.full(subary.shape, fill_value, subary.dtype).copy(
+                axes=subary.axes, tags=subary.tags)
 
         return self._array_context._rec_map_container(
             _full_like, ary, default_scalar=fill_value)
+
+    def arange(self, *args: Any, **kwargs: Any):
+        return pt.arange(*args, **kwargs)
+
+    def full(self, shape, fill_value, dtype=None):
+        return pt.full(shape, fill_value, dtype)
 
     # }}}
 
@@ -147,56 +172,45 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 partial(reduce, pt.logical_or),
                 lambda subary: pt.any(subary), a)
 
-    def array_equal(self, a, b):
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
         actx = self._array_context
 
         # NOTE: not all backends support `bool` properly, so use `int8` instead
-        true = actx.from_numpy(np.int8(True))
-        false = actx.from_numpy(np.int8(False))
+        true_ary = actx.from_numpy(np.int8(True))
+        false_ary = actx.from_numpy(np.int8(False))
 
-        def rec_equal(x, y):
-            if type(x) != type(y):
-                return false
+        def rec_equal(x: ArrayOrContainer, y: ArrayOrContainer) -> pt.Array:
+            if type(x) is not type(y):
+                return false_ary
 
             try:
-                iterable = zip(serialize_container(x), serialize_container(y))
+                serialized_x = serialize_container(x)
+                serialized_y = serialize_container(y)
             except NotAnArrayContainerError:
+                assert isinstance(x, pt.Array)
+                assert isinstance(y, pt.Array)
+
                 if x.shape != y.shape:
-                    return false
+                    return false_ary
                 else:
-                    return pt.all(pt.equal(x, y))
+                    return pt.all(cast(pt.Array, pt.equal(x, y)))
             else:
+                if len(serialized_x) != len(serialized_y):
+                    return false_ary
+
                 return reduce(
                         pt.logical_and,
-                        [rec_equal(ix, iy) for (_, ix), (_, iy) in iterable],
-                        true)
+                        [(true_ary if kx_i == ky_i else false_ary)
+                            and rec_equal(x_i, y_i)
+                            for (kx_i, x_i), (ky_i, y_i)
+                            in zip(serialized_x, serialized_y, strict=True)],
+                        true_ary)
 
-        return rec_equal(a, b)
-
-    def greater(self, x, y):
-        return rec_multimap_array_container(pt.greater, x, y)
-
-    def greater_equal(self, x, y):
-        return rec_multimap_array_container(pt.greater_equal, x, y)
-
-    def less(self, x, y):
-        return rec_multimap_array_container(pt.less, x, y)
-
-    def less_equal(self, x, y):
-        return rec_multimap_array_container(pt.less_equal, x, y)
-
-    def equal(self, x, y):
-        return rec_multimap_array_container(pt.equal, x, y)
-
-    def not_equal(self, x, y):
-        return rec_multimap_array_container(pt.not_equal, x, y)
+        return cast(Array, rec_equal(a, b))
 
     # }}}
 
     # {{{ mathematical functions
-
-    def arctan2(self, y, x):
-        return rec_multimap_array_container(pt.arctan2, y, x)
 
     def sum(self, a, axis=None, dtype=None):
         def _pt_sum(ary):
@@ -207,20 +221,11 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
 
-    def conj(self, x):
-        return rec_multimap_array_container(pt.conj, x)
-
-    def maximum(self, x, y):
-        return rec_multimap_array_container(pt.maximum, x, y)
-
     def amax(self, a, axis=None):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.maximum), partial(pt.amax, axis=axis), a)
 
     max = amax
-
-    def minimum(self, x, y):
-        return rec_multimap_array_container(pt.minimum, x, y)
 
     def amin(self, a, axis=None):
         return rec_map_reduce_array_container(
@@ -230,12 +235,5 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def absolute(self, a):
         return self.abs(a)
-
-    # }}}
-
-    # {{{ sorting, searching, and counting
-
-    def where(self, criterion, then, else_):
-        return rec_multimap_array_container(pt.where, criterion, then, else_)
 
     # }}}

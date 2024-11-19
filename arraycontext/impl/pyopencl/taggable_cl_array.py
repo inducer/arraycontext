@@ -6,7 +6,7 @@
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, FrozenSet, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -20,21 +20,22 @@ from pytools.tag import Tag, Taggable, ToTagSetConvertible
 @dataclass(frozen=True, eq=True)
 class Axis(Taggable):
     """
-    Records the tags corresponding to a dimensions of :class:`TaggableCLArray`.
+    Records the tags corresponding to a dimension of :class:`TaggableCLArray`.
     """
-    tags: FrozenSet[Tag]
 
-    def _with_new_tags(self, tags: FrozenSet[Tag]) -> "Axis":
+    tags: frozenset[Tag]
+
+    def _with_new_tags(self, tags: frozenset[Tag]) -> "Axis":
         from dataclasses import replace
         return replace(self, tags=tags)
 
 
 @memoize
-def _construct_untagged_axes(ndim: int) -> Tuple[Axis, ...]:
+def _construct_untagged_axes(ndim: int) -> tuple[Axis, ...]:
     return tuple(Axis(frozenset()) for _ in range(ndim))
 
 
-def _unwrap_cl_array(ary: cla.Array) -> Dict[str, Any]:
+def _unwrap_cl_array(ary: cla.Array) -> dict[str, Any]:
     return {
         "shape": ary.shape,
         "dtype": ary.dtype,
@@ -99,12 +100,16 @@ class TaggableCLArray(cla.Array, Taggable):
         self.tags = tags
         self.axes = axes
 
+    def __repr__(self) -> str:
+        return (f"{type(self).__name__}(shape={self.shape}, dtype={self.dtype}, "
+                f"tags={self.tags}, axes={self.axes})")
+
     def copy(self, queue=cla._copy_queue):
         ary = super().copy(queue=queue)
         return type(self)(None, tags=self.tags, axes=self.axes,
                           **_unwrap_cl_array(ary))
 
-    def _with_new_tags(self, tags: FrozenSet[Tag]) -> "TaggableCLArray":
+    def _with_new_tags(self, tags: frozenset[Tag]) -> "TaggableCLArray":
         return type(self)(None, tags=tags, axes=self.axes,
                           **_unwrap_cl_array(self))
 
@@ -122,8 +127,8 @@ class TaggableCLArray(cla.Array, Taggable):
 
 
 def to_tagged_cl_array(ary: cla.Array,
-                       axes: Optional[Tuple[Axis, ...]] = None,
-                       tags: FrozenSet[Tag] = frozenset()) -> TaggableCLArray:
+                       axes: tuple[Axis, ...] | None = None,
+                       tags: frozenset[Tag] = frozenset()) -> TaggableCLArray:
     """
     Returns a :class:`TaggableCLArray` that is constructed from the data in
     *ary* along with the metadata from *axes* and *tags*. If *ary* is already a
@@ -162,8 +167,8 @@ def to_tagged_cl_array(ary: cla.Array,
 # {{{ creation
 
 def empty(queue, shape, dtype=float, *,
-        axes: Optional[Tuple[Axis, ...]] = None,
-        tags: FrozenSet[Tag] = frozenset(),
+        axes: tuple[Axis, ...] | None = None,
+        tags: frozenset[Tag] = frozenset(),
         order: str = "C",
         allocator=None) -> TaggableCLArray:
     if dtype is not None:
@@ -176,8 +181,8 @@ def empty(queue, shape, dtype=float, *,
 
 
 def zeros(queue, shape, dtype=float, *,
-        axes: Optional[Tuple[Axis, ...]] = None,
-        tags: FrozenSet[Tag] = frozenset(),
+        axes: tuple[Axis, ...] | None = None,
+        tags: frozenset[Tag] = frozenset(),
         order: str = "C",
         allocator=None) -> TaggableCLArray:
     result = empty(
@@ -189,8 +194,8 @@ def zeros(queue, shape, dtype=float, *,
 
 
 def to_device(queue, ary, *,
-        axes: Optional[Tuple[Axis, ...]] = None,
-        tags: FrozenSet[Tag] = frozenset(),
+        axes: tuple[Axis, ...] | None = None,
+        tags: frozenset[Tag] = frozenset(),
         allocator=None):
     return to_tagged_cl_array(
         cla.to_device(queue, ary, allocator=allocator),

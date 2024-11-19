@@ -33,9 +33,14 @@ import numpy as np
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-    rec_map_array_container, rec_map_reduce_array_container,
-    rec_multimap_array_container, rec_multimap_reduce_array_container)
+    rec_map_array_container,
+    rec_map_reduce_array_container,
+    rec_multimap_array_container,
+    rec_multimap_reduce_array_container,
+)
+from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
+from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 
@@ -56,6 +61,11 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # NOTE: when adding a function here, also add it to `array_context.rst` docs!
 
     # {{{ array creation routines
+
+    def zeros(self, shape, dtype) -> TaggableCLArray:
+        import arraycontext.impl.pyopencl.taggable_cl_array as tga
+        return tga.zeros(self._array_context.queue, shape, dtype,
+                         allocator=self._array_context.allocator)
 
     def empty_like(self, ary):
         from warnings import warn
@@ -107,6 +117,9 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return self._array_context._rec_map_container(_copy, ary)
 
+    def arange(self, *args, **kwargs):
+        return cl_array.arange(self._array_context.queue, *args, **kwargs)
+
     # }}}
 
     # {{{ array manipulation routines
@@ -156,14 +169,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # {{{ linear algebra
 
     def vdot(self, x, y, dtype=None):
-        result = rec_multimap_reduce_array_container(
+        return rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
                 x, y)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     # }}}
 
@@ -177,14 +186,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(all([ary]))
             return ary.all(queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _all,
                 a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     def any(self, a):
         queue = self._array_context.queue
@@ -194,45 +199,47 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(any([ary]))
             return ary.any(queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _any,
                 a)
 
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
-
-    def array_equal(self, a, b):
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
         actx = self._array_context
         queue = actx.queue
 
         # NOTE: pyopencl doesn't like `bool` much, so use `int8` instead
-        true = actx.from_numpy(np.int8(True))
-        false = actx.from_numpy(np.int8(False))
+        true_ary = actx.from_numpy(np.int8(True))
+        false_ary = actx.from_numpy(np.int8(False))
 
-        def rec_equal(x, y):
-            if type(x) != type(y):
-                return false
+        def rec_equal(x: ArrayOrContainer, y: ArrayOrContainer) -> cl_array.Array:
+            if type(x) is not type(y):
+                return false_ary
 
             try:
-                iterable = zip(serialize_container(x), serialize_container(y))
+                serialized_x = serialize_container(x)
+                serialized_y = serialize_container(y)
             except NotAnArrayContainerError:
+                assert isinstance(x, cl_array.Array)
+                assert isinstance(y, cl_array.Array)
+
                 if x.shape != y.shape:
-                    return false
+                    return false_ary
                 else:
                     return (x == y).all()
             else:
+                if len(serialized_x) != len(serialized_y):
+                    return false_ary
+
                 return reduce(
                         partial(cl_array.minimum, queue=queue),
-                        [rec_equal(ix, iy)for (_, ix), (_, iy) in iterable],
-                        true)
+                        [(true_ary if kx_i == ky_i else false_ary)
+                            and rec_equal(x_i, y_i)
+                            for (kx_i, x_i), (ky_i, y_i)
+                            in zip(serialized_x, serialized_y, strict=True)],
+                        true_ary)
 
-        result = rec_equal(a, b)
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-
-        return result
+        return rec_equal(a, b)
 
     # FIXME: This should be documentation, not a comment.
     # These are here mainly because some arrays may choose to interpret
@@ -259,6 +266,15 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def not_equal(self, x, y):
         return rec_multimap_array_container(operator.ne, x, y)
 
+    def logical_or(self, x, y):
+        return rec_multimap_array_container(cl_array.logical_or, x, y)
+
+    def logical_and(self, x, y):
+        return rec_multimap_array_container(cl_array.logical_and, x, y)
+
+    def logical_not(self, x):
+        return rec_map_array_container(cl_array.logical_not, x)
+
     # }}}
 
     # {{{ mathematical functions
@@ -273,11 +289,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
             return cl_array.sum(ary, dtype=dtype, queue=self._array_context.queue)
 
-        result = rec_map_reduce_array_container(sum, _rec_sum, a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
+        return rec_map_reduce_array_container(sum, _rec_sum, a)
 
     def maximum(self, x, y):
         return rec_multimap_array_container(
@@ -295,14 +307,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 raise NotImplementedError(f"Max. over '{axis}' axes not supported.")
             return cl_array.max(ary, queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _rec_max,
                 a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     max = amax
 
@@ -322,14 +330,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 raise NotImplementedError(f"Min. over '{axis}' axes not supported.")
             return cl_array.min(ary, queue=queue)
 
-        result = rec_map_reduce_array_container(
+        return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _rec_min,
                 a)
-
-        if not self._array_context._force_device_scalars:
-            result = result.get()[()]
-        return result
 
     min = amin
 
@@ -342,7 +346,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     def where(self, criterion, then, else_):
         def where_inner(inner_crit, inner_then, inner_else):
-            if isinstance(inner_crit, bool):
+            if isinstance(inner_crit, bool | np.bool_):
                 return inner_then if inner_crit else inner_else
             return cl_array.if_positive(inner_crit != 0, inner_then, inner_else,
                     queue=self._array_context.queue)
@@ -350,7 +354,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_multimap_array_container(where_inner, criterion, then, else_)
 
     # }}}
-
 
 # }}}
 

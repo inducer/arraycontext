@@ -2,5 +2,9 @@ include doc/*.rst
 include doc/conf.py
 include doc/make.bat
 include doc/Makefile
+prune doc/_*
 
-include examples/*.py
+prune .github
+exclude .gitignore
+exclude .gitlab-ci.yml
+exclude .test-conda-env-py3.yml
