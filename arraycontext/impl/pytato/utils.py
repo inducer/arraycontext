@@ -160,7 +160,10 @@ class TransferFromNumpyMapper(CopyMapper):
 
         # https://github.com/pylint-dev/pylint/issues/3893
         # pylint: disable=unexpected-keyword-arg
-        return DataWrapper(
+        # type-ignore: discussed at
+        # https://github.com/inducer/arraycontext/pull/289#discussion_r1855523967
+        # possibly related: https://github.com/python/mypy/issues/17375
+        return DataWrapper(  # type: ignore[call-arg]
             data=new_dw.data,
             shape=expr.shape,
             axes=expr.axes,
@@ -190,7 +193,10 @@ class TransferToNumpyMapper(CopyMapper):
 
         # https://github.com/pylint-dev/pylint/issues/3893
         # pylint: disable=unexpected-keyword-arg
-        return DataWrapper(
+        # type-ignore: discussed at
+        # https://github.com/inducer/arraycontext/pull/289#discussion_r1855523967
+        # possibly related: https://github.com/python/mypy/issues/17375
+        return DataWrapper(  # type: ignore[call-arg]
             data=np_data,
             shape=expr.shape,
             axes=expr.axes,
