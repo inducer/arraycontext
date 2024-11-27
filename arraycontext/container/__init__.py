@@ -4,6 +4,7 @@
 .. currentmodule:: arraycontext
 
 .. autoclass:: ArrayContainer
+.. autoclass:: ArithArrayContainer
 .. class:: ArrayContainerT
 
     A type variable with a lower bound of :class:`ArrayContainer`.
@@ -87,8 +88,9 @@ from typing import TYPE_CHECKING, Protocol, TypeAlias, TypeVar
 # what 'np' is.
 import numpy
 import numpy as np
+from typing_extensions import Self
 
-from arraycontext.context import ArrayContext
+from arraycontext.context import ArrayContext, ArrayOrScalar
 
 
 if TYPE_CHECKING:
@@ -143,6 +145,29 @@ class ArrayContainer(Protocol):
     # This *is* used as a type annotation in dataclasses that are processed
     # by dataclass_array_container, where it's used to recognize attributes
     # that are container-typed.
+
+
+class ArithArrayContainer(ArrayContainer, Protocol):
+    """
+    A sub-protocol of :class:`ArrayContainer` that supports basic arithmetic.
+    """
+
+    # This is loose and permissive, assuming that any array can be added
+    # to any container. The alternative would be to plaster type-ignores
+    # on all those uses. Achieving typing precision on what broadcasting is
+    # allowable seems like a huge endeavor and is likely not feasible without
+    # a mypy plugin. Maybe some day? -AK, November 2024
+
+    def __neg__(self) -> Self: ...
+    def __abs__(self) -> Self: ...
+    def __add__(self, other: ArrayOrScalar | Self) -> Self: ...
+    def __radd__(self, other: ArrayOrScalar | Self) -> Self: ...
+    def __sub__(self, other: ArrayOrScalar | Self) -> Self: ...
+    def __rsub__(self, other: ArrayOrScalar | Self) -> Self: ...
+    def __mul__(self, other: ArrayOrScalar | Self) -> Self: ...
+    def __rmul__(self, other: ArrayOrScalar | Self) -> Self: ...
+    def __truediv__(self, other: ArrayOrScalar | Self) -> Self: ...
+    def __rtruediv__(self, other: ArrayOrScalar | Self) -> Self: ...
 
 
 ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)

@@ -87,36 +87,29 @@ Types and Type Variables for Arrays and Containers
 
 .. autoclass:: Array
 
-.. class:: ArrayT
+.. autodata:: ArrayT
 
     A type variable with a lower bound of :class:`Array`.
 
-.. class:: ScalarLike
+.. autodata:: ScalarLike
 
     A type annotation for scalar types commonly usable with arrays.
 
 See also :class:`ArrayContainer` and :class:`ArrayOrContainerT`.
 
-.. class:: ArrayOrContainer
+.. autodata:: ArrayOrContainer
 
-.. class:: ArrayOrContainerT
+.. autodata:: ArrayOrContainerT
 
     A type variable with a lower bound of :class:`ArrayOrContainer`.
 
-.. class:: ArrayOrContainerOrScalar
+.. autodata:: ArrayOrContainerOrScalar
 
-.. class:: ArrayOrContainerOrScalarT
+.. autodata:: ArrayOrContainerOrScalarT
 
     A type variable with a lower bound of :class:`ArrayOrContainerOrScalar`.
 
-Internal typing helpers (do not import)
----------------------------------------
-
 .. currentmodule:: arraycontext.context
-
-This is only here because the documentation tool wants it.
-
-.. class:: SelfType
 
 Canonical locations for type annotations
 ----------------------------------------
@@ -176,15 +169,10 @@ from pytools.tag import ToTagSetConvertible
 if TYPE_CHECKING:
     import loopy
 
-    from arraycontext.container import ArrayContainer
+    from arraycontext.container import ArithArrayContainer, ArrayContainer
 
 
 # {{{ typing
-
-ScalarLike = int | float | complex | np.generic
-
-SelfType = TypeVar("SelfType")
-
 
 class Array(Protocol):
     """A :class:`~typing.Protocol` for the array type supported by
@@ -236,16 +224,26 @@ class Array(Protocol):
 # deprecated, use ScalarLike instead
 ScalarLike: TypeAlias = int | float | complex | np.generic
 Scalar = ScalarLike
-
+ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
 ArrayT = TypeVar("ArrayT", bound=Array)
 ArrayOrScalar: TypeAlias = "Array | ScalarLike"
 ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
+ArrayOrArithContainer: TypeAlias = "Array | ArithArrayContainer"
 ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
+ArrayOrArithContainerT = TypeVar("ArrayOrArithContainerT", bound=ArrayOrArithContainer)
 ArrayOrContainerOrScalar: TypeAlias = "Array | ArrayContainer | ScalarLike"
+ArrayOrArithContainerOrScalar: TypeAlias = "Array | ArithArrayContainer | ScalarLike"
 ArrayOrContainerOrScalarT = TypeVar(
         "ArrayOrContainerOrScalarT",
         bound=ArrayOrContainerOrScalar)
+ArrayOrArithContainerOrScalarT = TypeVar(
+        "ArrayOrArithContainerOrScalarT",
+        bound=ArrayOrContainerOrScalar)
+
+
+ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | ScalarLike")
+
 
 NumpyOrContainerOrScalar = Union[np.ndarray, "ArrayContainer", ScalarLike]
 
@@ -494,7 +492,7 @@ class ArrayContext(ABC):
         return self.tag(tagged, out_ary)
 
     @abstractmethod
-    def clone(self: SelfType) -> SelfType:
+    def clone(self) -> Self:
         """If possible, return a version of *self* that is semantically
         equivalent (i.e. implements all array operations in the same way)
         but is a separate object. May return *self* if that is not possible.

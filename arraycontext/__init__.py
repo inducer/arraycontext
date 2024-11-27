@@ -30,6 +30,7 @@ THE SOFTWARE.
 """
 
 from .container import (
+    ArithArrayContainer,
     ArrayContainer,
     ArrayContainerT,
     NotAnArrayContainerError,
@@ -73,6 +74,10 @@ from .container.traversal import (
 from .context import (
     Array,
     ArrayContext,
+    ArrayOrArithContainer,
+    ArrayOrArithContainerOrScalar,
+    ArrayOrArithContainerOrScalarT,
+    ArrayOrArithContainerT,
     ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
@@ -96,10 +101,15 @@ from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 
 
 __all__ = (
+    "ArithArrayContainer",
     "Array",
     "ArrayContainer",
     "ArrayContainerT",
     "ArrayContext",
+    "ArrayOrArithContainer",
+    "ArrayOrArithContainerOrScalar",
+    "ArrayOrArithContainerOrScalarT",
+    "ArrayOrArithContainerT",
     "ArrayOrContainer",
     "ArrayOrContainerOrScalar",
     "ArrayOrContainerOrScalarT",
