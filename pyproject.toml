@@ -97,12 +97,16 @@ known-first-party = [
 ]
 known-local-folder = [
     "arraycontext",
+    "testlib",
 ]
 lines-after-imports = 2
 required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
 "doc/conf.py" = ["I002"]
+# To avoid a requirement of array container definitions being someplace importable
+# from @dataclass_array_container.
+"test/test_utils.py" = ["I002"]
 
 [tool.mypy]
 python_version = "3.10"
