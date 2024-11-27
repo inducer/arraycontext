@@ -156,7 +156,7 @@ THE SOFTWARE.
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, Union, overload
 from warnings import warn
 
 import numpy as np
@@ -320,6 +320,14 @@ class ArrayContext(ABC):
 
         return self.np.zeros(shape, dtype)
 
+    @overload
+    def from_numpy(self, array: np.ndarray) -> Array:
+        ...
+
+    @overload
+    def from_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
+
     @abstractmethod
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
@@ -332,6 +340,14 @@ class ArrayContext(ABC):
             to the context's array type leaving the container structure
             intact.
         """
+
+    @overload
+    def to_numpy(self, array: Array) -> np.ndarray:
+        ...
+
+    @overload
+    def to_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
 
     @abstractmethod
     def to_numpy(self,
