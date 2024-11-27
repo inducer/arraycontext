@@ -1,4 +1,6 @@
 """ PytatoArrayContext specific tests"""
+from __future__ import annotations
+
 
 __copyright__ = "Copyright (C) 2021 University of Illinois Board of Trustees"
 

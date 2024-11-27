@@ -4,6 +4,7 @@
 
 .. autofunction:: to_tagged_cl_array
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
@@ -25,7 +26,7 @@ class Axis(Taggable):
 
     tags: frozenset[Tag]
 
-    def _with_new_tags(self, tags: frozenset[Tag]) -> "Axis":
+    def _with_new_tags(self, tags: frozenset[Tag]) -> Axis:
         from dataclasses import replace
         return replace(self, tags=tags)
 
@@ -109,12 +110,12 @@ class TaggableCLArray(cla.Array, Taggable):
         return type(self)(None, tags=self.tags, axes=self.axes,
                           **_unwrap_cl_array(ary))
 
-    def _with_new_tags(self, tags: frozenset[Tag]) -> "TaggableCLArray":
+    def _with_new_tags(self, tags: frozenset[Tag]) -> TaggableCLArray:
         return type(self)(None, tags=tags, axes=self.axes,
                           **_unwrap_cl_array(self))
 
     def with_tagged_axis(self, iaxis: int,
-                         tags: ToTagSetConvertible) -> "TaggableCLArray":
+                         tags: ToTagSetConvertible) -> TaggableCLArray:
         """
         Returns a copy of *self* with *iaxis*-th axis tagged with *tags*.
         """

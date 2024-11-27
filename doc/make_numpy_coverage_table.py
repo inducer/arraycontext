@@ -13,6 +13,7 @@ Workflow:
 
     python make_numpy_support_table.py numpy_coverage.rst
 """
+from __future__ import annotations
 
 import pathlib
 

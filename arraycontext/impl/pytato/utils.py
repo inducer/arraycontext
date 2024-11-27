@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __doc__ = """
 .. autofunction:: transfer_from_numpy
 .. autofunction:: transfer_to_numpy
@@ -127,7 +130,7 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
         self.limit_arg_size_nbytes = limit_arg_size_nbytes
 
     @memoize_method
-    def get_loopy_target(self) -> "lp.PyOpenCLTarget":
+    def get_loopy_target(self) -> lp.PyOpenCLTarget:
         from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
 

@@ -134,6 +134,9 @@ Canonical locations for type annotations
     :canonical: arraycontext.ArrayOrContainerOrScalarT
 """
 
+from __future__ import annotations
+
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -160,7 +163,7 @@ THE SOFTWARE.
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, Union
 from warnings import warn
 
 import numpy as np
@@ -204,14 +207,14 @@ class Array(Protocol):
         ...
 
     @property
-    def dtype(self) -> "np.dtype[Any]":
+    def dtype(self) -> np.dtype[Any]:
         ...
 
     # Covering all the possible index variations is hard and (kind of) futile.
     # If you'd  like to see how, try changing the Any to
     # AxisIndex = slice | int | "Array"
     # Index = AxisIndex |tuple[AxisIndex]
-    def __getitem__(self, index: Any) -> "Array":
+    def __getitem__(self, index: Any) -> Array:
         ...
 
 
@@ -220,9 +223,10 @@ Scalar = ScalarLike
 
 
 ArrayT = TypeVar("ArrayT", bound=Array)
-ArrayOrContainer = Union[Array, "ArrayContainer"]
+ArrayOrScalar: TypeAlias = "Array | ScalarLike"
+ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
 ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
-ArrayOrContainerOrScalar = Union[Array, "ArrayContainer", ScalarLike]
+ArrayOrContainerOrScalar: TypeAlias = "Array | ArrayContainer | ScalarLike"
 ArrayOrContainerOrScalarT = TypeVar(
         "ArrayOrContainerOrScalarT",
         bound=ArrayOrContainerOrScalar)
@@ -295,7 +299,7 @@ class ArrayContext(ABC):
 
     def zeros(self,
               shape: int | tuple[int, ...],
-              dtype: "np.dtype[Any]") -> Array:
+              dtype: np.dtype[Any]) -> Array:
         warn(f"{type(self).__name__}.zeros is deprecated and will stop "
             "working in 2025. Use actx.np.zeros instead.",
             DeprecationWarning, stacklevel=2)
@@ -329,7 +333,7 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def call_loopy(self,
-                   t_unit: "loopy.TranslationUnit",
+                   t_unit: loopy.TranslationUnit,
                    **kwargs: Any) -> dict[str, Array]:
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.
@@ -414,7 +418,7 @@ class ArrayContext(ABC):
     @memoize_method
     def _get_einsum_prg(self,
                         spec: str, arg_names: tuple[str, ...],
-                        tagged: ToTagSetConvertible) -> "loopy.TranslationUnit":
+                        tagged: ToTagSetConvertible) -> loopy.TranslationUnit:
         import loopy as lp
         from loopy.version import MOST_RECENT_LANGUAGE_VERSION
 
