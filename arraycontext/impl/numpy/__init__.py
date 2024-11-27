@@ -1,13 +1,13 @@
-from __future__ import annotations
-
-
-__doc__ = """
+"""
 .. currentmodule:: arraycontext
 
 A :mod:`numpy`-based array context.
 
 .. autoclass:: NumpyArrayContext
 """
+
+from __future__ import annotations
+
 
 __copyright__ = """
 Copyright (C) 2021 University of Illinois Board of Trustees
@@ -33,7 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 
@@ -46,6 +46,7 @@ from arraycontext.context import (
     ArrayContext,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
+    ContainerOrScalarT,
     NumpyOrContainerOrScalar,
     UntransformedCodeWarning,
 )
@@ -84,10 +85,26 @@ class NumpyArrayContext(ArrayContext):
     def clone(self):
         return type(self)()
 
+    @overload
+    def from_numpy(self, array: np.ndarray) -> Array:
+        ...
+
+    @overload
+    def from_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
+
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
         return array
+
+    @overload
+    def to_numpy(self, array: Array) -> np.ndarray:
+        ...
+
+    @overload
+    def to_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
 
     def to_numpy(self,
                  array: ArrayOrContainerOrScalar
