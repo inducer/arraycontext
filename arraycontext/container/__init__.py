@@ -81,7 +81,7 @@ THE SOFTWARE.
 
 from collections.abc import Hashable, Sequence
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Protocol, TypeAlias, TypeVar
 
 # For use in singledispatch type annotations, because sphinx can't figure out
 # what 'np' is.
@@ -219,7 +219,7 @@ def is_array_container_type(cls: type) -> bool:
                 is not serialize_container.__wrapped__))  # type:ignore[attr-defined]
 
 
-def is_array_container(ary: Any) -> bool:
+def is_array_container(ary: object) -> bool:
     """
     :returns: *True* if the instance *ary* has a registered implementation of
         :func:`serialize_container`.
