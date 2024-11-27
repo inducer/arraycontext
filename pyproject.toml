@@ -78,8 +78,6 @@ extend-ignore = [
     "E221",  # multiple spaces before operator
     "E226",  # missing whitespace around arithmetic operator
     "E402",  # module-level import not at top of file
-    "UP006", # updated annotations due to __future__ import
-    "UP007", # updated annotations due to __future__ import
 ]
 
 [tool.ruff.lint.flake8-quotes]
@@ -101,6 +99,10 @@ known-local-folder = [
     "arraycontext",
 ]
 lines-after-imports = 2
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.per-file-ignores]
+"doc/conf.py" = ["I002"]
 
 [tool.mypy]
 python_version = "3.10"

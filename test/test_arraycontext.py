@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __copyright__ = "Copyright (C) 2020-21 University of Illinois Board of Trustees"
 
 __license__ = """
@@ -23,7 +26,6 @@ THE SOFTWARE.
 import logging
 from dataclasses import dataclass
 from functools import partial
-from typing import Union
 
 import numpy as np
 import pytest
@@ -216,9 +218,9 @@ def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type:
 @dataclass(frozen=True)
 class MyContainer:
     name: str
-    mass: Union[DOFArray, np.ndarray]
+    mass: DOFArray | np.ndarray
     momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
+    enthalpy: DOFArray | np.ndarray
 
     __array_ufunc__ = None
 
@@ -241,9 +243,9 @@ class MyContainer:
 @dataclass(frozen=True)
 class MyContainerDOFBcast:
     name: str
-    mass: Union[DOFArray, np.ndarray]
+    mass: DOFArray | np.ndarray
     momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
+    enthalpy: DOFArray | np.ndarray
 
     @property
     def array_context(self):

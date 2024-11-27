@@ -4,6 +4,7 @@
 .. currentmodule:: arraycontext
 .. autofunction:: dataclass_array_container
 """
+from __future__ import annotations
 
 
 __copyright__ = """

@@ -2,6 +2,7 @@
 An array context is an abstraction that helps you dispatch between multiple
 implementations of :mod:`numpy`-like :math:`n`-dimensional arrays.
 """
+from __future__ import annotations
 
 
 __copyright__ = """
