@@ -226,12 +226,25 @@ ScalarLike: TypeAlias = int | float | complex | np.generic
 Scalar = ScalarLike
 ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
+# NOTE: I'm kind of not sure about the *Tc versions of these type variables.
+# mypy seems better at understanding arithmetic performed on the *Tc versions
+# than the *T, versions, whereas pyright doesn't seem to care.
+#
+# This issue seems to be part of it:
+# https://github.com/python/mypy/issues/18203
+# but there is likely other stuff lurking.
+#
+# For now, they're purposefully not in the main arraycontext.* name space.
 ArrayT = TypeVar("ArrayT", bound=Array)
 ArrayOrScalar: TypeAlias = "Array | ScalarLike"
 ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
 ArrayOrArithContainer: TypeAlias = "Array | ArithArrayContainer"
 ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
+ArrayOrContainerTc = TypeVar("ArrayOrContainerTc",
+                            Array, "ArrayContainer", "ArithArrayContainer")
 ArrayOrArithContainerT = TypeVar("ArrayOrArithContainerT", bound=ArrayOrArithContainer)
+ArrayOrArithContainerTc = TypeVar("ArrayOrArithContainerTc",
+                                 Array, "ArithArrayContainer")
 ArrayOrContainerOrScalar: TypeAlias = "Array | ArrayContainer | ScalarLike"
 ArrayOrArithContainerOrScalar: TypeAlias = "Array | ArithArrayContainer | ScalarLike"
 ArrayOrContainerOrScalarT = TypeVar(
@@ -239,7 +252,13 @@ ArrayOrContainerOrScalarT = TypeVar(
         bound=ArrayOrContainerOrScalar)
 ArrayOrArithContainerOrScalarT = TypeVar(
         "ArrayOrArithContainerOrScalarT",
-        bound=ArrayOrContainerOrScalar)
+        bound=ArrayOrArithContainerOrScalar)
+ArrayOrContainerOrScalarTc = TypeVar(
+        "ArrayOrContainerOrScalarTc",
+        ScalarLike, Array, "ArrayContainer", "ArithArrayContainer")
+ArrayOrArithContainerOrScalarTc = TypeVar(
+        "ArrayOrArithContainerOrScalarTc",
+        ScalarLike, Array, "ArithArrayContainer")
 
 
 ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | ScalarLike")
