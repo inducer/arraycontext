@@ -1,7 +1,8 @@
 """Testing for internal  utilities."""
-from __future__ import annotations
 
-from typing import cast
+# Do not add
+# from __future__ import annotations
+# to allow the non-string annotations below to work.
 
 
 __copyright__ = "Copyright (C) 2021 University of Illinois Board of Trustees"
@@ -26,6 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 import logging
+from typing import Optional, cast
 
 import numpy as np
 import pytest
@@ -55,25 +57,13 @@ def test_dataclass_array_container() -> None:
 
     from arraycontext import Array, dataclass_array_container
 
-    # {{{ string fields
-
-    @dataclass
-    class ArrayContainerWithStringTypes:
-        x: np.ndarray
-        y: np.ndarray
-
-    with pytest.raises(TypeError, match="String annotation on field 'y'"):
-        # NOTE: cannot have string annotations in container
-        dataclass_array_container(ArrayContainerWithStringTypes)
-
-    # }}}
-
     # {{{ optional fields
 
     @dataclass
     class ArrayContainerWithOptional:
         x: np.ndarray
-        y: np.ndarray | None
+        # Deliberately left as Optional to test compatibility.
+        y: Optional[np.ndarray]  # noqa: UP007
 
     with pytest.raises(TypeError, match="Field 'y' union contains non-array"):
         # NOTE: cannot have wrapped annotations (here by `Optional`)

@@ -31,6 +31,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from collections.abc import Mapping, Sequence
 from dataclasses import Field, fields, is_dataclass
 from typing import Union, get_args, get_origin
 
@@ -58,13 +59,21 @@ def dataclass_array_container(cls: type) -> type:
     * a :class:`typing.Union` of array containers is considered an array container.
     * other type annotations, e.g. :class:`typing.Optional`, are not considered
       array containers, even if they wrap one.
+
+    .. note::
+
+        When type annotations are strings (e.g. because of
+        ``from __future__ import annotations``),
+        this function relies on :func:`inspect.get_annotations`
+        (with ``eval_str=True``) to obtain type annotations. This
+        means that *cls* must live in a module that is importable.
     """
 
     from types import GenericAlias, UnionType
 
     assert is_dataclass(cls)
 
-    def is_array_field(f: Field) -> bool:
+    def is_array_field(f: Field, field_type: type) -> bool:
         # NOTE: unions of array containers are treated separately to handle
         # unions of only array containers, e.g. `Union[np.ndarray, Array]`, as
         # they can work seamlessly with arithmetic and traversal.
@@ -77,17 +86,17 @@ def dataclass_array_container(cls: type) -> type:
         #
         # This is not set in stone, but mostly driven by current usage!
 
-        origin = get_origin(f.type)
+        origin = get_origin(field_type)
         # NOTE: `UnionType` is returned when using `Type1 | Type2`
         if origin in (Union, UnionType):
-            if all(is_array_type(arg) for arg in get_args(f.type)):
+            if all(is_array_type(arg) for arg in get_args(field_type)):
                 return True
             else:
                 raise TypeError(
                         f"Field '{f.name}' union contains non-array container "
                         "arguments. All arguments must be array containers.")
 
-        if isinstance(f.type, str):
+        if isinstance(field_type, str):
             raise TypeError(
                 f"String annotation on field '{f.name}' not supported. "
                 "(this may be due to 'from __future__ import annotations')")
@@ -105,33 +114,49 @@ def dataclass_array_container(cls: type) -> type:
                 _BaseGenericAlias,
                 _SpecialForm,
             )
-            if isinstance(f.type, GenericAlias | _BaseGenericAlias | _SpecialForm):
+            if isinstance(field_type, GenericAlias | _BaseGenericAlias | _SpecialForm):
                 # NOTE: anything except a Union is not allowed
                 raise TypeError(
                         f"Typing annotation not supported on field '{f.name}': "
-                        f"'{f.type!r}'")
+                        f"'{field_type!r}'")
 
-            if not isinstance(f.type, type):
+            if not isinstance(field_type, type):
                 raise TypeError(
                         f"Field '{f.name}' not an instance of 'type': "
-                        f"'{f.type!r}'")
+                        f"'{field_type!r}'")
 
-        return is_array_type(f.type)
+        return is_array_type(field_type)
 
-    from pytools import partition
-    array_fields, non_array_fields = partition(is_array_field, fields(cls))
+    from inspect import get_annotations
+
+    array_fields: list[Field] = []
+    non_array_fields: list[Field] = []
+    cls_ann: Mapping[str, type] | None = None
+    for field in fields(cls):
+        field_type_or_str = field.type
+        if isinstance(field_type_or_str, str):
+            if cls_ann is None:
+                cls_ann = get_annotations(cls, eval_str=True)
+            field_type = cls_ann[field.name]
+        else:
+            field_type = field_type_or_str
+
+        if is_array_field(field, field_type):
+            array_fields.append(field)
+        else:
+            non_array_fields.append(field)
 
     if not array_fields:
         raise ValueError(f"'{cls}' must have fields with array container type "
                 "in order to use the 'dataclass_array_container' decorator")
 
-    return inject_dataclass_serialization(cls, array_fields, non_array_fields)
+    return _inject_dataclass_serialization(cls, array_fields, non_array_fields)
 
 
-def inject_dataclass_serialization(
+def _inject_dataclass_serialization(
         cls: type,
-        array_fields: tuple[Field, ...],
-        non_array_fields: tuple[Field, ...]) -> type:
+        array_fields: Sequence[Field],
+        non_array_fields: Sequence[Field]) -> type:
     """Implements :func:`~arraycontext.serialize_container` and
     :func:`~arraycontext.deserialize_container` for the given dataclass *cls*.
 
