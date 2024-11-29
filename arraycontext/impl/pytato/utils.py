@@ -158,13 +158,13 @@ class TransferFromNumpyMapper(CopyMapper):
         # Ideally, this code should just do
         # return self.actx.from_numpy(expr.data).tagged(expr.tags),
         # but there seems to be no way to transfer the non_equality_tags in that case.
-        new_dw = self.actx.from_numpy(expr.data)
-        assert isinstance(new_dw, DataWrapper)
+        actx_ary = self.actx.from_numpy(expr.data)
+        assert isinstance(actx_ary, DataWrapper)
 
         # https://github.com/pylint-dev/pylint/issues/3893
         # pylint: disable=unexpected-keyword-arg
         return DataWrapper(
-            data=new_dw.data,
+            data=actx_ary.data,
             shape=expr.shape,
             axes=expr.axes,
             tags=expr.tags,
