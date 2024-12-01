@@ -101,13 +101,25 @@ See also :class:`ArrayContainer` and :class:`ArrayOrContainerT`.
 
 .. autodata:: ArrayOrContainerT
 
-    A type variable with a lower bound of :class:`ArrayOrContainer`.
+    A type variable with a bound of :class:`ArrayOrContainer`.
+
+.. autodata:: ArrayOrArithContainer
+
+.. autodata:: ArrayOrArithContainerT
+
+    A type variable with a bound of :class:`ArrayOrArithContainer`.
+
+.. autodata:: ArrayOrArithContainerOrScalar
+
+.. autodata:: ArrayOrArithContainerOrScalarT
+
+    A type variable with a bound of :class:`ArrayOrContainerOrScalar`.
 
 .. autodata:: ArrayOrContainerOrScalar
 
 .. autodata:: ArrayOrContainerOrScalarT
 
-    A type variable with a lower bound of :class:`ArrayOrContainerOrScalar`.
+    A type variable with a bound of :class:`ArrayOrContainerOrScalar`.
 
 .. currentmodule:: arraycontext.context
 
