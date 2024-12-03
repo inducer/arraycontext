@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __doc__ = """
 .. autofunction:: transfer_from_numpy
 .. autofunction:: transfer_to_numpy
@@ -127,7 +130,7 @@ class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
         self.limit_arg_size_nbytes = limit_arg_size_nbytes
 
     @memoize_method
-    def get_loopy_target(self) -> "lp.PyOpenCLTarget":
+    def get_loopy_target(self) -> lp.PyOpenCLTarget:
         from loopy import PyOpenCLTarget
         return PyOpenCLTarget(limit_arg_size_nbytes=self.limit_arg_size_nbytes)
 
@@ -155,13 +158,13 @@ class TransferFromNumpyMapper(CopyMapper):
         # Ideally, this code should just do
         # return self.actx.from_numpy(expr.data).tagged(expr.tags),
         # but there seems to be no way to transfer the non_equality_tags in that case.
-        new_dw = self.actx.from_numpy(expr.data)
-        assert isinstance(new_dw, DataWrapper)
+        actx_ary = self.actx.from_numpy(expr.data)
+        assert isinstance(actx_ary, DataWrapper)
 
         # https://github.com/pylint-dev/pylint/issues/3893
         # pylint: disable=unexpected-keyword-arg
         return DataWrapper(
-            data=new_dw.data,
+            data=actx_ary.data,
             shape=expr.shape,
             axes=expr.axes,
             tags=expr.tags,
@@ -190,7 +193,10 @@ class TransferToNumpyMapper(CopyMapper):
 
         # https://github.com/pylint-dev/pylint/issues/3893
         # pylint: disable=unexpected-keyword-arg
-        return DataWrapper(
+        # type-ignore: discussed at
+        # https://github.com/inducer/arraycontext/pull/289#discussion_r1855523967
+        # possibly related: https://github.com/python/mypy/issues/17375
+        return DataWrapper(  # type: ignore[call-arg]
             data=np_data,
             shape=expr.shape,
             axes=expr.axes,

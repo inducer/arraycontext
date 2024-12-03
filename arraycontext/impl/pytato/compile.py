@@ -5,6 +5,9 @@
 .. autoclass:: CompiledFunction
 .. autoclass:: FromArrayContextCompile
 """
+from __future__ import annotations
+
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -261,7 +264,7 @@ class BaseLazilyCompilingFunctionCaller:
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
     program_cache: dict[Mapping[tuple[Hashable, ...], AbstractInputDescriptor],
-                        "CompiledFunction"] = field(default_factory=lambda: {})
+                        CompiledFunction] = field(default_factory=lambda: {})
 
     # {{{ abstract interface
 
@@ -270,11 +273,11 @@ class BaseLazilyCompilingFunctionCaller:
 
     @property
     def compiled_function_returning_array_container_class(
-            self) -> type["CompiledFunction"]:
+            self) -> type[CompiledFunction]:
         raise NotImplementedError
 
     @property
-    def compiled_function_returning_array_class(self) -> type["CompiledFunction"]:
+    def compiled_function_returning_array_class(self) -> type[CompiledFunction]:
         raise NotImplementedError
 
     # }}}
@@ -383,11 +386,11 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
 
     @property
     def compiled_function_returning_array_container_class(
-            self) -> type["CompiledFunction"]:
+            self) -> type[CompiledFunction]:
         return CompiledPyOpenCLFunctionReturningArrayContainer
 
     @property
-    def compiled_function_returning_array_class(self) -> type["CompiledFunction"]:
+    def compiled_function_returning_array_class(self) -> type[CompiledFunction]:
         return CompiledPyOpenCLFunctionReturningArray
 
     def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays, *, prg_id=None):
@@ -482,11 +485,11 @@ class LazilyCompilingFunctionCaller(LazilyPyOpenCLCompilingFunctionCaller):
 class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
     @property
     def compiled_function_returning_array_container_class(
-            self) -> type["CompiledFunction"]:
+            self) -> type[CompiledFunction]:
         return CompiledJAXFunctionReturningArrayContainer
 
     @property
-    def compiled_function_returning_array_class(self) -> type["CompiledFunction"]:
+    def compiled_function_returning_array_class(self) -> type[CompiledFunction]:
         return CompiledJAXFunctionReturningArray
 
     def _dag_to_transformed_pytato_prg(self, dict_of_named_arrays, *, prg_id=None):

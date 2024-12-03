@@ -38,3 +38,8 @@ import sys
 
 
 sys._BUILDING_SPHINX_DOCS = True
+
+
+nitpick_ignore_regex = [
+    ["py:class", r"arraycontext\.context\.ContainerOrScalarT"],
+    ]
