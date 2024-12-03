@@ -13,6 +13,12 @@ Array context based on :mod:`numpy`
 
 .. automodule:: arraycontext.impl.numpy
 
+
+Array context based on :mod:`cupy`
+--------------------------------------------
+
+.. automodule:: arraycontext.impl.cupy
+
 Array context based on :mod:`pyopencl.array`
 --------------------------------------------
 

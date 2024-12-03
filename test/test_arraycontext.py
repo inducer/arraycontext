@@ -34,6 +34,7 @@ from pytools.obj_array import make_obj_array
 from pytools.tag import Tag
 
 from arraycontext import (
+    CupyArrayContext,
     EagerJAXArrayContext,
     NumpyArrayContext,
     PyOpenCLArrayContext,
@@ -45,6 +46,7 @@ from arraycontext import (
     with_container_arithmetic,
 )
 from arraycontext.pytest import (
+    _PytestCupyArrayContextFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestNumpyArrayContextFactory,
     _PytestPyOpenCLArrayContextFactoryWithClass,
@@ -99,6 +101,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestCupyArrayContextFactory,
     _PytestNumpyArrayContextFactory,
     ])
 
@@ -1015,6 +1018,9 @@ def test_flatten_with_leaf_class(actx_factory):
 
 def test_numpy_conversion(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("Irrelevant tests for CupyArrayContext. "
+                    "Also, CupyArrayContext does not support object arrays.")
     rng = np.random.default_rng()
 
     nelements = 42
@@ -1092,6 +1098,9 @@ def scale_and_orthogonalize(alpha, vel):
 
 def test_actx_compile(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
+
     rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1110,6 +1119,9 @@ def test_actx_compile(actx_factory):
 
 def test_actx_compile_python_scalar(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
+
     rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1128,6 +1140,9 @@ def test_actx_compile_python_scalar(actx_factory):
 
 def test_actx_compile_kwargs(actx_factory):
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
+
     rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1149,6 +1164,9 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     # key stringification logic.
     from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
+    if isinstance(actx, CupyArrayContext):
+        pytest.skip("CupyArrayContext does not support object arrays")
+
     rng = np.random.default_rng()
 
     def my_rhs(scale, vel):
@@ -1386,7 +1404,7 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
 def test_tagging(actx_factory):
     actx = actx_factory()
 
-    if isinstance(actx, NumpyArrayContext | EagerJAXArrayContext):
+    if isinstance(actx, NumpyArrayContext | EagerJAXArrayContext | CupyArrayContext):
         pytest.skip(f"{type(actx)} has no tagging support")
 
     from pytools.tag import Tag
@@ -1434,6 +1452,9 @@ def test_linspace(actx_factory, args, kwargs):
         pytest.xfail("jax actx does not have arange")
 
     actx = actx_factory()
+
+    if isinstance(actx, CupyArrayContext) and kwargs.get("dtype") == np.complex128:
+        pytest.skip("CupyArrayContext does not support complex args to linspace")
 
     actx_linspace = actx.to_numpy(actx.np.linspace(*args, **kwargs))
     np_linspace = np.linspace(*args, **kwargs)

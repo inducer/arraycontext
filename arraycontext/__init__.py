@@ -87,6 +87,7 @@ from .context import (
     ScalarLike,
     tag_axes,
 )
+from .impl.cupy import CupyArrayContext
 from .impl.jax import EagerJAXArrayContext
 from .impl.numpy import NumpyArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
@@ -116,6 +117,7 @@ __all__ = (
     "ArrayOrContainerT",
     "ArrayT",
     "CommonSubexpressionTag",
+    "CupyArrayContext",
     "EagerJAXArrayContext",
     "ElementwiseMapKernelTag",
     "NotAnArrayContainerError",
