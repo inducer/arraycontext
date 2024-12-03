@@ -56,6 +56,9 @@ jobs:
                 curl -L -O https://tiker.net/ci-support-v0
                 . ./ci-support-v0
 
+                CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+                echo "- cupy" >> "$CONDA_ENVIRONMENT"
+
                 build_py_project_in_conda_env
                 python -m pip install mypy pytest
                 ./run-mypy.sh

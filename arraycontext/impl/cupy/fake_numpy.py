@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __copyright__ = """
 Copyright (C) 2024 University of Illinois Board of Trustees
 """
@@ -164,7 +167,7 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                     [(true_ary if kx_i == ky_i else false_ary)
                         and self.array_equal(x_i, y_i)
                         for (kx_i, x_i), (ky_i, y_i)
-                        in zip(serialized_x, serialized_y)],
+                        in zip(serialized_x, serialized_y, strict=True)],
                     true_ary)
 
     def arange(self, *args, **kwargs):
@@ -176,14 +179,14 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return cp.linspace(*args, **kwargs)
 
     def zeros_like(self, ary):
-        if isinstance(ary, (int, float, complex)):
+        if isinstance(ary, int | float | complex):
             import cupy as cp
             # Cupy does not support zeros_like with scalar arguments
             ary = cp.array(ary)
         return rec_map_array_container(cp.zeros_like, ary)
 
     def ones_like(self, ary):
-        if isinstance(ary, (int, float, complex)):
+        if isinstance(ary, int | float | complex):
             import cupy as cp
             # Cupy does not support ones_like with scalar arguments
             ary = cp.array(ary)

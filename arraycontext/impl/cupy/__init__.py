@@ -33,7 +33,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any
+from typing import Any, overload
+
+import numpy as np
 
 import loopy as lp
 from pytools.tag import ToTagSetConvertible
@@ -44,6 +46,7 @@ from arraycontext.context import (
     ArrayContext,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
+    ContainerOrScalarT,
     NumpyOrContainerOrScalar,
     UntransformedCodeWarning,
 )
@@ -83,11 +86,27 @@ class CupyArrayContext(ArrayContext):
     def clone(self):
         return type(self)()
 
+    @overload
+    def from_numpy(self, array: np.ndarray) -> Array:
+        ...
+
+    @overload
+    def from_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
+
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
         import cupy as cp
         return cp.array(array)
+
+    @overload
+    def to_numpy(self, array: Array) -> np.ndarray:
+        ...
+
+    @overload
+    def to_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
 
     def to_numpy(self,
                  array: ArrayOrContainerOrScalar
