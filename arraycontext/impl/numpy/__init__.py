@@ -63,7 +63,7 @@ class NumpyNonObjectArray(metaclass=NumpyNonObjectArrayMetaclass):
 
 class NumpyArrayContext(ArrayContext):
     """
-    A :class:`ArrayContext` that uses :class:`numpy.ndarray` to represent arrays.
+    An :class:`ArrayContext` that uses :class:`numpy.ndarray` to represent arrays.
 
     .. automethod:: __init__
     """

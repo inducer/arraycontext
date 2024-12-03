@@ -16,6 +16,7 @@ code to work with all of them? No problem! Comes with pre-made array context
 implementations for:
 
 - numpy
+- cupy
 - `PyOpenCL <https://documen.tician.de/pyopencl/array.html>`__
 - `JAX <https://jax.readthedocs.io/en/latest/>`__
 - `Pytato <https://documen.tician.de/pytato>`__ (for lazy/deferred evaluation)

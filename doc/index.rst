@@ -6,6 +6,7 @@ code to work with all of them? No problem! Comes with pre-made array context
 implementations for:
 
 - :mod:`numpy`
+- :mod:`cupy`
 - :mod:`pyopencl`
 - :mod:`jax.numpy`
 - :mod:`pytato` (for lazy/deferred evaluation)
@@ -13,7 +14,7 @@ implementations for:
 - Profiling
 
 :mod:`arraycontext` started life as an array abstraction for use with the
-:mod:`meshmode` unstrucuted discretization package.
+:mod:`meshmode` unstructured discretization package.
 
 Design Guidelines
 -----------------

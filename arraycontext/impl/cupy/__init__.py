@@ -1,13 +1,13 @@
-from __future__ import annotations
-
-
 """
 .. currentmodule:: arraycontext
 
-A mod :`cupy`-based array context.
+A :mod:`cupy`-based array context.
 
 .. autoclass:: CupyArrayContext
 """
+
+from __future__ import annotations
+
 
 __copyright__ = """
 Copyright (C) 2024 University of Illinois Board of Trustees
@@ -64,7 +64,7 @@ class CupyNonObjectArray(metaclass=CupyNonObjectArrayMetaclass):
 
 class CupyArrayContext(ArrayContext):
     """
-    A :class:`ArrayContext` that uses :class:`cupy.ndarray` to represent arrays.
+    An :class:`ArrayContext` that uses :class:`cupy.ndarray` to represent arrays.
 
     .. automethod:: __init__
     """
