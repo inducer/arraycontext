@@ -110,16 +110,16 @@ def _map_array_container_impl(
         specific container classes. By default, the recursion is stopped when
         a non-:class:`ArrayContainer` class is encountered.
     """
-    def rec(_ary: ArrayOrContainer) -> ArrayOrContainer:
-        if type(_ary) is leaf_cls:  # type(ary) is never None
-            return f(_ary)
+    def rec(ary_: ArrayOrContainer) -> ArrayOrContainer:
+        if type(ary_) is leaf_cls:  # type(ary) is never None
+            return f(ary_)
 
         try:
-            iterable = serialize_container(_ary)
+            iterable = serialize_container(ary_)
         except NotAnArrayContainerError:
-            return f(_ary)
+            return f(ary_)
         else:
-            return deserialize_container(_ary, [
+            return deserialize_container(ary_, [
                 (key, frec(subary)) for key, subary in iterable
                 ])
 
@@ -144,28 +144,28 @@ def _multimap_array_container_impl(
 
     # {{{ recursive traversal
 
-    def rec(*_args: Any) -> Any:
-        template_ary = _args[container_indices[0]]
+    def rec(*args_: Any) -> Any:
+        template_ary = args_[container_indices[0]]
         if type(template_ary) is leaf_cls:
-            return f(*_args)
+            return f(*args_)
 
         try:
             iterable_template = serialize_container(template_ary)
         except NotAnArrayContainerError:
-            return f(*_args)
+            return f(*args_)
         else:
             pass
 
         assert all(
-                type(_args[i]) is type(template_ary) for i in container_indices[1:]
+                type(args_[i]) is type(template_ary) for i in container_indices[1:]
                 ), f"expected type '{type(template_ary).__name__}'"
 
         result = []
-        new_args = list(_args)
+        new_args = list(args_)
 
         for subarys in zip(
                 iterable_template,
-                *[serialize_container(_args[i]) for i in container_indices[1:]],
+                *[serialize_container(args_[i]) for i in container_indices[1:]],
                 strict=True
                 ):
             key = None
@@ -415,13 +415,13 @@ def rec_keyed_map_array_container(
     """
 
     def rec(keys: tuple[SerializationKey, ...],
-            _ary: ArrayOrContainerT) -> ArrayOrContainerT:
+            ary_: ArrayOrContainerT) -> ArrayOrContainerT:
         try:
-            iterable = serialize_container(_ary)
+            iterable = serialize_container(ary_)
         except NotAnArrayContainerError:
-            return cast(ArrayOrContainerT, f(keys, cast(ArrayT, _ary)))
+            return cast(ArrayOrContainerT, f(keys, cast(ArrayT, ary_)))
         else:
-            return deserialize_container(_ary, [
+            return deserialize_container(ary_, [
                 (key, rec((*keys, key), subary)) for key, subary in iterable
                 ])
 
@@ -522,14 +522,14 @@ def rec_map_reduce_array_container(
 
         or any other such traversal.
     """
-    def rec(_ary: ArrayOrContainerT) -> ArrayOrContainerT:
-        if type(_ary) is leaf_class:
-            return map_func(_ary)
+    def rec(ary_: ArrayOrContainerT) -> ArrayOrContainerT:
+        if type(ary_) is leaf_class:
+            return map_func(ary_)
         else:
             try:
-                iterable = serialize_container(_ary)
+                iterable = serialize_container(ary_)
             except NotAnArrayContainerError:
-                return map_func(_ary)
+                return map_func(ary_)
             else:
                 return reduce_func([
                     rec(subary) for _, subary in iterable
