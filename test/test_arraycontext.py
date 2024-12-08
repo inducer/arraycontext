@@ -263,11 +263,11 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
             "atan2": "arctan2",
             }
 
-    def evaluate(_np, *_args):
-        func = getattr(_np, sym_name,
-                getattr(_np, c_to_numpy_arc_functions.get(sym_name, sym_name)))
+    def evaluate(np_, *args_):
+        func = getattr(np_, sym_name,
+                getattr(np_, c_to_numpy_arc_functions.get(sym_name, sym_name)))
 
-        return func(*_args)
+        return func(*args_)
 
     assert_close_to_numpy_in_containers(actx, evaluate, args)
 
