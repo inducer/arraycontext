@@ -65,6 +65,7 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
 
     @classmethod
     def is_available(cls) -> bool:
+        return False
         try:
             import pyopencl  # noqa: F401
             return True
@@ -139,6 +140,7 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
 class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
     @classmethod
     def is_available(cls) -> bool:
+        return True
         try:
             import pyopencl  # noqa: F401
             import pytato  # noqa: F401
