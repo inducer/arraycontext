@@ -263,6 +263,7 @@ class BaseLazilyCompilingFunctionCaller:
 
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
+    single_version_only: bool
     program_cache: dict[Mapping[tuple[Hashable, ...], AbstractInputDescriptor],
                         CompiledFunction] = field(default_factory=lambda: {})
 
@@ -328,7 +329,10 @@ class BaseLazilyCompilingFunctionCaller:
         try:
             compiled_f = self.program_cache[arg_id_to_descr]
         except KeyError:
-            pass
+            if self.single_version_only and self.program_cache:
+                raise ValueError(
+                    f"Function '{self.f.__name__}' to be compiled "
+                    "was already compiled previously with different arguments.")
         else:
             return compiled_f(arg_id_to_arg)
 
