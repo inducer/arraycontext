@@ -103,7 +103,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
         from arraycontext.transform_metadata import ElementwiseMapKernelTag
 
         def sub(name: str) -> Variable | Subscript:
-            return Variable(name)[subscript] if subscript else Variable(name)
+            return Subscript(Variable(name), subscript) if subscript else Variable(name)
 
         return make_loopy_program(
                 [domain_bset], [
