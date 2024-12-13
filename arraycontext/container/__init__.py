@@ -309,7 +309,8 @@ def _deserialize_ndarray_container(  # type: ignore[misc]
 
     result = type(template)(template.shape, dtype=object)
     for i, subary in serialized:
-        result[i] = subary
+        # FIXME: numpy annotations don't seem to handle object arrays very well
+        result[i] = subary  # type: ignore[call-overload]
 
     return result
 
