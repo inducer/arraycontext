@@ -1,16 +1,16 @@
 """
 .. currentmodule:: arraycontext
 
-A :mod:`numpy`-based array context.
+A :mod:`cupy`-based array context.
 
-.. autoclass:: NumpyArrayContext
+.. autoclass:: CupyArrayContext
 """
 
 from __future__ import annotations
 
 
 __copyright__ = """
-Copyright (C) 2021 University of Illinois Board of Trustees
+Copyright (C) 2024 University of Illinois Board of Trustees
 """
 
 __license__ = """
@@ -52,18 +52,19 @@ from arraycontext.context import (
 )
 
 
-class NumpyNonObjectArrayMetaclass(type):
+class CupyNonObjectArrayMetaclass(type):
     def __instancecheck__(cls, instance: Any) -> bool:
-        return isinstance(instance, np.ndarray) and instance.dtype != object
+        import cupy as cp  # type: ignore[import-untyped]
+        return isinstance(instance, cp.ndarray) and instance.dtype != object
 
 
-class NumpyNonObjectArray(metaclass=NumpyNonObjectArrayMetaclass):
+class CupyNonObjectArray(metaclass=CupyNonObjectArrayMetaclass):
     pass
 
 
-class NumpyArrayContext(ArrayContext):
+class CupyArrayContext(ArrayContext):
     """
-    An :class:`ArrayContext` that uses :class:`numpy.ndarray` to represent arrays.
+    An :class:`ArrayContext` that uses :class:`cupy.ndarray` to represent arrays.
 
     .. automethod:: __init__
     """
@@ -74,11 +75,11 @@ class NumpyArrayContext(ArrayContext):
         super().__init__()
         self._loopy_transform_cache = {}
 
-    array_types = (NumpyNonObjectArray,)
+    array_types = (CupyNonObjectArray,)
 
     def _get_fake_numpy_namespace(self):
-        from .fake_numpy import NumpyFakeNumpyNamespace
-        return NumpyFakeNumpyNamespace(self)
+        from .fake_numpy import CupyFakeNumpyNamespace
+        return CupyFakeNumpyNamespace(self)
 
     # {{{ ArrayContext interface
 
@@ -96,7 +97,8 @@ class NumpyArrayContext(ArrayContext):
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
-        return array
+        import cupy as cp
+        return cp.array(array)
 
     @overload
     def to_numpy(self, array: Array) -> np.ndarray:
@@ -109,7 +111,8 @@ class NumpyArrayContext(ArrayContext):
     def to_numpy(self,
                  array: ArrayOrContainerOrScalar
                  ) -> NumpyOrContainerOrScalar:
-        return array
+        import cupy as cp
+        return cp.asnumpy(array)
 
     def call_loopy(
                 self,
@@ -127,14 +130,18 @@ class NumpyArrayContext(ArrayContext):
         return result
 
     def freeze(self, array):
+        import cupy as cp
+
         def _freeze(ary):
-            return ary
+            return cp.asnumpy(ary)
 
         return with_array_context(rec_map_array_container(_freeze, array), actx=None)
 
     def thaw(self, array):
+        import cupy as cp
+
         def _thaw(ary):
-            return ary
+            return cp.array(ary)
 
         return with_array_context(rec_map_array_container(_thaw, array), actx=self)
 
@@ -160,17 +167,18 @@ class NumpyArrayContext(ArrayContext):
     def tag(self,
             tags: ToTagSetConvertible,
             array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
-        # Numpy doesn't support tagging
+        # Cupy (like numpy) doesn't support tagging
         return array
 
     def tag_axis(self,
                  iaxis: int, tags: ToTagSetConvertible,
                  array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
-        # Numpy doesn't support tagging
+        # Cupy (like numpy) doesn't support tagging
         return array
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
-        return np.einsum(spec, *args)
+        import cupy as cp
+        return cp.einsum(spec, *args)
 
     @property
     def permits_inplace_modification(self):
