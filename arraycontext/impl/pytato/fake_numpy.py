@@ -239,4 +239,10 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def absolute(self, a):
         return self.abs(a)
 
+    def vdot(self, a: Array, b: Array, order_a: str = "C", order_b: str = "C"):
+
+        flat_a = self.ravel(a, order_a)
+        flat_b = self.ravel(b, order_b)
+
+        return rec_multimap_array_container(pt.vdot, flat_a, flat_b)
     # }}}
