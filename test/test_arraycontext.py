@@ -277,11 +277,6 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
             ("arctan2", 2, np.float64),
             ("minimum", 2, np.float64),
             ("maximum", 2, np.float64),
-            ("where", 3, np.float64),
-            ("min", 1, np.float64),
-            ("max", 1, np.float64),
-            ("any", 1, np.float64),
-            ("all", 1, np.float64),
             ("arctan", 1, np.float64),
 
             # float + complex
@@ -289,22 +284,14 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
             ("sin", 1, np.complex128),
             ("exp", 1, np.float64),
             ("exp", 1, np.complex128),
-            ("conj", 1, np.float64),
-            ("conj", 1, np.complex128),
-            ("vdot", 2, np.float64),
-            ("vdot", 2, np.complex128),
             ("abs", 1, np.float64),
             ("abs", 1, np.complex128),
-            ("sum", 1, np.float64),
-            ("sum", 1, np.complex64),
             ("isnan", 1, np.float64),
             ])
 def test_array_context_np_workalike_with_scalars(actx_factory, sym_name, n_args, dtype):
     actx = actx_factory()
     if not hasattr(actx.np, sym_name):
         pytest.skip(f"'{sym_name}' not implemented on '{type(actx).__name__}'")
-    if sym_name in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
-        pytest.skip(f"'{sym_name}' not supported on scalars")
 
     c_to_numpy_arc_functions = {
             "atan": "arctan",
