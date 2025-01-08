@@ -2,6 +2,7 @@
 An array context is an abstraction that helps you dispatch between multiple
 implementations of :mod:`numpy`-like :math:`n`-dimensional arrays.
 """
+from __future__ import annotations
 
 
 __copyright__ = """
@@ -29,9 +30,12 @@ THE SOFTWARE.
 """
 
 from .container import (
+    ArithArrayContainer,
     ArrayContainer,
     ArrayContainerT,
     NotAnArrayContainerError,
+    SerializationKey,
+    SerializedContainer,
     deserialize_container,
     get_container_context_opt,
     get_container_context_recursively,
@@ -41,7 +45,9 @@ from .container import (
     register_multivector_as_array_container,
     serialize_container,
 )
-from .container.arithmetic import with_container_arithmetic
+from .container.arithmetic import (
+    with_container_arithmetic,
+)
 from .container.dataclass import dataclass_array_container
 from .container.traversal import (
     flat_size_and_dtype,
@@ -68,6 +74,10 @@ from .container.traversal import (
 from .context import (
     Array,
     ArrayContext,
+    ArrayOrArithContainer,
+    ArrayOrArithContainerOrScalar,
+    ArrayOrArithContainerOrScalarT,
+    ArrayOrArithContainerT,
     ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
@@ -78,6 +88,7 @@ from .context import (
     tag_axes,
 )
 from .impl.jax import EagerJAXArrayContext
+from .impl.numpy import NumpyArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
 from .loopy import make_loopy_program
@@ -86,17 +97,20 @@ from .pytest import (
     PytestArrayContextFactory,
     PytestPyOpenCLArrayContextFactory,
     pytest_generate_tests_for_array_contexts,
-    pytest_generate_tests_for_pyopencl_array_context,
 )
 from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 
 
 __all__ = (
-    "Array",
+    "ArithArrayContainer",
     "Array",
     "ArrayContainer",
     "ArrayContainerT",
     "ArrayContext",
+    "ArrayOrArithContainer",
+    "ArrayOrArithContainerOrScalar",
+    "ArrayOrArithContainerOrScalarT",
+    "ArrayOrArithContainerT",
     "ArrayOrContainer",
     "ArrayOrContainerOrScalar",
     "ArrayOrContainerOrScalarT",
@@ -106,14 +120,16 @@ __all__ = (
     "EagerJAXArrayContext",
     "ElementwiseMapKernelTag",
     "NotAnArrayContainerError",
+    "NumpyArrayContext",
     "PyOpenCLArrayContext",
     "PytatoJAXArrayContext",
     "PytatoPyOpenCLArrayContext",
     "PytestArrayContextFactory",
     "PytestPyOpenCLArrayContextFactory",
     "Scalar",
-    "Scalar",
     "ScalarLike",
+    "SerializationKey",
+    "SerializedContainer",
     "dataclass_array_container",
     "deserialize_container",
     "flat_size_and_dtype",
@@ -135,7 +151,6 @@ __all__ = (
     "outer",
     "pack_for_parameter_study",
     "pytest_generate_tests_for_array_contexts",
-    "pytest_generate_tests_for_pyopencl_array_context",
     "rec_map_array_container",
     "rec_map_reduce_array_container",
     "rec_multimap_array_container",
@@ -149,7 +164,7 @@ __all__ = (
     "unflatten",
     "unpack_parameter_study",
     "with_array_context",
-    "with_container_arithmetic"
+    "with_container_arithmetic",
 )
 
 

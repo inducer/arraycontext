@@ -31,7 +31,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 from warnings import warn
 
 import numpy as np
@@ -82,9 +83,9 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def __init__(self,
             queue: pyopencl.CommandQueue,
-            allocator: Optional[pyopencl.tools.AllocatorBase] = None,
-            wait_event_queue_length: Optional[int] = None,
-            force_device_scalars: bool = False) -> None:
+            allocator: pyopencl.tools.AllocatorBase | None = None,
+            wait_event_queue_length: int | None = None,
+            force_device_scalars: bool | None = None) -> None:
         r"""
         :arg wait_event_queue_length: The length of a queue of
             :class:`~pyopencl.Event` objects that are maintained by the
@@ -105,21 +106,15 @@ class PyOpenCLArrayContext(ArrayContext):
 
             For now, *wait_event_queue_length* should be regarded as an
             experimental feature that may change or disappear at any minute.
-
-        :arg force_device_scalars: if *True*, scalar results returned from
-            reductions in :attr:`ArrayContext.np` will be kept on the device.
-            If *False*, the equivalent of :meth:`~ArrayContext.freeze` and
-            :meth:`~ArrayContext.to_numpy` is applied to transfer the results
-            to the host.
         """
-        if not force_device_scalars:
-            warn("Configuring the PyOpenCLArrayContext to return host scalars "
-                    "from reductions is deprecated. "
-                    "To configure the PyOpenCLArrayContext to return "
-                    "device scalars, pass 'force_device_scalars=True' to the "
-                    "constructor. "
-                    "Support for returning host scalars will be removed in 2022.",
-                    DeprecationWarning, stacklevel=2)
+        if force_device_scalars is not None:
+            warn(
+                "`force_device_scalars` is deprecated and will be removed in 2025.",
+                DeprecationWarning, stacklevel=2)
+
+            if not force_device_scalars:
+                raise ValueError(
+                    "Passing force_device_scalars=False is not allowed.")
 
         import pyopencl as cl
         import pyopencl.array as cl_array
@@ -131,9 +126,14 @@ class PyOpenCLArrayContext(ArrayContext):
         if wait_event_queue_length is None:
             wait_event_queue_length = 10
 
-        self._force_device_scalars = force_device_scalars
+        self._force_device_scalars = True
+        # Subclasses might still be using the old
+        # "force_devices_scalars: bool = False" interface, in which case we need
+        # to explicitly pass force_device_scalars=True in clone()
+        self._passed_force_device_scalars = force_device_scalars is not None
+
         self._wait_event_queue_length = wait_event_queue_length
-        self._kernel_name_to_wait_event_queue: Dict[str, List[cl.Event]] = {}
+        self._kernel_name_to_wait_event_queue: dict[str, list[cl.Event]] = {}
 
         if queue.device.type & cl.device_type.GPU:
             if allocator is None:
@@ -151,7 +151,7 @@ class PyOpenCLArrayContext(ArrayContext):
                         stacklevel=2)
 
         self._loopy_transform_cache: \
-                Dict[lp.TranslationUnit, lp.TranslationUnit] = {}
+                dict[lp.TranslationUnit, lp.TranslationUnit] = {}
 
         # TODO: Ideally this should only be `(TaggableCLArray,)`, but
         # that would break the logic in the downstream users.
@@ -163,8 +163,8 @@ class PyOpenCLArrayContext(ArrayContext):
 
     def _rec_map_container(
             self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: Optional[Tuple[type, ...]] = None, *,
-            default_scalar: Optional[ScalarLike] = None,
+            allowed_types: tuple[type, ...] | None = None, *,
+            default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
@@ -197,41 +197,6 @@ class PyOpenCLArrayContext(ArrayContext):
         return rec_map_array_container(_wrapper, array)
 
     # {{{ ArrayContext interface
-
-    def empty(self, shape, dtype):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros instead.",
-            DeprecationWarning, stacklevel=2)
-
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        return tga.empty(self.queue, shape, dtype, allocator=self.allocator)
-
-    def zeros(self, shape, dtype):
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        return tga.zeros(self.queue, shape, dtype, allocator=self.allocator)
-
-    def empty_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-
-        def _empty_like(array):
-            return tga.empty(self.queue, array.shape, array.dtype,
-                allocator=self.allocator, axes=array.axes, tags=array.tags)
-
-        return self._rec_map_container(_empty_like, ary)
-
-    def zeros_like(self, ary):
-        from warnings import warn
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.np.zeros_like(ary)
 
     def from_numpy(self, array):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
@@ -302,9 +267,13 @@ class PyOpenCLArrayContext(ArrayContext):
         return {name: tga.to_tagged_cl_array(ary) for name, ary in result.items()}
 
     def clone(self):
-        return type(self)(self.queue, self.allocator,
-                wait_event_queue_length=self._wait_event_queue_length,
-                force_device_scalars=self._force_device_scalars)
+        if self._passed_force_device_scalars:
+            return type(self)(self.queue, self.allocator,
+                    wait_event_queue_length=self._wait_event_queue_length,
+                    force_device_scalars=True)
+        else:
+            return type(self)(self.queue, self.allocator,
+                    wait_event_queue_length=self._wait_event_queue_length)
 
     # }}}
 
@@ -345,15 +314,8 @@ class PyOpenCLArrayContext(ArrayContext):
             if "i1" in all_inames:
                 inner_iname = "i1"
 
-        elif not all_inames:
-            # no loops, nothing to transform
-            return t_unit
-
         else:
-            raise RuntimeError(
-                "Unable to reason what outer_iname and inner_iname "
-                f"needs to be; all_inames is given as: {all_inames}"
-            )
+            return t_unit
 
         if inner_iname is not None:
             t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")

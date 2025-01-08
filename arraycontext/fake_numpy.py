@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
 """
@@ -90,7 +93,8 @@ class BaseFakeNumpyNamespace(ABC):
 
         # Miscellaneous
         "convolve", "clip", "sqrt", "cbrt", "square", "absolute", "abs", "fabs",
-        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan",
+        "sign", "heaviside", "maximum", "fmax", "nan_to_num", "isnan", "minimum",
+        "fmin",
 
         # FIXME:
         # "interp",

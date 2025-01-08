@@ -1,6 +1,7 @@
 """
 .. autoclass:: NameHint
 """
+from __future__ import annotations
 
 
 __copyright__ = """

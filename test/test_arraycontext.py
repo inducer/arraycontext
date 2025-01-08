@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __copyright__ = "Copyright (C) 2020-21 University of Illinois Board of Trustees"
 
 __license__ = """
@@ -22,7 +25,7 @@ THE SOFTWARE.
 
 import logging
 from dataclasses import dataclass
-from typing import Union
+from functools import partial
 
 import numpy as np
 import pytest
@@ -31,25 +34,24 @@ from pytools.obj_array import make_obj_array
 from pytools.tag import Tag
 
 from arraycontext import (
-    ArrayContainer,
-    ArrayContext,
     EagerJAXArrayContext,
+    NumpyArrayContext,
     PyOpenCLArrayContext,
     PytatoPyOpenCLArrayContext,
     dataclass_array_container,
-    deserialize_container,
     pytest_generate_tests_for_array_contexts,
     serialize_container,
     tag_axes,
-    with_array_context,
     with_container_arithmetic,
 )
 from arraycontext.pytest import (
     _PytestEagerJaxArrayContextFactory,
+    _PytestNumpyArrayContextFactory,
     _PytestPyOpenCLArrayContextFactoryWithClass,
     _PytestPytatoJaxArrayContextFactory,
     _PytestPytatoPyOpenCLArrayContextFactory,
 )
+from testlib import DOFArray, MyContainer, MyContainerDOFBcast, Velocity2D
 
 
 logger = logging.getLogger(__name__)
@@ -97,6 +99,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestNumpyArrayContextFactory,
     ])
 
 
@@ -110,148 +113,15 @@ def _acf():
 # }}}
 
 
-# {{{ stand-in DOFArray implementation
-
-@with_container_arithmetic(
-        bcast_obj_array=True,
-        bcast_numpy_array=True,
-        bitwise=True,
-        rel_comparison=True,
-        _cls_has_array_context_attr=True)
-class DOFArray:
-    def __init__(self, actx, data):
-        if not (actx is None or isinstance(actx, ArrayContext)):
-            raise TypeError("actx must be of type ArrayContext")
-
-        if not isinstance(data, tuple):
-            raise TypeError("'data' argument must be a tuple")
-
-        self.array_context = actx
-        self.data = data
-
-    __array_priority__ = 10
-
-    def __bool__(self):
-        if len(self) == 1 and self.data[0].size == 1:
-            return bool(self.data[0])
-
-        raise ValueError(
-                "The truth value of an array with more than one element is "
-                "ambiguous. Use actx.np.any(x) or actx.np.all(x)")
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, i):
-        return self.data[i]
-
-    def __repr__(self):
-        return f"DOFArray({self.data!r})"
-
-    @classmethod
-    def _serialize_init_arrays_code(cls, instance_name):
-        return {"_":
-                (f"{instance_name}_i", f"{instance_name}")}
-
-    @classmethod
-    def _deserialize_init_arrays_code(cls, template_instance_name, args):
-        (_, arg), = args.items()
-        # Why tuple([...])? https://stackoverflow.com/a/48592299
-        return (f"{template_instance_name}.array_context, tuple([{arg}])")
-
-    @property
-    def size(self):
-        return sum(ary.size for ary in self.data)
-
-    @property
-    def real(self):
-        return DOFArray(self.array_context, tuple([subary.real for subary in self]))
-
-    @property
-    def imag(self):
-        return DOFArray(self.array_context, tuple([subary.imag for subary in self]))
-
-
-@serialize_container.register(DOFArray)
-def _serialize_dof_container(ary: DOFArray):
-    return list(enumerate(ary.data))
-
-
-@deserialize_container.register(DOFArray)
-# https://github.com/python/mypy/issues/13040
-def _deserialize_dof_container(  # type: ignore[misc]
-        template, iterable):
-    def _raise_index_inconsistency(i, stream_i):
-        raise ValueError(
-                "out-of-sequence indices supplied in DOFArray deserialization "
-                f"(expected {i}, received {stream_i})")
-
-    return type(template)(
-            template.array_context,
-            data=tuple(
-                v if i == stream_i else _raise_index_inconsistency(i, stream_i)
-                for i, (stream_i, v) in enumerate(iterable)))
-
-
-@with_array_context.register(DOFArray)
-# https://github.com/python/mypy/issues/13040
-def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type: ignore[misc]
-    return type(ary)(actx, ary.data)
-
-# }}}
-
-
-# {{{ nested containers
-
-@with_container_arithmetic(bcast_obj_array=False,
-        eq_comparison=False, rel_comparison=False,
-        _cls_has_array_context_attr=True)
-@dataclass_array_container
-@dataclass(frozen=True)
-class MyContainer:
-    name: str
-    mass: Union[DOFArray, np.ndarray]
-    momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
-
-    @property
-    def array_context(self):
-        if isinstance(self.mass, np.ndarray):
-            return next(iter(self.mass)).array_context
-        else:
-            return self.mass.array_context
-
-
-@with_container_arithmetic(
-        bcast_obj_array=False,
-        bcast_container_types=(DOFArray, np.ndarray),
-        matmul=True,
-        rel_comparison=True,
-        _cls_has_array_context_attr=True)
-@dataclass_array_container
-@dataclass(frozen=True)
-class MyContainerDOFBcast:
-    name: str
-    mass: Union[DOFArray, np.ndarray]
-    momentum: np.ndarray
-    enthalpy: Union[DOFArray, np.ndarray]
-
-    @property
-    def array_context(self):
-        if isinstance(self.mass, np.ndarray):
-            return next(iter(self.mass)).array_context
-        else:
-            return self.mass.array_context
-
-
 def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     from numbers import Number
-    if isinstance(shapes, (Number, tuple)):
+
+    from testlib import DOFArray, MyContainer, MyContainerDOFBcast
+    if isinstance(shapes, Number | tuple):
         shapes = [shapes]
 
-    x = DOFArray(actx, tuple([
-        actx.from_numpy(randn(shape, np.float64))
-        for shape in shapes]))
+    x = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes))
 
     # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     dataclass_of_dofs = MyContainer(
@@ -275,8 +145,6 @@ def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
 
     return (ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs,
             bcast_dataclass_of_dofs)
-
-# }}}
 
 
 # {{{ assert_close_to_numpy*
@@ -395,11 +263,11 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
             "atan2": "arctan2",
             }
 
-    def evaluate(_np, *_args):
-        func = getattr(_np, sym_name,
-                getattr(_np, c_to_numpy_arc_functions.get(sym_name, sym_name)))
+    def evaluate(np_, *args_):
+        func = getattr(np_, sym_name,
+                getattr(np_, c_to_numpy_arc_functions.get(sym_name, sym_name)))
 
-        return func(*_args)
+        return func(*args_)
 
     assert_close_to_numpy_in_containers(actx, evaluate, args)
 
@@ -657,12 +525,7 @@ def test_reductions_same_as_numpy(actx_factory, op):
     actx_red = getattr(actx.np, op)(actx.from_numpy(ary))
     actx_red = actx.to_numpy(actx_red)
 
-    from numbers import Number
-
-    if isinstance(actx, PyOpenCLArrayContext) and (not actx._force_device_scalars):
-        assert isinstance(actx_red, Number)
-    else:
-        assert actx_red.shape == ()
+    assert actx_red.shape == ()
 
     assert np.allclose(np_red, actx_red)
 
@@ -793,7 +656,7 @@ def test_container_map_on_device_scalar(actx_factory):
         rec_map_reduce_array_container,
     )
 
-    for size, ary in zip(expected_sizes, arys[:-1]):
+    for size, ary in zip(expected_sizes, arys[:-1], strict=True):
         result = map_array_container(lambda x: x, ary)
         assert actx.to_numpy(actx.np.array_equal(result, ary))
         result = rec_map_array_container(lambda x: x, ary)
@@ -824,7 +687,8 @@ def test_container_map(actx_factory):
                 subarray for _, subarray in arg1_iterable]
             arg2_subarrays = [
                 subarray for _, subarray in arg2_iterable]
-            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays,
+                                            strict=True):
                 _check_allclose(f, subarray1, subarray2)
 
     def func(x):
@@ -877,7 +741,8 @@ def test_container_multimap(actx_factory):
                 subarray for _, subarray in arg1_iterable]
             arg2_subarrays = [
                 subarray for _, subarray in arg2_iterable]
-            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays):
+            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays,
+                                            strict=True):
                 _check_allclose(f, subarray1, subarray2)
 
     def func_all_scalar(x, y):
@@ -933,8 +798,6 @@ def test_container_arithmetic(actx_factory):
 
     def _check_allclose(f, arg1, arg2, atol=5.0e-14):
         assert np.linalg.norm(actx.to_numpy(f(arg1) - arg2)) < atol
-
-    from functools import partial
 
     from arraycontext import rec_multimap_array_container
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
@@ -1071,16 +934,14 @@ def test_flatten_array_container(actx_factory, shapes):
 
     # {{{ complex to real
 
-    if isinstance(shapes, (int, tuple)):
+    if isinstance(shapes, int | tuple):
         shapes = [shapes]
 
-    ary = DOFArray(actx, tuple([
-        actx.from_numpy(randn(shape, np.float64))
-        for shape in shapes]))
+    ary = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
+        for shape in shapes))
 
-    template = DOFArray(actx, tuple([
-        actx.from_numpy(randn(shape, np.complex128))
-        for shape in shapes]))
+    template = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.complex128))
+        for shape in shapes))
 
     flat = flatten(ary, actx)
     ary_roundtrip = unflatten(template, flat, actx, strict=False)
@@ -1111,9 +972,10 @@ def test_flatten_array_container_failure(actx_factory):
     ary = _get_test_containers(actx, shapes=512)[0]
     flat_ary = _checked_flatten(ary, actx)
 
-    with pytest.raises(TypeError):
-        # cannot unflatten from a numpy array
-        unflatten(ary, actx.to_numpy(flat_ary), actx)
+    if not isinstance(actx, NumpyArrayContext):
+        with pytest.raises(TypeError):
+            # cannot unflatten from a numpy array (except for numpy actx)
+            unflatten(ary, actx.to_numpy(flat_ary), actx)
 
     with pytest.raises(ValueError):
         # cannot unflatten non-flat arrays
@@ -1169,16 +1031,17 @@ def test_numpy_conversion(actx_factory):
     assert np.allclose(ac.mass, ac_roundtrip.mass)
     assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
 
-    from dataclasses import replace
-    ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
-    with pytest.raises(TypeError):
-        actx.from_numpy(ac_with_cl)
+    if not isinstance(actx, NumpyArrayContext):
+        from dataclasses import replace
+        ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
+        with pytest.raises(TypeError):
+            actx.from_numpy(ac_with_cl)
 
-    with pytest.raises(TypeError):
-        actx.from_numpy(ac_actx)
+        with pytest.raises(TypeError):
+            actx.from_numpy(ac_actx)
 
-    with pytest.raises(TypeError):
-        actx.to_numpy(ac)
+        with pytest.raises(TypeError):
+            actx.to_numpy(ac)
 
 # }}}
 
@@ -1218,21 +1081,6 @@ def test_norm_ord_none(actx_factory, ndim):
 
 
 # {{{ test_actx_compile helpers
-
-@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
-@dataclass_array_container
-@dataclass(frozen=True)
-class Velocity2D:
-    u: ArrayContainer
-    v: ArrayContainer
-    array_context: ArrayContext
-
-
-@with_array_context.register(Velocity2D)
-# https://github.com/python/mypy/issues/13040
-def _with_actx_velocity_2d(ary, actx):  # type: ignore[misc]
-    return type(ary)(ary.u, ary.v, actx)
-
 
 def scale_and_orthogonalize(alpha, vel):
     from arraycontext import rec_map_array_container
@@ -1346,56 +1194,22 @@ def test_container_equality(actx_factory):
 # }}}
 
 
-# {{{ test_leaf_array_type_broadcasting
+# {{{ test_no_leaf_array_type_broadcasting
 
-@with_container_arithmetic(
-    bcast_obj_array=True,
-    bcast_numpy_array=True,
-    rel_comparison=True,
-    _cls_has_array_context_attr=True)
-@dataclass_array_container
-@dataclass(frozen=True)
-class Foo:
-    u: DOFArray
-
-    @property
-    def array_context(self):
-        return self.u.array_context
-
-
-def test_leaf_array_type_broadcasting(actx_factory):
-    # test support for https://github.com/inducer/arraycontext/issues/49
+def test_no_leaf_array_type_broadcasting(actx_factory):
+    from testlib import Foo
+    # test lack of support for https://github.com/inducer/arraycontext/issues/49
     actx = actx_factory()
 
-    foo = Foo(DOFArray(actx, (actx.np.zeros(3, dtype=np.float64) + 41, )))
-    bar = foo + 4
-    baz = foo + actx.from_numpy(4*np.ones((3, )))
-    qux = actx.from_numpy(4*np.ones((3, ))) + foo
+    dof_ary = DOFArray(actx, (actx.np.zeros(3, dtype=np.float64) + 41, ))
+    foo = Foo(dof_ary)
 
-    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
-                               actx.to_numpy(baz.u[0]))
+    actx_ary = actx.from_numpy(4*np.ones((3, )))
+    with pytest.raises(TypeError):
+        foo + actx_ary
 
-    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
-                               actx.to_numpy(qux.u[0]))
-
-    def _actx_allows_scalar_broadcast(actx):
-        if not isinstance(actx, PyOpenCLArrayContext):
-            return True
-        else:
-            import pyopencl as cl
-
-            # See https://github.com/inducer/pyopencl/issues/498
-            return cl.version.VERSION > (2021, 2, 5)
-
-    if _actx_allows_scalar_broadcast(actx):
-        quux = foo + actx.from_numpy(np.array(4))
-        quuz = actx.from_numpy(np.array(4)) + foo
-
-        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
-                                   actx.to_numpy(quux.u[0]))
-
-        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
-                                   actx.to_numpy(quuz.u[0]))
+    with pytest.raises(TypeError):
+        foo + actx.from_numpy(np.array(4))
 
 # }}}
 
@@ -1465,21 +1279,12 @@ def test_outer(actx_factory):
                 b_bcast_dc_of_dofs.momentum),
             enthalpy=a_bcast_dc_of_dofs.enthalpy*b_bcast_dc_of_dofs.enthalpy))
 
-    # Non-object numpy arrays should be treated as scalars
-    ary_of_floats = np.ones(len(b_bcast_dc_of_dofs.mass))
-    assert equal(
-        outer(ary_of_floats, b_bcast_dc_of_dofs),
-        ary_of_floats*b_bcast_dc_of_dofs)
-    assert equal(
-        outer(a_bcast_dc_of_dofs, ary_of_floats),
-        a_bcast_dc_of_dofs*ary_of_floats)
-
 # }}}
 
 
 # {{{ test_array_container_with_numpy
 
-@with_container_arithmetic(bcast_obj_array=True, rel_comparison=True)
+@with_container_arithmetic(bcasts_across_obj_array=True, rel_comparison=True)
 @dataclass_array_container
 @dataclass(frozen=True)
 class ArrayContainerWithNumpy:
@@ -1581,8 +1386,8 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
 def test_tagging(actx_factory):
     actx = actx_factory()
 
-    if isinstance(actx, EagerJAXArrayContext):
-        pytest.skip("Eager JAX has no tagging support")
+    if isinstance(actx, NumpyArrayContext | EagerJAXArrayContext):
+        pytest.skip(f"{type(actx)} has no tagging support")
 
     from pytools.tag import Tag
 

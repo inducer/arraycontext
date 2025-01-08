@@ -75,8 +75,8 @@ actual array contexts:
 
 .. currentmodule:: arraycontext
 
-The interface of an array context
----------------------------------
+The :class:`ArrayContext` Interface
+-----------------------------------
 
 .. autoclass:: ArrayContext
 
@@ -87,36 +87,41 @@ Types and Type Variables for Arrays and Containers
 
 .. autoclass:: Array
 
-.. class:: ArrayT
+.. autodata:: ArrayT
 
     A type variable with a lower bound of :class:`Array`.
 
-.. class:: ScalarLike
+.. autodata:: ScalarLike
 
     A type annotation for scalar types commonly usable with arrays.
 
 See also :class:`ArrayContainer` and :class:`ArrayOrContainerT`.
 
-.. class:: ArrayOrContainer
+.. autodata:: ArrayOrContainer
 
-.. class:: ArrayOrContainerT
+.. autodata:: ArrayOrContainerT
 
-    A type variable with a lower bound of :class:`ArrayOrContainer`.
+    A type variable with a bound of :class:`ArrayOrContainer`.
 
-.. class:: ArrayOrContainerOrScalar
+.. autodata:: ArrayOrArithContainer
 
-.. class:: ArrayOrContainerOrScalarT
+.. autodata:: ArrayOrArithContainerT
 
-    A type variable with a lower bound of :class:`ArrayOrContainerOrScalar`.
+    A type variable with a bound of :class:`ArrayOrArithContainer`.
 
-Internal typing helpers (do not import)
----------------------------------------
+.. autodata:: ArrayOrArithContainerOrScalar
+
+.. autodata:: ArrayOrArithContainerOrScalarT
+
+    A type variable with a bound of :class:`ArrayOrContainerOrScalar`.
+
+.. autodata:: ArrayOrContainerOrScalar
+
+.. autodata:: ArrayOrContainerOrScalarT
+
+    A type variable with a bound of :class:`ArrayOrContainerOrScalar`.
 
 .. currentmodule:: arraycontext.context
-
-This is only here because the documentation tool wants it.
-
-.. class:: SelfType
 
 Canonical locations for type annotations
 ----------------------------------------
@@ -133,6 +138,9 @@ Canonical locations for type annotations
 
     :canonical: arraycontext.ArrayOrContainerOrScalarT
 """
+
+from __future__ import annotations
+
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -159,21 +167,12 @@ THE SOFTWARE.
 """
 
 from abc import ABC, abstractmethod
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Mapping,
-    Optional,
-    Protocol,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, Union, overload
 from warnings import warn
 
 import numpy as np
+from typing_extensions import Self
 
 from pytools import memoize_method
 from pytools.tag import ToTagSetConvertible
@@ -182,15 +181,10 @@ from pytools.tag import ToTagSetConvertible
 if TYPE_CHECKING:
     import loopy
 
-    from arraycontext.container import ArrayContainer
+    from arraycontext.container import ArithArrayContainer, ArrayContainer
 
 
 # {{{ typing
-
-ScalarLike = Union[int, float, complex, np.generic]
-
-SelfType = TypeVar("SelfType")
-
 
 class Array(Protocol):
     """A :class:`~typing.Protocol` for the array type supported by
@@ -203,10 +197,12 @@ class Array(Protocol):
     .. attribute:: size
     .. attribute:: dtype
     .. attribute:: __getitem__
+
+    In addition, arrays are expected to support basic arithmetic.
     """
 
     @property
-    def shape(self) -> Tuple[int, ...]:
+    def shape(self) -> tuple[int, ...]:
         ...
 
     @property
@@ -214,24 +210,71 @@ class Array(Protocol):
         ...
 
     @property
-    def dtype(self) -> "np.dtype[Any]":
+    def dtype(self) -> np.dtype[Any]:
         ...
 
-    def __getitem__(self, index: Union[slice, int]) -> "Array":
+    # Covering all the possible index variations is hard and (kind of) futile.
+    # If you'd  like to see how, try changing the Any to
+    # AxisIndex = slice | int | "Array"
+    # Index = AxisIndex |tuple[AxisIndex]
+    def __getitem__(self, index: Any) -> Array:
         ...
+
+    # some basic arithmetic that's supposed to work
+    def __neg__(self) -> Self: ...
+    def __abs__(self) -> Self: ...
+    def __add__(self, other: Self | ScalarLike) -> Self: ...
+    def __radd__(self, other: Self | ScalarLike) -> Self: ...
+    def __sub__(self, other: Self | ScalarLike) -> Self: ...
+    def __rsub__(self, other: Self | ScalarLike) -> Self: ...
+    def __mul__(self, other: Self | ScalarLike) -> Self: ...
+    def __rmul__(self, other: Self | ScalarLike) -> Self: ...
+    def __truediv__(self, other: Self | ScalarLike) -> Self: ...
+    def __rtruediv__(self, other: Self | ScalarLike) -> Self: ...
 
 
 # deprecated, use ScalarLike instead
+ScalarLike: TypeAlias = int | float | complex | np.generic
 Scalar = ScalarLike
+ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
-
+# NOTE: I'm kind of not sure about the *Tc versions of these type variables.
+# mypy seems better at understanding arithmetic performed on the *Tc versions
+# than the *T, versions, whereas pyright doesn't seem to care.
+#
+# This issue seems to be part of it:
+# https://github.com/python/mypy/issues/18203
+# but there is likely other stuff lurking.
+#
+# For now, they're purposefully not in the main arraycontext.* name space.
 ArrayT = TypeVar("ArrayT", bound=Array)
-ArrayOrContainer = Union[Array, "ArrayContainer"]
+ArrayOrScalar: TypeAlias = "Array | ScalarLike"
+ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
+ArrayOrArithContainer: TypeAlias = "Array | ArithArrayContainer"
 ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
-ArrayOrContainerOrScalar = Union[Array, "ArrayContainer", ScalarLike]
+ArrayOrContainerTc = TypeVar("ArrayOrContainerTc",
+                            Array, "ArrayContainer", "ArithArrayContainer")
+ArrayOrArithContainerT = TypeVar("ArrayOrArithContainerT", bound=ArrayOrArithContainer)
+ArrayOrArithContainerTc = TypeVar("ArrayOrArithContainerTc",
+                                 Array, "ArithArrayContainer")
+ArrayOrContainerOrScalar: TypeAlias = "Array | ArrayContainer | ScalarLike"
+ArrayOrArithContainerOrScalar: TypeAlias = "Array | ArithArrayContainer | ScalarLike"
 ArrayOrContainerOrScalarT = TypeVar(
         "ArrayOrContainerOrScalarT",
         bound=ArrayOrContainerOrScalar)
+ArrayOrArithContainerOrScalarT = TypeVar(
+        "ArrayOrArithContainerOrScalarT",
+        bound=ArrayOrArithContainerOrScalar)
+ArrayOrContainerOrScalarTc = TypeVar(
+        "ArrayOrContainerOrScalarTc",
+        ScalarLike, Array, "ArrayContainer", "ArithArrayContainer")
+ArrayOrArithContainerOrScalarTc = TypeVar(
+        "ArrayOrArithContainerOrScalarTc",
+        ScalarLike, Array, "ArithArrayContainer")
+
+
+ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | ScalarLike")
+
 
 NumpyOrContainerOrScalar = Union[np.ndarray, "ArrayContainer", ScalarLike]
 
@@ -274,8 +317,10 @@ class ArrayContext(ABC):
 
         A :class:`tuple` of types that are the valid array classes the
         context can operate on. However, it is not necessary that *all* the
-        :class:`ArrayContext`\ 's operations would be legal for the types in
-        *array_types*.
+        :class:`ArrayContext`\ 's operations are legal for the types in
+        *array_types*. Note that this tuple is *only* intended for use
+        with :func:`isinstance`. Other uses are not allowed. This allows
+        for 'types' with overridden :meth:`type.__instancecheck__`.
 
     .. automethod:: freeze
     .. automethod:: thaw
@@ -285,7 +330,7 @@ class ArrayContext(ABC):
     .. automethod:: compile
     """
 
-    array_types: Tuple[type, ...] = ()
+    array_types: tuple[type, ...] = ()
 
     def __init__(self) -> None:
         self.np = self._get_fake_numpy_namespace()
@@ -297,34 +342,22 @@ class ArrayContext(ABC):
     def __hash__(self) -> int:
         raise TypeError(f"unhashable type: '{type(self).__name__}'")
 
-    @abstractmethod
-    def empty(self,
-              shape: Union[int, Tuple[int, ...]],
-              dtype: "np.dtype[Any]") -> Array:
-        pass
-
     def zeros(self,
-              shape: Union[int, Tuple[int, ...]],
-              dtype: "np.dtype[Any]") -> Array:
+              shape: int | tuple[int, ...],
+              dtype: np.dtype[Any]) -> Array:
         warn(f"{type(self).__name__}.zeros is deprecated and will stop "
             "working in 2025. Use actx.np.zeros instead.",
             DeprecationWarning, stacklevel=2)
 
         return self.np.zeros(shape, dtype)
 
-    def empty_like(self, ary: Array) -> Array:
-        warn(f"{type(self).__name__}.empty_like is deprecated and will stop "
-            "working in 2023. Prefer actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
+    @overload
+    def from_numpy(self, array: np.ndarray) -> Array:
+        ...
 
-        return self.empty(shape=ary.shape, dtype=ary.dtype)
-
-    def zeros_like(self, ary: Array) -> Array:
-        warn(f"{type(self).__name__}.zeros_like is deprecated and will stop "
-            "working in 2023. Use actx.np.zeros_like instead.",
-            DeprecationWarning, stacklevel=2)
-
-        return self.zeros(shape=ary.shape, dtype=ary.dtype)
+    @overload
+    def from_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
 
     @abstractmethod
     def from_numpy(self,
@@ -338,6 +371,14 @@ class ArrayContext(ABC):
             to the context's array type leaving the container structure
             intact.
         """
+
+    @overload
+    def to_numpy(self, array: Array) -> np.ndarray:
+        ...
+
+    @overload
+    def to_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
 
     @abstractmethod
     def to_numpy(self,
@@ -353,8 +394,8 @@ class ArrayContext(ABC):
 
     @abstractmethod
     def call_loopy(self,
-                   program: "loopy.TranslationUnit",
-                   **kwargs: Any) -> Dict[str, Array]:
+                   t_unit: loopy.TranslationUnit,
+                   **kwargs: Any) -> dict[str, Array]:
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.
 
@@ -437,8 +478,8 @@ class ArrayContext(ABC):
 
     @memoize_method
     def _get_einsum_prg(self,
-                        spec: str, arg_names: Tuple[str, ...],
-                        tagged: ToTagSetConvertible) -> "loopy.TranslationUnit":
+                        spec: str, arg_names: tuple[str, ...],
+                        tagged: ToTagSetConvertible) -> loopy.TranslationUnit:
         import loopy as lp
         from loopy.version import MOST_RECENT_LANGUAGE_VERSION
 
@@ -468,7 +509,7 @@ class ArrayContext(ABC):
     # [1] https://github.com/inducer/meshmode/issues/177
     def einsum(self,
                spec: str, *args: Array,
-               arg_names: Optional[Tuple[str, ...]] = None,
+               arg_names: tuple[str, ...] | None = None,
                tagged: ToTagSetConvertible = ()) -> Array:
         """Computes the result of Einstein summation following the
         convention in :func:`numpy.einsum`.
@@ -489,7 +530,7 @@ class ArrayContext(ABC):
         :return: the output of the einsum :mod:`loopy` program
         """
         if arg_names is None:
-            arg_names = tuple([f"arg{i}" for i in range(len(args))])
+            arg_names = tuple(f"arg{i}" for i in range(len(args)))
 
         prg = self._get_einsum_prg(spec, arg_names, tagged)
         out_ary = self.call_loopy(
@@ -498,7 +539,7 @@ class ArrayContext(ABC):
         return self.tag(tagged, out_ary)
 
     @abstractmethod
-    def clone(self: SelfType) -> SelfType:
+    def clone(self) -> Self:
         """If possible, return a version of *self* that is semantically
         equivalent (i.e. implements all array operations in the same way)
         but is a separate object. May return *self* if that is not possible.

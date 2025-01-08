@@ -1,11 +1,12 @@
 # mypy: disallow-untyped-defs
+from __future__ import annotations
 
-"""
+
+__doc__ = """
 .. currentmodule:: arraycontext
+
 .. autofunction:: with_container_arithmetic
 """
-
-import enum
 
 
 __copyright__ = """
@@ -32,7 +33,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable, Optional, Tuple, Type, TypeVar, Union
+import enum
+from collections.abc import Callable
+from typing import Any, TypeVar
 from warnings import warn
 
 import numpy as np
@@ -88,7 +91,7 @@ _BINARY_OP_AND_DUNDER = [
         ]
 
 
-def _format_unary_op_str(op_str: str, arg1: Union[Tuple[str, ...], str]) -> str:
+def _format_unary_op_str(op_str: str, arg1: tuple[str, ...] | str) -> str:
     if isinstance(arg1, tuple):
         arg1_entry, arg1_container = arg1
         return (f"{op_str.format(arg1_entry)} "
@@ -98,20 +101,14 @@ def _format_unary_op_str(op_str: str, arg1: Union[Tuple[str, ...], str]) -> str:
 
 
 def _format_binary_op_str(op_str: str,
-        arg1: Union[Tuple[str, ...], str],
-        arg2: Union[Tuple[str, ...], str]) -> str:
+        arg1: tuple[str, str] | str,
+        arg2: tuple[str, str] | str) -> str:
     if isinstance(arg1, tuple) and isinstance(arg2, tuple):
-        import sys
-        if sys.version_info >= (3, 10):
-            strict_arg = ", strict=__debug__"
-        else:
-            strict_arg = ""
-
         arg1_entry, arg1_container = arg1
         arg2_entry, arg2_container = arg2
         return (f"{op_str.format(arg1_entry, arg2_entry)} "
                 f"for {arg1_entry}, {arg2_entry} "
-                f"in zip({arg1_container}, {arg2_container}{strict_arg})")
+                f"in zip({arg1_container}, {arg2_container}, strict=__debug__)")
 
     elif isinstance(arg1, tuple):
         arg1_entry, arg1_container = arg1
@@ -126,45 +123,71 @@ def _format_binary_op_str(op_str: str,
         return op_str.format(arg1, arg2)
 
 
-class _FailSafe:
+class NumpyObjectArrayMetaclass(type):
+    def __instancecheck__(cls, instance: Any) -> bool:
+        return isinstance(instance, np.ndarray) and instance.dtype == object
+
+
+class NumpyObjectArray(metaclass=NumpyObjectArrayMetaclass):
+    pass
+
+
+class ComplainingNumpyNonObjectArrayMetaclass(type):
+    def __instancecheck__(cls, instance: Any) -> bool:
+        if isinstance(instance, np.ndarray) and instance.dtype != object:
+            # Example usage site:
+            # https://github.com/illinois-ceesd/mirgecom/blob/f5d0d97c41e8c8a05546b1d1a6a2979ec8ea3554/mirgecom/inviscid.py#L148-L149
+            # where normal is passed in by test_lfr_flux as a 'custom-made'
+            # numpy array of dtype float64.
+            warn(
+                 "Broadcasting container against non-object numpy array. "
+                 "This was never documented to work and will now stop working in "
+                 "2025. Convert the array to an object array to preserve the "
+                 "current semantics.", DeprecationWarning, stacklevel=3)
+            return True
+        else:
+            return False
+
+
+class ComplainingNumpyNonObjectArray(metaclass=ComplainingNumpyNonObjectArrayMetaclass):
     pass
 
 
 def with_container_arithmetic(
-        *,
-        bcast_number: bool = True,
-        _bcast_actx_array_type: Optional[bool] = None,
-        bcast_obj_array: Optional[bool] = None,
-        bcast_numpy_array: bool = False,
-        bcast_container_types: Optional[Tuple[type, ...]] = None,
-        arithmetic: bool = True,
-        matmul: bool = False,
-        bitwise: bool = False,
-        shift: bool = False,
-        _cls_has_array_context_attr: Optional[bool] = None,
-        eq_comparison: Optional[bool] = None,
-        rel_comparison: Optional[bool] = None) -> Callable[[type], type]:
+            *,
+            number_bcasts_across: bool | None = None,
+            bcasts_across_obj_array: bool | None = None,
+            container_types_bcast_across: tuple[type, ...] | None = None,
+            arithmetic: bool = True,
+            matmul: bool = False,
+            bitwise: bool = False,
+            shift: bool = False,
+            _cls_has_array_context_attr: bool | None = None,
+            eq_comparison: bool | None = None,
+            rel_comparison: bool | None = None,
+
+            # deprecated:
+            bcast_number: bool | None = None,
+            bcast_obj_array: bool | None = None,
+            bcast_numpy_array: bool = False,
+            _bcast_actx_array_type: bool | None = None,
+            bcast_container_types: tuple[type, ...] | None = None,
+        ) -> Callable[[type], type]:
     """A class decorator that implements built-in operators for array containers
     by propagating the operations to the elements of the container.
 
-    :arg bcast_number: If *True*, numbers broadcast over the container
+    :arg number_bcasts_across: If *True*, numbers broadcast over the container
         (with the container as the 'outer' structure).
-    :arg _bcast_actx_array_type: If *True*, instances of base array types of the
-        container's array context are broadcasted over the container. Can be
-        *True* only if the container has *_cls_has_array_context_attr* set.
-        Defaulted to *bcast_number* if *_cls_has_array_context_attr* is set,
-        else *False*.
-    :arg bcast_obj_array: If *True*, :mod:`numpy` object arrays broadcast over
-        the container.  (with the container as the 'inner' structure)
-    :arg bcast_numpy_array: If *True*, any :class:`numpy.ndarray` will broadcast
-        over the container.  (with the container as the 'inner' structure)
-        If this is set to *True*, *bcast_obj_array* must also be *True*.
-    :arg bcast_container_types: A sequence of container types that will broadcast
-        over this container (with this container as the 'outer' structure).
+    :arg bcasts_across_obj_array: If *True*, this container will be broadcast
+        across :mod:`numpy` object arrays
+        (with the object array as the 'outer' structure).
+        Add :class:`numpy.ndarray` to *container_types_bcast_across* to achieve
+        the 'reverse' broadcasting.
+    :arg container_types_bcast_across: A sequence of container types that will broadcast
+        across this container, with this container as the 'outer' structure.
         :class:`numpy.ndarray` is permitted to be part of this sequence to
-        indicate that, in such broadcasting situations, this container should
-        be the 'outer' structure. In this case, *bcast_obj_array*
-        (and consequently *bcast_numpy_array*) must be *False*.
+        indicate that object arrays (and *only* object arrays) will be broadcast.
+        In this case, *bcasts_across_obj_array* must be *False*.
     :arg arithmetic: Implement the conventional arithmetic operators, including
         ``**``, :func:`divmod`, and ``//``. Also includes ``+`` and ``-`` as well as
         :func:`abs`.
@@ -206,13 +229,18 @@ def with_container_arithmetic(
     should nest "outside" :func:dataclass_array_container`.
     """
 
+    # Hard-won design lessons:
+    #
+    # - Anything that special-cases np.ndarray by type is broken by design because:
+    #   - np.ndarray is an array context array.
+    #   - numpy object arrays can be array containers.
+    #   Using NumpyObjectArray and NumpyNonObjectArray *may* be better?
+    #   They're new, so there is no operational experience with them.
+    #
+    # - Broadcast rules are hard to change once established, particularly
+    #   because one cannot grep for their use.
+
     # {{{ handle inputs
-
-    if bcast_obj_array is None:
-        raise TypeError("bcast_obj_array must be specified")
-
-    if rel_comparison is None:
-        raise TypeError("rel_comparison must be specified")
 
     if rel_comparison and eq_comparison is None:
         eq_comparison = True
@@ -220,26 +248,103 @@ def with_container_arithmetic(
     if eq_comparison is None:
         raise TypeError("eq_comparison must be specified")
 
-    if not bcast_obj_array and bcast_numpy_array:
+    # {{{ handle bcast_number
+
+    if bcast_number is not None:
+        if number_bcasts_across is not None:
+            raise TypeError(
+                    "may specify at most one of 'bcast_number' and "
+                    "'number_bcasts_across'")
+
+        warn("'bcast_number' is deprecated and will be unsupported from 2025. "
+             "Use 'number_bcasts_across', with equivalent meaning.",
+              DeprecationWarning, stacklevel=2)
+        number_bcasts_across = bcast_number
+    else:
+        if number_bcasts_across is None:
+            number_bcasts_across = True
+
+    del bcast_number
+
+    # }}}
+
+    # {{{ handle bcast_obj_array
+
+    if bcast_obj_array is not None:
+        if bcasts_across_obj_array is not None:
+            raise TypeError(
+                    "may specify at most one of 'bcast_obj_array' and "
+                    "'bcasts_across_obj_array'")
+
+        warn("'bcast_obj_array' is deprecated and will be unsupported from 2025. "
+             "Use 'bcasts_across_obj_array', with equivalent meaning.",
+              DeprecationWarning, stacklevel=2)
+        bcasts_across_obj_array = bcast_obj_array
+    else:
+        if bcasts_across_obj_array is None:
+            raise TypeError("bcasts_across_obj_array must be specified")
+
+    del bcast_obj_array
+
+    # }}}
+
+    # {{{ handle bcast_container_types
+
+    if bcast_container_types is not None:
+        if container_types_bcast_across is not None:
+            raise TypeError(
+                    "may specify at most one of 'bcast_container_types' and "
+                    "'container_types_bcast_across'")
+
+        warn("'bcast_container_types' is deprecated and will be unsupported from 2025. "
+             "Use 'container_types_bcast_across', with equivalent meaning.",
+              DeprecationWarning, stacklevel=2)
+        container_types_bcast_across = bcast_container_types
+    else:
+        if container_types_bcast_across is None:
+            container_types_bcast_across = ()
+
+    del bcast_container_types
+
+    # }}}
+
+    if rel_comparison is None:
+        raise TypeError("rel_comparison must be specified")
+
+    if bcast_numpy_array:
+        warn("'bcast_numpy_array=True' is deprecated and will be unsupported"
+             " from 2025.", DeprecationWarning, stacklevel=2)
+
+        if _bcast_actx_array_type:
+            raise ValueError("'bcast_numpy_array' and '_bcast_actx_array_type'"
+                             " cannot be both set.")
+
+    if not bcasts_across_obj_array and bcast_numpy_array:
         raise TypeError("bcast_obj_array must be set if bcast_numpy_array is")
 
     if bcast_numpy_array:
         def numpy_pred(name: str) -> str:
-            return f"isinstance({name}, np.ndarray)"
-    elif bcast_obj_array:
+            return f"is_numpy_array({name})"
+    elif bcasts_across_obj_array:
         def numpy_pred(name: str) -> str:
             return f"isinstance({name}, np.ndarray) and {name}.dtype.char == 'O'"
     else:
         def numpy_pred(name: str) -> str:
             return "False"  # optimized away
 
-    if bcast_container_types is None:
-        bcast_container_types = ()
-    bcast_container_types_count = len(bcast_container_types)
-
-    if np.ndarray in bcast_container_types and bcast_obj_array:
+    if np.ndarray in container_types_bcast_across and bcasts_across_obj_array:
         raise ValueError("If numpy.ndarray is part of bcast_container_types, "
                 "bcast_obj_array must be False.")
+
+    numpy_check_types: list[type] = [NumpyObjectArray, ComplainingNumpyNonObjectArray]
+    container_types_bcast_across = tuple(
+        new_ct
+        for old_ct in container_types_bcast_across
+        for new_ct in
+        (numpy_check_types
+        if old_ct is np.ndarray
+        else [old_ct])
+    )
 
     desired_op_classes = set()
     if arithmetic:
@@ -258,34 +363,33 @@ def with_container_arithmetic(
     # }}}
 
     def wrap(cls: Any) -> Any:
-        cls_has_array_context_attr: Optional[Union[bool, Type[_FailSafe]]] = \
-                _cls_has_array_context_attr
-        bcast_actx_array_type: Optional[Union[bool, Type[_FailSafe]]] = \
-                _bcast_actx_array_type
+        if not hasattr(cls, "__array_ufunc__"):
+            warn(f"{cls} does not have __array_ufunc__ set. "
+                 "This will cause numpy to attempt broadcasting, in a way that "
+                 "is likely undesired. "
+                 f"To avoid this, set __array_ufunc__ = None in {cls}.",
+                 stacklevel=2)
+
+        cls_has_array_context_attr: bool | None = _cls_has_array_context_attr
+        bcast_actx_array_type: bool | None = _bcast_actx_array_type
 
         if cls_has_array_context_attr is None:
             if hasattr(cls, "array_context"):
-                cls_has_array_context_attr = _FailSafe
-                warn(f"{cls} has an 'array_context' attribute, but it does not "
-                        "set '_cls_has_array_context_attr' to 'True' when calling "
-                        "'with_container_arithmetic'. This is being interpreted "
-                        "as 'array_context' being permitted to fail. Tolerating "
-                        "these failures comes at a substantial cost. It is "
-                        "deprecated and will stop working in 2023. "
-                        "Having a working 'array_context' attribute is desirable "
-                        "to enable arithmetic with other array types supported "
-                        "by the array context. "
-                        f"If '{cls.__name__}.array_context' will not fail, pass "
+                raise TypeError(
+                        f"{cls} has an 'array_context' attribute, but it does not "
+                        "set '_cls_has_array_context_attr' to *True* when calling "
+                        "with_container_arithmetic. This is being interpreted "
+                        "as '.array_context' being permitted to fail "
+                        "with an exception, which is no longer allowed. "
+                        f"If {cls.__name__}.array_context will not fail, pass "
                         "'_cls_has_array_context_attr=True'. "
                         "If you do not want container arithmetic to make "
                         "use of the array context, set "
-                        "'_cls_has_array_context_attr=False'.",
-                        stacklevel=2)
+                        "'_cls_has_array_context_attr=False'.")
 
         if bcast_actx_array_type is None:
             if cls_has_array_context_attr:
-                if bcast_number:
-                    # copy over _FailSafe if present
+                if number_bcasts_across:
                     bcast_actx_array_type = cls_has_array_context_attr
             else:
                 bcast_actx_array_type = False
@@ -293,6 +397,30 @@ def with_container_arithmetic(
             if bcast_actx_array_type and not cls_has_array_context_attr:
                 raise TypeError("_bcast_actx_array_type can be True only if "
                                 "_cls_has_array_context_attr is set.")
+
+        if bcast_actx_array_type:
+            if _bcast_actx_array_type:
+                warn(
+                    f"Broadcasting array context array types across {cls} "
+                    "has been explicitly "
+                    "enabled. As of 2025, this will stop working. "
+                    "There is no replacement as of right now. "
+                    "See the discussion in "
+                    "https://github.com/inducer/arraycontext/pull/190. "
+                    "To opt out now (and avoid this warning), "
+                    "pass _bcast_actx_array_type=False. ",
+                    DeprecationWarning, stacklevel=2)
+            else:
+                warn(
+                    f"Broadcasting array context array types across {cls} "
+                    "has been implicitly "
+                    "enabled. As of 2025, this will no longer work. "
+                    "There is no replacement as of right now. "
+                    "See the discussion in "
+                    "https://github.com/inducer/arraycontext/pull/190. "
+                    "To opt out now (and avoid this warning), "
+                    "pass _bcast_actx_array_type=False.",
+                    DeprecationWarning, stacklevel=2)
 
         if (not hasattr(cls, "_serialize_init_arrays_code")
                 or not hasattr(cls, "_deserialize_init_arrays_code")):
@@ -302,20 +430,12 @@ def with_container_arithmetic(
                     "'_deserialize_init_arrays_code'. If this is a dataclass, "
                     "use the 'dataclass_array_container' decorator first.")
 
-        if cls_has_array_context_attr is _FailSafe:
-            def actx_getter_code(arg: str) -> str:
-                return f"_get_actx({arg})"
-        else:
-            def actx_getter_code(arg: str) -> str:
-                return f"{arg}.array_context"
-
         from pytools.codegen import CodeGenerator, Indentation
         gen = CodeGenerator()
-        gen("""
+        gen(f"""
             from numbers import Number
             import numpy as np
-            from arraycontext import (
-                ArrayContainer, get_container_context_recursively)
+            from arraycontext import ArrayContainer
             from warnings import warn
 
             def _raise_if_actx_none(actx):
@@ -324,70 +444,53 @@ def with_container_arithmetic(
                         "cannot be operated upon")
                 return actx
 
-            def _get_actx(ary):
-                try:
-                    return ary.array_context
-                except Exception as e:
-                    warn(f"Accessing '{type(ary).__name__}.array_context' failed "
-                        f"({type(e)}: {e}). This should not happen and is "
-                        "deprecated. "
-                        "Please fix the implementation of "
-                        f"'{type(ary).__name__}.array_context' "
-                        "and then set _cls_has_array_context_attr=True when "
-                        "calling with_container_arithmetic to avoid the run time "
-                        "cost of the check that gave you this warning. "
-                        "Using expensive recovery for now.",
-                        DeprecationWarning, stacklevel=3)
+            def is_numpy_array(arg):
+                if isinstance(arg, np.ndarray):
+                    if arg.dtype != "O":
+                        warn("Operand is a non-object numpy array, "
+                            "and the broadcasting behavior of this array container "
+                            "({cls}) "
+                            "is influenced by this because of its use of "
+                            "the deprecated bcast_numpy_array. This broadcasting "
+                            "behavior will change in 2025. If you would like the "
+                            "broadcasting behavior to stay the same, make sure "
+                            "to convert the passed numpy array to an "
+                            "object array.",
+                            DeprecationWarning, stacklevel=3)
+                    return True
+                else:
+                    return False
 
-                return get_container_context_recursively(ary)
-
-            def _get_actx_array_types_failsafe(ary):
-                try:
-                    actx = ary.array_context
-                except Exception as e:
-                    warn(f"Accessing '{type(ary).__name__}.array_context' failed "
-                        f"({type(e)}: {e}). This should not happen and is "
-                        "deprecated. "
-                        "Please fix the implementation of "
-                        f"'{type(ary).__name__}.array_context' "
-                        "and then set _cls_has_array_context_attr=True when "
-                        "calling with_container_arithmetic to avoid the run time "
-                        "cost of the check that gave you this warning. "
-                        "Using expensive recovery for now.",
-                        DeprecationWarning, stacklevel=3)
-
-                    actx = get_container_context_recursively(ary)
-
-                if actx is None:
-                    return ()
-
-                return actx.array_types
             """)
         gen("")
 
-        if bcast_container_types:
-            for i, bct in enumerate(bcast_container_types):
+        if container_types_bcast_across:
+            for i, bct in enumerate(container_types_bcast_across):
                 gen(f"from {bct.__module__} import {bct.__qualname__} as _bctype{i}")
             gen("")
-        outer_bcast_type_names = tuple([
-                f"_bctype{i}" for i in range(bcast_container_types_count)
-                ])
-        if bcast_number:
-            outer_bcast_type_names += ("Number",)
+        container_type_names_bcast_across = tuple(
+                f"_bctype{i}" for i in range(len(container_types_bcast_across)))
+        if number_bcasts_across:
+            container_type_names_bcast_across += ("Number",)
 
         def same_key(k1: T, k2: T) -> T:
             assert k1 == k2
             return k1
 
-        def tup_str(t: Tuple[str, ...]) -> str:
+        def tup_str(t: tuple[str, ...]) -> str:
             if not t:
                 return "()"
             else:
                 return "({},)".format(", ".join(t))
 
-        gen(f"cls._outer_bcast_types = {tup_str(outer_bcast_type_names)}")
+        gen(f"cls._outer_bcast_types = {tup_str(container_type_names_bcast_across)}")
+        gen("cls._container_types_bcast_across = "
+            f"{tup_str(container_type_names_bcast_across)}")
+
         gen(f"cls._bcast_numpy_array = {bcast_numpy_array}")
-        gen(f"cls._bcast_obj_array = {bcast_obj_array}")
+
+        gen(f"cls._bcast_obj_array = {bcasts_across_obj_array}")
+        gen(f"cls._bcasts_across_obj_array = {bcasts_across_obj_array}")
         gen("")
 
         # {{{ unary operators
@@ -431,29 +534,35 @@ def with_container_arithmetic(
 
                 continue
 
-            # {{{ "forward" binary operators
-
             zip_init_args = cls._deserialize_init_arrays_code("arg1", {
                     same_key(key_arg1, key_arg2):
                     _format_binary_op_str(op_str, expr_arg1, expr_arg2)
                     for (key_arg1, expr_arg1), (key_arg2, expr_arg2) in zip(
                         cls._serialize_init_arrays_code("arg1").items(),
-                        cls._serialize_init_arrays_code("arg2").items())
+                        cls._serialize_init_arrays_code("arg2").items(),
+                        strict=True)
                     })
-            bcast_same_cls_init_args = cls._deserialize_init_arrays_code("arg1", {
+            bcast_init_args_arg1_is_outer = cls._deserialize_init_arrays_code("arg1", {
                     key_arg1: _format_binary_op_str(op_str, expr_arg1, "arg2")
                     for key_arg1, expr_arg1 in
                     cls._serialize_init_arrays_code("arg1").items()
                     })
+            bcast_init_args_arg2_is_outer = cls._deserialize_init_arrays_code("arg2", {
+                    key_arg2: _format_binary_op_str(op_str, "arg1", expr_arg2)
+                    for key_arg2, expr_arg2 in
+                    cls._serialize_init_arrays_code("arg2").items()
+                    })
+
+            # {{{ "forward" binary operators
 
             gen(f"def {fname}(arg1, arg2):")
             with Indentation(gen):
                 gen("if arg2.__class__ is cls:")
                 with Indentation(gen):
                     if __debug__ and cls_has_array_context_attr:
-                        gen(f"""
-                            arg1_actx = {actx_getter_code("arg1")}
-                            arg2_actx = {actx_getter_code("arg2")}
+                        gen("""
+                            arg1_actx = arg1.array_context
+                            arg2_actx = arg2.array_context
                             if arg1_actx is not arg2_actx:
                                 msg = ("array contexts of both arguments "
                                     "must match")
@@ -469,31 +578,41 @@ def with_container_arithmetic(
                                     raise ValueError(msg)""")
                     gen(f"return cls({zip_init_args})")
 
-                if bcast_actx_array_type is _FailSafe:
-                    bcast_actx_ary_types: Tuple[str, ...] = (
-                        "*_get_actx_array_types_failsafe(arg1)",)
-                elif bcast_actx_array_type:
+                if bcast_actx_array_type:
                     if __debug__:
-                        bcast_actx_ary_types = (
+                        bcast_actx_ary_types: tuple[str, ...] = (
                             "*_raise_if_actx_none("
-                            f"{actx_getter_code('arg1')}).array_types",)
+                            "arg1.array_context).array_types",)
                     else:
                         bcast_actx_ary_types = (
-                                f"*{actx_getter_code('arg1')}.array_types",)
+                                "*arg1.array_context.array_types",)
                 else:
                     bcast_actx_ary_types = ()
 
                 gen(f"""
-                if {bool(outer_bcast_type_names)}:  # optimized away
-                    if isinstance(arg2,
-                                  {tup_str(outer_bcast_type_names
-                                           + bcast_actx_ary_types)}):
-                        return cls({bcast_same_cls_init_args})
                 if {numpy_pred("arg2")}:
                     result = np.empty_like(arg2, dtype=object)
                     for i in np.ndindex(arg2.shape):
                         result[i] = {op_str.format("arg1", "arg2[i]")}
                     return result
+
+                if {bool(container_type_names_bcast_across)}:  # optimized away
+                    if isinstance(arg2,
+                                  {tup_str(container_type_names_bcast_across
+                                           + bcast_actx_ary_types)}):
+                        if __debug__:
+                            if isinstance(arg2, {tup_str(bcast_actx_ary_types)}):
+                                warn("Broadcasting {cls} over array "
+                                    f"context array type {{type(arg2)}} is deprecated "
+                                    "and will no longer work in 2025. "
+                                    "There is no replacement as of right now. "
+                                    "See the discussion in "
+                                    "https://github.com/inducer/arraycontext/"
+                                    "pull/190. ",
+                                    DeprecationWarning, stacklevel=2)
+
+                        return cls({bcast_init_args_arg1_is_outer})
+
                 return NotImplemented
                 """)
             gen(f"cls.__{dunder_name}__ = {fname}")
@@ -505,24 +624,15 @@ def with_container_arithmetic(
 
             if reversible:
                 fname = f"_{cls.__name__.lower()}_r{dunder_name}"
-                bcast_init_args = cls._deserialize_init_arrays_code("arg2", {
-                        key_arg2: _format_binary_op_str(
-                            op_str, "arg1", expr_arg2)
-                        for key_arg2, expr_arg2 in
-                        cls._serialize_init_arrays_code("arg2").items()
-                        })
 
-                if bcast_actx_array_type is _FailSafe:
-                    bcast_actx_ary_types = (
-                        "*_get_actx_array_types_failsafe(arg2)",)
-                elif bcast_actx_array_type:
+                if bcast_actx_array_type:
                     if __debug__:
                         bcast_actx_ary_types = (
                             "*_raise_if_actx_none("
-                            f"{actx_getter_code('arg2')}).array_types",)
+                            "arg2.array_context).array_types",)
                     else:
                         bcast_actx_ary_types = (
-                                f"*{actx_getter_code('arg2')}.array_types",)
+                                "*arg2.array_context.array_types",)
                 else:
                     bcast_actx_ary_types = ()
 
@@ -530,16 +640,30 @@ def with_container_arithmetic(
                     def {fname}(arg2, arg1):
                         # assert other.__cls__ is not cls
 
-                        if {bool(outer_bcast_type_names)}:  # optimized away
-                            if isinstance(arg1,
-                                          {tup_str(outer_bcast_type_names
-                                                   + bcast_actx_ary_types)}):
-                                return cls({bcast_init_args})
                         if {numpy_pred("arg1")}:
                             result = np.empty_like(arg1, dtype=object)
                             for i in np.ndindex(arg1.shape):
                                 result[i] = {op_str.format("arg1[i]", "arg2")}
                             return result
+                        if {bool(container_type_names_bcast_across)}:  # optimized away
+                            if isinstance(arg1,
+                                          {tup_str(container_type_names_bcast_across
+                                                   + bcast_actx_ary_types)}):
+                                if __debug__:
+                                    if isinstance(arg1,
+                                            {tup_str(bcast_actx_ary_types)}):
+                                        warn("Broadcasting {cls} over array "
+                                            f"context array type {{type(arg1)}} "
+                                            "is deprecated "
+                                            "and will no longer work in 2025."
+                                            "There is no replacement as of right now. "
+                                            "See the discussion in "
+                                            "https://github.com/inducer/arraycontext/"
+                                            "pull/190. ",
+                                            DeprecationWarning, stacklevel=2)
+
+                                return cls({bcast_init_args_arg2_is_outer})
+
                         return NotImplemented
 
                     cls.__r{dunder_name}__ = {fname}""")
