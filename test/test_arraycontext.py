@@ -271,41 +271,10 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
 
     assert_close_to_numpy_in_containers(actx, evaluate, args)
 
-
-@pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
-            # float only
-            ("arctan2", 2, np.float64),
-            ("minimum", 2, np.float64),
-            ("maximum", 2, np.float64),
-            ("arctan", 1, np.float64),
-
-            # float + complex
-            ("sin", 1, np.float64),
-            ("sin", 1, np.complex128),
-            ("exp", 1, np.float64),
-            ("exp", 1, np.complex128),
-            ("abs", 1, np.float64),
-            ("abs", 1, np.complex128),
-            ("isnan", 1, np.float64),
-            ])
-def test_array_context_np_workalike_with_scalars(actx_factory, sym_name, n_args, dtype):
-    actx = actx_factory()
-    if not hasattr(actx.np, sym_name):
-        pytest.skip(f"'{sym_name}' not implemented on '{type(actx).__name__}'")
-
-    c_to_numpy_arc_functions = {
-            "atan": "arctan",
-            "atan2": "arctan2",
-            }
-
-    def evaluate(np_, *args_):
-        func = getattr(np_, sym_name,
-                getattr(np_, c_to_numpy_arc_functions.get(sym_name, sym_name)))
-
-        return func(*args_)
-
-    args = [randn(0, dtype)[()] for i in range(n_args)]
-    assert_close_to_numpy(actx, evaluate, args)
+    if sym_name not in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
+        # Scalar arguments are supported.
+        args = [randn(0, dtype)[()] for i in range(n_args)]
+        assert_close_to_numpy(actx, evaluate, args)
 
 
 @pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
