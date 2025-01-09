@@ -271,11 +271,10 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
 
     assert_close_to_numpy_in_containers(actx, evaluate, args)
 
-    if sym_name in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
-        pytest.skip(f"'{sym_name}' not supported on scalars")
-
-    args = [randn(0, dtype)[()] for i in range(n_args)]
-    assert_close_to_numpy(actx, evaluate, args)
+    if sym_name not in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
+        # Scalar arguments are supported.
+        args = [randn(0, dtype)[()] for i in range(n_args)]
+        assert_close_to_numpy(actx, evaluate, args)
 
 
 @pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
