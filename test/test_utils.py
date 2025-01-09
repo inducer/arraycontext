@@ -27,7 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 import logging
-from typing import Optional, cast
+from typing import cast
 
 import numpy as np
 import pytest
@@ -63,7 +63,7 @@ def test_dataclass_array_container() -> None:
     class ArrayContainerWithOptional:
         x: np.ndarray
         # Deliberately left as Optional to test compatibility.
-        y: Optional[np.ndarray]  # noqa: UP007
+        y: np.ndarray | None
 
     with pytest.raises(TypeError, match="Field 'y' union contains non-array"):
         # NOTE: cannot have wrapped annotations (here by `Optional`)
