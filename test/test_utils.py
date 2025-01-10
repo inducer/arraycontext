@@ -27,7 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 import logging
-from typing import cast
+from typing import Optional, Tuple, cast  # noqa: UP035
 
 import numpy as np
 import pytest
@@ -63,7 +63,7 @@ def test_dataclass_array_container() -> None:
     class ArrayContainerWithOptional:
         x: np.ndarray
         # Deliberately left as Optional to test compatibility.
-        y: np.ndarray | None
+        y: Optional[np.ndarray]  # noqa: UP045
 
     with pytest.raises(TypeError, match="Field 'y' union contains non-array"):
         # NOTE: cannot have wrapped annotations (here by `Optional`)
@@ -76,7 +76,8 @@ def test_dataclass_array_container() -> None:
     @dataclass
     class ArrayContainerWithTuple:
         x: Array
-        y: tuple[Array, Array]
+        # Deliberately left as Tuple to test compatibility.
+        y: Tuple[Array, Array]  # noqa: UP006
 
     with pytest.raises(TypeError, match="Typing annotation not supported on field 'y'"):
         dataclass_array_container(ArrayContainerWithTuple)
