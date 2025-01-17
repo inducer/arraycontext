@@ -167,7 +167,7 @@ THE SOFTWARE.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Hashable, Mapping
 from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, Union, overload
 from warnings import warn
 
@@ -580,7 +580,8 @@ class ArrayContext(ABC):
 
     def outline(self,
                 f: Callable[..., Any],
-                name: str | None = None) -> Callable[..., Any]:
+                *,
+                id: Hashable | None = None) -> Callable[..., Any]:
         """
         Returns a drop-in-replacement for *f*. The behavior of the returned
         callable is specific to the derived class.
