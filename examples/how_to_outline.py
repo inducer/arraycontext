@@ -36,19 +36,21 @@ class PytatoJAXArrayContext(BasePytatoJAXArrayContext):
         assert pt.analysis.get_num_call_sites(dag) == Ncalls
 
         dag = pt.tag_all_calls_to_be_inlined(dag)
-        print("[Pre-concatenation] Number of nodes =",
-              pt.analysis.get_num_nodes(pt.inline_calls(dag)))
-        dag = pt.concatenate_calls(
-            dag,
-            lambda cs: pt.tags.FunctionIdentifier("foo") in cs.call.function.tags
-        )
-
-        # Test 2: Test that only one call-sites is left post concatenation
-        assert pt.analysis.get_num_call_sites(dag) == 1
-
+        # FIXME: Re-enable this when concatenation is added to pytato
+        # print("[Pre-concatenation] Number of nodes =",
+        #       pt.analysis.get_num_nodes(pt.inline_calls(dag)))
+        # dag = pt.concatenate_calls(
+        #     dag,
+        #     lambda cs: pt.tags.FunctionIdentifier("foo") in cs.call.function.tags
+        # )
+        #
+        # # Test 2: Test that only one call-sites is left post concatenation
+        # assert pt.analysis.get_num_call_sites(dag) == 1
+        #
+        # dag = pt.inline_calls(dag)
+        # print("[Post-concatenation] Number of nodes =",
+        #       pt.analysis.get_num_nodes(dag))
         dag = pt.inline_calls(dag)
-        print("[Post-concatenation] Number of nodes =",
-              pt.analysis.get_num_nodes(dag))
 
         return dag
 
