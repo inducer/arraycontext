@@ -73,7 +73,7 @@ from arraycontext.metadata import NameHint
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Hashable
 
     import jax.numpy as jnp
     import loopy as lp
@@ -236,15 +236,16 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     def outline(self,
                 f: Callable[..., Any],
-                name: str | None = None,
+                *,
+                id: Hashable | None = None,
                 tags: frozenset[Tag] = frozenset()
                 ) -> Callable[..., Any]:
         from pytato.tags import FunctionIdentifier
 
         from .outline import OutlinedCall
-        name = name or getattr(f, "__name__", None)
-        if name is not None:
-            tags = tags | {FunctionIdentifier(name)}
+        id = id or getattr(f, "__name__", None)
+        if id is not None:
+            tags = tags | {FunctionIdentifier(id)}
 
         return OutlinedCall(self, f, tags)
 
