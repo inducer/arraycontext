@@ -153,8 +153,6 @@ def _multimap_array_container_impl(
             iterable_template = serialize_container(template_ary)
         except NotAnArrayContainerError:
             return f(*args_)
-        else:
-            pass
 
         assert all(
                 type(args_[i]) is type(template_ary) for i in container_indices[1:]
