@@ -252,10 +252,7 @@ def stringify_array_container_tree(ary: ArrayOrContainer) -> str:
         else:
             for key, subary in iterable:
                 key = f"{key} ({type(subary).__name__})"
-                if level == 0:
-                    indent = ""
-                else:
-                    indent = f" |  {' ' * 4 * (level - 1)}"
+                indent = "" if level == 0 else f" |  {' ' * 4 * (level - 1)}"
 
                 lines.append(f"{indent} +-- {key}")
                 rec(lines, subary, level + 1)
@@ -833,7 +830,7 @@ def unflatten(
 
             # {{{ check strides
 
-            if strict and hasattr(template_subary_c, "strides"):
+            if strict and hasattr(template_subary_c, "strides"):  # noqa: SIM102
                 # Checking strides for 0 sized arrays is ill-defined
                 # since they cannot be indexed
                 if (

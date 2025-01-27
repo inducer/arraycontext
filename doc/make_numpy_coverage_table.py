@@ -232,20 +232,19 @@ if __name__ == "__main__":
     parser.add_argument("filename", nargs="?", type=pathlib.Path, default=None)
     args = parser.parse_args()
 
-    import sys
-    if args.filename is not None:
-        outf = open(args.filename, "w")
-    else:
-        outf = sys.stdout
+    def write(outf):
+        outf.write(HEADER)
+        write_array_creation_routines(outf, ctxs)
+        write_array_manipulation_routines(outf, ctxs)
+        write_linear_algebra(outf, ctxs)
+        write_logic_functions(outf, ctxs)
+        write_mathematical_functions(outf, ctxs)
 
     ctxs = initialize_contexts()
 
-    outf.write(HEADER)
-    write_array_creation_routines(outf, ctxs)
-    write_array_manipulation_routines(outf, ctxs)
-    write_linear_algebra(outf, ctxs)
-    write_logic_functions(outf, ctxs)
-    write_mathematical_functions(outf, ctxs)
-
-    if args.filename is not None:
-        outf.close()
+    if args.filename:
+        with open(args.filename, "w") as outf:
+            write(outf)
+    else:
+        import sys
+        write(sys.stdout)
