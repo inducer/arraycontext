@@ -186,7 +186,7 @@ _depr_name_to_replacement_and_obj = {
 
 
 def __getattr__(name):
-    replacement_and_obj = _depr_name_to_replacement_and_obj.get(name, None)
+    replacement_and_obj = _depr_name_to_replacement_and_obj.get(name)
     if replacement_and_obj is not None:
         replacement, obj, year = replacement_and_obj
         from warnings import warn

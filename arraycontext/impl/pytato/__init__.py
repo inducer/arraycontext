@@ -526,11 +526,9 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
                 from pytools import common_prefix
                 name_hint = common_prefix([nh.prefix for nh in name_hint_tags])
-                if name_hint:
-                    # All name_hint_tags shared at least some common prefix.
-                    function_name = f"frozen_{name_hint}"
-                else:
-                    function_name = "frozen_result"
+
+                # All name_hint_tags shared at least some common prefix.
+                function_name = f"frozen_{name_hint}" if name_hint else "frozen_result"
 
                 self._dag_transform_cache[normalized_expr] = (
                         transformed_dag, function_name)
@@ -668,7 +666,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     f"array type: got '{type(arg).__name__}', but expected one "
                     f"of {self.array_types}")
 
-            if name is not None:
+            if name is not None:  # noqa: SIM102
                 # Tagging Placeholders with naming-related tags is pointless:
                 # They already have names. It's also counterproductive, as
                 # multiple placeholders with the same name that are not
@@ -897,7 +895,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
                     f"array type: got '{type(arg).__name__}', but expected one "
                     f"of {self.array_types}")
 
-            if name is not None:
+            if name is not None:  # noqa: SIM102
                 # Tagging Placeholders with naming-related tags is pointless:
                 # They already have names. It's also counterproductive, as
                 # multiple placeholders with the same name that are not

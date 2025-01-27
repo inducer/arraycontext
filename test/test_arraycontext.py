@@ -153,10 +153,7 @@ def randn(shape, dtype):
     rng = np.random.default_rng()
     dtype = np.dtype(dtype)
 
-    if shape == 0:
-        ashape = 1
-    else:
-        ashape = shape
+    ashape = 1 if shape == 0 else shape
 
     if dtype.kind == "c":
         dtype = np.dtype(f"<f{dtype.itemsize // 2}")

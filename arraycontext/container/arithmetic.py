@@ -373,19 +373,18 @@ def with_container_arithmetic(
         cls_has_array_context_attr: bool | None = _cls_has_array_context_attr
         bcast_actx_array_type: bool | None = _bcast_actx_array_type
 
-        if cls_has_array_context_attr is None:
-            if hasattr(cls, "array_context"):
-                raise TypeError(
-                        f"{cls} has an 'array_context' attribute, but it does not "
-                        "set '_cls_has_array_context_attr' to *True* when calling "
-                        "with_container_arithmetic. This is being interpreted "
-                        "as '.array_context' being permitted to fail "
-                        "with an exception, which is no longer allowed. "
-                        f"If {cls.__name__}.array_context will not fail, pass "
-                        "'_cls_has_array_context_attr=True'. "
-                        "If you do not want container arithmetic to make "
-                        "use of the array context, set "
-                        "'_cls_has_array_context_attr=False'.")
+        if cls_has_array_context_attr is None and hasattr(cls, "array_context"):
+            raise TypeError(
+                    f"{cls} has an 'array_context' attribute, but it does not "
+                    "set '_cls_has_array_context_attr' to *True* when calling "
+                    "with_container_arithmetic. This is being interpreted "
+                    "as '.array_context' being permitted to fail "
+                    "with an exception, which is no longer allowed. "
+                    f"If {cls.__name__}.array_context will not fail, pass "
+                    "'_cls_has_array_context_attr=True'. "
+                    "If you do not want container arithmetic to make "
+                    "use of the array context, set "
+                    "'_cls_has_array_context_attr=False'.")
 
         if bcast_actx_array_type is None:
             if cls_has_array_context_attr:
