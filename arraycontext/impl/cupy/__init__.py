@@ -98,7 +98,12 @@ class CupyArrayContext(ArrayContext):
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
         import cupy as cp
-        return cp.array(array)
+
+        def _from_numpy(ary):
+            return cp.array(ary)
+
+        return with_array_context(rec_map_array_container(_from_numpy, array),
+                                  actx=self)
 
     @overload
     def to_numpy(self, array: Array) -> np.ndarray:
@@ -112,7 +117,12 @@ class CupyArrayContext(ArrayContext):
                  array: ArrayOrContainerOrScalar
                  ) -> NumpyOrContainerOrScalar:
         import cupy as cp
-        return cp.asnumpy(array)
+
+        def _to_numpy(ary):
+            return cp.asnumpy(ary)
+
+        return with_array_context(rec_map_array_container(_to_numpy, array),
+                                  actx=self)
 
     def call_loopy(
                 self,

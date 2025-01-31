@@ -1014,9 +1014,6 @@ def test_flatten_with_leaf_class(actx_factory):
 
 def test_numpy_conversion(actx_factory):
     actx = actx_factory()
-    if isinstance(actx, CupyArrayContext):
-        pytest.skip("Irrelevant tests for CupyArrayContext. "
-                    "Also, CupyArrayContext does not support object arrays.")
     rng = np.random.default_rng()
 
     nelements = 42
@@ -1033,7 +1030,7 @@ def test_numpy_conversion(actx_factory):
     assert np.allclose(ac.mass, ac_roundtrip.mass)
     assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
 
-    if not isinstance(actx, NumpyArrayContext):
+    if not isinstance(actx, NumpyArrayContext | CupyArrayContext):
         from dataclasses import replace
         ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
         with pytest.raises(TypeError):
@@ -1094,9 +1091,6 @@ def scale_and_orthogonalize(alpha, vel):
 
 def test_actx_compile(actx_factory):
     actx = actx_factory()
-    if isinstance(actx, CupyArrayContext):
-        pytest.skip("CupyArrayContext does not support object arrays")
-
     rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1115,9 +1109,6 @@ def test_actx_compile(actx_factory):
 
 def test_actx_compile_python_scalar(actx_factory):
     actx = actx_factory()
-    if isinstance(actx, CupyArrayContext):
-        pytest.skip("CupyArrayContext does not support object arrays")
-
     rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1136,9 +1127,6 @@ def test_actx_compile_python_scalar(actx_factory):
 
 def test_actx_compile_kwargs(actx_factory):
     actx = actx_factory()
-    if isinstance(actx, CupyArrayContext):
-        pytest.skip("CupyArrayContext does not support object arrays")
-
     rng = np.random.default_rng()
 
     compiled_rhs = actx.compile(scale_and_orthogonalize)
@@ -1160,8 +1148,6 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     # key stringification logic.
     from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
-    if isinstance(actx, CupyArrayContext):
-        pytest.skip("CupyArrayContext does not support object arrays")
 
     rng = np.random.default_rng()
 
