@@ -156,10 +156,7 @@ def randn(shape, dtype):
     rng = np.random.default_rng()
     dtype = np.dtype(dtype)
 
-    if shape == 0:
-        ashape = 1
-    else:
-        ashape = shape
+    ashape = 1 if shape == 0 else shape
 
     if dtype.kind == "c":
         dtype = np.dtype(f"<f{dtype.itemsize // 2}")
@@ -266,19 +263,18 @@ def test_array_context_np_workalike(actx_factory, sym_name, n_args, dtype):
             "atan2": "arctan2",
             }
 
-    def evaluate(_np, *_args):
-        func = getattr(_np, sym_name,
-                getattr(_np, c_to_numpy_arc_functions.get(sym_name, sym_name)))
+    def evaluate(np_, *args_):
+        func = getattr(np_, sym_name,
+                getattr(np_, c_to_numpy_arc_functions.get(sym_name, sym_name)))
 
-        return func(*_args)
+        return func(*args_)
 
     assert_close_to_numpy_in_containers(actx, evaluate, args)
 
-    if sym_name in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
-        pytest.skip(f"'{sym_name}' not supported on scalars")
-
-    args = [randn(0, dtype)[()] for i in range(n_args)]
-    assert_close_to_numpy(actx, evaluate, args)
+    if sym_name not in ["where", "min", "max", "any", "all", "conj", "vdot", "sum"]:
+        # Scalar arguments are supported.
+        args = [randn(0, dtype)[()] for i in range(n_args)]
+        assert_close_to_numpy(actx, evaluate, args)
 
 
 @pytest.mark.parametrize(("sym_name", "n_args", "dtype"), [
