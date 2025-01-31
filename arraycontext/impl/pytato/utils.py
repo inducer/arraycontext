@@ -35,6 +35,7 @@ THE SOFTWARE.
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
+from pytato.analysis import get_num_call_sites
 from pytato.array import (
     AbstractResultWithNamedArrays,
     Array,
@@ -45,6 +46,7 @@ from pytato.array import (
     SizeParam,
     make_placeholder,
 )
+from pytato.function import FunctionDefinition
 from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
@@ -95,7 +97,14 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
         raise ValueError("Placeholders cannot appear in"
                          " DatawrapperToBoundPlaceholderMapper.")
 
+    def map_function_definition(
+            self, expr: FunctionDefinition) -> FunctionDefinition:
+        raise ValueError("Function definitions cannot appear in"
+                         " DatawrapperToBoundPlaceholderMapper.")
 
+
+# FIXME: This strategy doesn't work if the DAG has functions, since function
+# definitions can't contain non-argument placeholders
 def _normalize_pt_expr(
         expr: DictOfNamedArrays
         ) -> tuple[Array | AbstractResultWithNamedArrays, Mapping[str, Any]]:
@@ -108,6 +117,11 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
+    if get_num_call_sites(expr):
+        raise NotImplementedError(
+            "_normalize_pt_expr is not compatible with expressions that "
+            "contain function calls.")
+
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
     normalized_expr = normalize_mapper(expr)
     assert isinstance(normalized_expr, AbstractResultWithNamedArrays)
@@ -218,6 +232,32 @@ def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
     :meth:`~arraycontext.ArrayContext.to_numpy`.
     """
     return TransferToNumpyMapper(actx)(expr)
+
+# }}}
+
+
+# {{{ compile/outline helpers
+
+def _ary_container_key_stringifier(keys: tuple[Any, ...]) -> str:
+    """
+    Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
+    array-container's component's key. Goals of this routine:
+
+    * No two different keys should have the same stringification
+    * Stringified key must a valid identifier according to :meth:`str.isidentifier`
+    * (informal) Shorter identifiers are preferred
+    """
+    def _rec_str(key: Any) -> str:
+        if isinstance(key, str | int):
+            return str(key)
+        elif isinstance(key, tuple):
+            # t in '_actx_t': stands for tuple
+            return "_actx_t" + "_".join(_rec_str(k) for k in key) + "_actx_endt"
+        else:
+            raise NotImplementedError("Key-stringication unimplemented for "
+                                      f"'{type(key).__name__}'.")
+
+    return "_".join(_rec_str(key) for key in keys)
 
 # }}}
 
