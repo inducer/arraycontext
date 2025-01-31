@@ -1148,7 +1148,6 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     # key stringification logic.
     from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
-
     rng = np.random.default_rng()
 
     def my_rhs(scale, vel):
