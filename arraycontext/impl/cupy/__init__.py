@@ -122,7 +122,7 @@ class CupyArrayContext(ArrayContext):
             return cp.asnumpy(ary)
 
         return with_array_context(rec_map_array_container(_to_numpy, array),
-                                  actx=self)
+                                  actx=None)
 
     def call_loopy(
                 self,
