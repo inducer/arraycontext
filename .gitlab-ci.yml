@@ -39,6 +39,7 @@ Python 3 CuPy Nvidia Titan V:
     . ./ci-support-v0
     CONDA_ENVIRONMENT=.test-conda-env-py3.yml
     echo "- cupy" >> "$CONDA_ENVIRONMENT"
+    export PYOPENCL_TEST=port:cpu
     build_py_project_in_venv
     test_py_project
 
