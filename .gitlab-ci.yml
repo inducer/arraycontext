@@ -33,6 +33,24 @@ Python 3 Nvidia Titan V:
     reports:
       junit: test/pytest.xml
 
+Python 3 CuPy Nvidia Titan V:
+  script: |
+    curl -L -O https://tiker.net/ci-support-v0
+    . ./ci-support-v0
+    CONDA_ENVIRONMENT=.test-conda-env-py3.yml
+    echo "- cupy" >> "$CONDA_ENVIRONMENT"
+    build_py_project_in_venv
+    test_py_project
+
+  tags:
+  - python3
+  - nvidia-titan-v
+  except:
+  - tags
+  artifacts:
+    reports:
+      junit: test/pytest.xml
+
 Python 3 POCL Nvidia Titan V:
   script: |
     curl -L -O https://tiker.net/ci-support-v0
