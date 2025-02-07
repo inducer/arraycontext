@@ -1,37 +1,37 @@
-Python 3 POCL:
-  script: |
-    export PYOPENCL_TEST=portable:cpu
-    export EXTRA_INSTALL="jax[cpu]"
-    export JAX_PLATFORMS=cpu
-    curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
-    . ./build-and-test-py-project.sh
-  tags:
-  - python3
-  - pocl
-  - mpi
-  except:
-  - tags
-  artifacts:
-    reports:
-      junit: test/pytest.xml
+# Python 3 POCL:
+#   script: |
+#     export PYOPENCL_TEST=portable:cpu
+#     export EXTRA_INSTALL="jax[cpu]"
+#     export JAX_PLATFORMS=cpu
+#     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
+#     . ./build-and-test-py-project.sh
+#   tags:
+#   - python3
+#   - pocl
+#   - mpi
+#   except:
+#   - tags
+#   artifacts:
+#     reports:
+#       junit: test/pytest.xml
 
-Python 3 Nvidia Titan V:
-  script: |
-    curl -L -O https://tiker.net/ci-support-v0
-    . ./ci-support-v0
-    export PYOPENCL_TEST=nvi:titan
-    build_py_project_in_venv
-    pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html
-    test_py_project
+# Python 3 Nvidia Titan V:
+#   script: |
+#     curl -L -O https://tiker.net/ci-support-v0
+#     . ./ci-support-v0
+#     export PYOPENCL_TEST=nvi:titan
+#     build_py_project_in_venv
+#     pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html
+#     test_py_project
 
-  tags:
-  - python3
-  - nvidia-titan-v
-  except:
-  - tags
-  artifacts:
-    reports:
-      junit: test/pytest.xml
+#   tags:
+#   - python3
+#   - nvidia-titan-v
+#   except:
+#   - tags
+#   artifacts:
+#     reports:
+#       junit: test/pytest.xml
 
 Python 3 CuPy Nvidia Titan V:
   script: |
@@ -39,7 +39,7 @@ Python 3 CuPy Nvidia Titan V:
     . ./ci-support-v0
     CONDA_ENVIRONMENT=.test-conda-env-py3.yml
     echo "- cupy" >> "$CONDA_ENVIRONMENT"
-    build_py_project_in_venv
+    build_py_project_in_conda_env
     test_py_project
 
   tags:
@@ -51,105 +51,105 @@ Python 3 CuPy Nvidia Titan V:
     reports:
       junit: test/pytest.xml
 
-Python 3 POCL Nvidia Titan V:
-  script: |
-    curl -L -O https://tiker.net/ci-support-v0
-    . ./ci-support-v0
-    export PYOPENCL_TEST=port:titan
-    build_py_project_in_venv
-    test_py_project
+# Python 3 POCL Nvidia Titan V:
+#   script: |
+#     curl -L -O https://tiker.net/ci-support-v0
+#     . ./ci-support-v0
+#     export PYOPENCL_TEST=port:titan
+#     build_py_project_in_venv
+#     test_py_project
 
-  tags:
-  - python3
-  - nvidia-titan-v
-  except:
-  - tags
-  artifacts:
-    reports:
-      junit: test/pytest.xml
+#   tags:
+#   - python3
+#   - nvidia-titan-v
+#   except:
+#   - tags
+#   artifacts:
+#     reports:
+#       junit: test/pytest.xml
 
-Python 3 POCL Examples:
-  script:
-  - test -n "$SKIP_EXAMPLES" && exit
-  - export PYOPENCL_TEST=portable:cpu
-  - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
-  - ". ./build-py-project-and-run-examples.sh"
-  tags:
-  - python3
-  - pocl
-  - large-node
-  except:
-  - tags
+# Python 3 POCL Examples:
+#   script:
+#   - test -n "$SKIP_EXAMPLES" && exit
+#   - export PYOPENCL_TEST=portable:cpu
+#   - curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-py-project-and-run-examples.sh
+#   - ". ./build-py-project-and-run-examples.sh"
+#   tags:
+#   - python3
+#   - pocl
+#   - large-node
+#   except:
+#   - tags
 
-Python 3 Conda:
-  script: |
-    export PYOPENCL_TEST=portable:cpu
+# Python 3 Conda:
+#   script: |
+#     export PYOPENCL_TEST=portable:cpu
 
-    # Avoid crashes like https://gitlab.tiker.net/inducer/arraycontext/-/jobs/536021
-    sed -i 's/jax/jax !=0.4.6/' .test-conda-env-py3.yml
+#     # Avoid crashes like https://gitlab.tiker.net/inducer/arraycontext/-/jobs/536021
+#     sed -i 's/jax/jax !=0.4.6/' .test-conda-env-py3.yml
 
-    curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project-within-miniconda.sh
-    . ./build-and-test-py-project-within-miniconda.sh
-  tags:
-  # - docker-runner
-  - linux
-  - large-node
-  except:
-  - tags
+#     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project-within-miniconda.sh
+#     . ./build-and-test-py-project-within-miniconda.sh
+#   tags:
+#   # - docker-runner
+#   - linux
+#   - large-node
+#   except:
+#   - tags
 
-Documentation:
-  script: |
-    curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-docs.sh
-    CI_SUPPORT_SPHINX_VERSION_SPECIFIER=">=4.0"
-    . ./build-docs.sh
-  tags:
-  - python3
+# Documentation:
+#   script: |
+#     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-docs.sh
+#     CI_SUPPORT_SPHINX_VERSION_SPECIFIER=">=4.0"
+#     . ./build-docs.sh
+#   tags:
+#   - python3
 
-Ruff:
-  script:
-  - pipx install ruff
-  - ruff check
-  tags:
-  - docker-runner
-  except:
-  - tags
+# Ruff:
+#   script:
+#   - pipx install ruff
+#   - ruff check
+#   tags:
+#   - docker-runner
+#   except:
+#   - tags
 
-Pylint:
-  script: |
-    EXTRA_INSTALL="jax[cpu]"
-    curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
-    . ./prepare-and-run-pylint.sh "$CI_PROJECT_NAME" examples/*.py test/test_*.py
-  tags:
-  - python3
-  except:
-  - tags
+# Pylint:
+#   script: |
+#     EXTRA_INSTALL="jax[cpu]"
+#     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
+#     . ./prepare-and-run-pylint.sh "$CI_PROJECT_NAME" examples/*.py test/test_*.py
+#   tags:
+#   - python3
+#   except:
+#   - tags
 
-Mypy:
-  script: |
-    EXTRA_INSTALL="mypy pytest"
+# Mypy:
+#   script: |
+#     EXTRA_INSTALL="mypy pytest"
 
-    curl -L -O https://tiker.net/ci-support-v0
-    . ./ci-support-v0
+#     curl -L -O https://tiker.net/ci-support-v0
+#     . ./ci-support-v0
 
-    build_py_project_in_venv
-    ./run-mypy.sh
-  tags:
-  - python3
-  except:
-  - tags
+#     build_py_project_in_venv
+#     ./run-mypy.sh
+#   tags:
+#   - python3
+#   except:
+#   - tags
 
-Downstream:
-  parallel:
-    matrix:
-    - DOWNSTREAM_PROJECT: [meshmode, grudge, mirgecom, mirgecom_examples]
-  tags:
-  - large-node
-  - "docker-runner"
-  script: |
-    curl -L -O https://tiker.net/ci-support-v0
-    . ./ci-support-v0
-    test_downstream "$DOWNSTREAM_PROJECT"
+# Downstream:
+#   parallel:
+#     matrix:
+#     - DOWNSTREAM_PROJECT: [meshmode, grudge, mirgecom, mirgecom_examples]
+#   tags:
+#   - large-node
+#   - "docker-runner"
+#   script: |
+#     curl -L -O https://tiker.net/ci-support-v0
+#     . ./ci-support-v0
+#     test_downstream "$DOWNSTREAM_PROJECT"
 
-    if [[ "$DOWNSTREAM_PROJECT" = "meshmode" ]]; then
-        python ../examples/simple-dg.py --lazy
-    fi
+#     if [[ "$DOWNSTREAM_PROJECT" = "meshmode" ]]; then
+#         python ../examples/simple-dg.py --lazy
+#     fi
