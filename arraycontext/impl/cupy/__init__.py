@@ -75,6 +75,8 @@ class CupyArrayContext(ArrayContext):
         super().__init__()
         self._loopy_transform_cache = {}
 
+        self.device = device
+
         if device is not None:
             import cupy as cp
             cp.cuda.runtime.setDevice(device)
@@ -88,7 +90,7 @@ class CupyArrayContext(ArrayContext):
     # {{{ ArrayContext interface
 
     def clone(self):
-        return type(self)()
+        return type(self)(self.device)
 
     @overload
     def from_numpy(self, array: np.ndarray) -> Array:
