@@ -48,7 +48,6 @@ from arraycontext.context import (
     ArrayOrContainerOrScalarT,
     ContainerOrScalarT,
     NumpyOrContainerOrScalar,
-    UntransformedCodeWarning,
 )
 
 
@@ -134,16 +133,10 @@ class CupyArrayContext(ArrayContext):
                 self,
                 t_unit: lp.TranslationUnit, **kwargs: Any
             ) -> dict[str, Array]:
-        t_unit = t_unit.copy(target=lp.ExecutableCTarget())
-        try:
-            executor = self._loopy_transform_cache[t_unit]
-        except KeyError:
-            executor = self.transform_loopy_program(t_unit).executor()
-            self._loopy_transform_cache[t_unit] = executor
-
-        _, result = executor(**kwargs)
-
-        return result
+        raise NotImplementedError(
+            "Calling loopy on CuPy arrays is not supported. Maybe rewrite"
+            " the loopy kernel as numpy-flavored array operations using"
+            " ArrayContext.np.")
 
     def freeze(self, array):
         import cupy as cp
@@ -164,21 +157,10 @@ class CupyArrayContext(ArrayContext):
     # }}}
 
     def transform_loopy_program(self, t_unit):
-        from warnings import warn
-        warn("Using the base "
-                f"{type(self).__name__}.transform_loopy_program "
-                "to transform a translation unit. "
-                "This is a no-op and will result in unoptimized C code for"
-                "the requested optimization, all in a single statement."
-                "This will work, but is unlikely to be performant."
-                f"Instead, subclass {type(self).__name__} and implement "
-                "the specific transform logic required to transform the program "
-                "for your package or application. Check higher-level packages "
-                "(e.g. meshmode), which may already have subclasses you may want "
-                "to build on.",
-                UntransformedCodeWarning, stacklevel=2)
-
-        return t_unit
+        raise NotImplementedError(
+            "Calling loopy on CuPy arrays is not supported. Maybe rewrite"
+            " the loopy kernel as numpy-flavored array operations using"
+            " ArrayContext.np.")
 
     def tag(self,
             tags: ToTagSetConvertible,
