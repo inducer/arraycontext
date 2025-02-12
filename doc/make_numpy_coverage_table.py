@@ -11,7 +11,7 @@ Workflow:
 
 .. code::
 
-    python make_numpy_support_table.py numpy_coverage.rst
+    python make_numpy_coverage_table.py numpy_coverage.rst
 """
 from __future__ import annotations
 
@@ -67,6 +67,8 @@ def initialize_contexts():
             arraycontext.EagerJAXArrayContext(),
             arraycontext.PytatoPyOpenCLArrayContext(queue),
             arraycontext.PytatoJAXArrayContext(),
+            arraycontext.NumpyArrayContext(),
+            arraycontext.CupyArrayContext(),
             ]
 
 
