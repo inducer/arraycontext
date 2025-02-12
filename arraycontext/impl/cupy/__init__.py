@@ -70,13 +70,9 @@ class CupyArrayContext(ArrayContext):
 
     _loopy_transform_cache: dict[lp.TranslationUnit, lp.ExecutorBase]
 
-    def __init__(self, device: int | None = None) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self._loopy_transform_cache = {}
-
-        if device is not None:
-            import cupy as cp
-            cp.cuda.runtime.setDevice(device)
 
     array_types = (CupyNonObjectArray,)
 
