@@ -126,6 +126,8 @@ class CupyArrayContext(ArrayContext):
 
     def freeze(self, array):
         import cupy as cp
+        # Note that we could use a non-blocking version of cp.asnumpy here, but
+        # it appears to have very little impact on performance.
         return with_array_context(rec_map_array_container(cp.asnumpy, array), actx=None)
 
     def thaw(self, array):
