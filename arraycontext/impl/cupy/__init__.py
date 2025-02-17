@@ -97,10 +97,6 @@ class CupyArrayContext(ArrayContext):
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
         import cupy as cp
-
-        def _from_numpy(ary):
-            return cp.array(ary)
-
         return with_array_context(rec_map_array_container(cp.array, array),
                                   actx=self)
 
@@ -116,10 +112,6 @@ class CupyArrayContext(ArrayContext):
                  array: ArrayOrContainerOrScalar
                  ) -> NumpyOrContainerOrScalar:
         import cupy as cp
-
-        def _to_numpy(ary):
-            return cp.asnumpy(ary)
-
         return with_array_context(rec_map_array_container(cp.asnumpy, array),
                                   actx=None)
 
@@ -134,27 +126,13 @@ class CupyArrayContext(ArrayContext):
 
     def freeze(self, array):
         import cupy as cp
-
-        def _freeze(ary):
-            return cp.asnumpy(ary)
-
-        return with_array_context(rec_map_array_container(_freeze, array), actx=None)
+        return with_array_context(rec_map_array_container(cp.asnumpy, array), actx=None)
 
     def thaw(self, array):
         import cupy as cp
-
-        def _thaw(ary):
-            return cp.array(ary)
-
-        return with_array_context(rec_map_array_container(_thaw, array), actx=self)
+        return with_array_context(rec_map_array_container(cp.array, array), actx=self)
 
     # }}}
-
-    def transform_loopy_program(self, t_unit):
-        raise NotImplementedError(
-            "Calling loopy on CuPy arrays is not supported. Maybe rewrite"
-            " the loopy kernel as numpy-flavored array operations using"
-            " ArrayContext.np.")
 
     def tag(self,
             tags: ToTagSetConvertible,
