@@ -101,7 +101,7 @@ class CupyArrayContext(ArrayContext):
         def _from_numpy(ary):
             return cp.array(ary)
 
-        return with_array_context(rec_map_array_container(_from_numpy, array),
+        return with_array_context(rec_map_array_container(cp.array, array),
                                   actx=self)
 
     @overload
@@ -120,7 +120,7 @@ class CupyArrayContext(ArrayContext):
         def _to_numpy(ary):
             return cp.asnumpy(ary)
 
-        return with_array_context(rec_map_array_container(_to_numpy, array),
+        return with_array_context(rec_map_array_container(cp.asnumpy, array),
                                   actx=None)
 
     def call_loopy(
