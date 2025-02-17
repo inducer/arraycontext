@@ -328,11 +328,11 @@ class BaseLazilyCompilingFunctionCaller:
 
         try:
             compiled_f = self.program_cache[arg_id_to_descr]
-        except KeyError:
+        except KeyError as e:
             if self.single_version_only and self.program_cache:
                 raise ValueError(
                     f"Function '{self.f.__name__}' to be compiled "
-                    "was already compiled previously with different arguments.")
+                    "was already compiled previously with different arguments.") from e
         else:
             return compiled_f(arg_id_to_arg)
 
