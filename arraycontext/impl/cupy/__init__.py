@@ -62,17 +62,7 @@ class CupyNonObjectArray(metaclass=CupyNonObjectArrayMetaclass):
 
 
 class CupyArrayContext(ArrayContext):
-    """
-    An :class:`ArrayContext` that uses :class:`cupy.ndarray` to represent arrays.
-
-    .. automethod:: __init__
-    """
-
-    _loopy_transform_cache: dict[lp.TranslationUnit, lp.ExecutorBase]
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._loopy_transform_cache = {}
+    """An :class:`ArrayContext` that uses :class:`cupy.ndarray` to represent arrays."""
 
     array_types = (CupyNonObjectArray,)
 
