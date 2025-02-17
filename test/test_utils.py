@@ -1,5 +1,9 @@
 """Testing for internal  utilities."""
 
+# Do not add
+# from __future__ import annotations
+# to allow the non-string annotations below to work.
+
 
 __copyright__ = "Copyright (C) 2021 University of Illinois Board of Trustees"
 
@@ -23,6 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 import logging
+from typing import Optional, Tuple, cast  # noqa: UP035
 
 import numpy as np
 import pytest
@@ -49,29 +54,16 @@ def test_pt_actx_key_stringification_uniqueness():
 
 def test_dataclass_array_container() -> None:
     from dataclasses import dataclass, field
-    from typing import Optional, Tuple  # noqa: UP035
 
     from arraycontext import Array, dataclass_array_container
-
-    # {{{ string fields
-
-    @dataclass
-    class ArrayContainerWithStringTypes:
-        x: np.ndarray
-        y: "np.ndarray"
-
-    with pytest.raises(TypeError, match="String annotation on field 'y'"):
-        # NOTE: cannot have string annotations in container
-        dataclass_array_container(ArrayContainerWithStringTypes)
-
-    # }}}
 
     # {{{ optional fields
 
     @dataclass
     class ArrayContainerWithOptional:
         x: np.ndarray
-        y: Optional[np.ndarray]
+        # Deliberately left as Optional to test compatibility.
+        y: Optional[np.ndarray]  # noqa: UP045
 
     with pytest.raises(TypeError, match="Field 'y' union contains non-array"):
         # NOTE: cannot have wrapped annotations (here by `Optional`)
@@ -84,7 +76,8 @@ def test_dataclass_array_container() -> None:
     @dataclass
     class ArrayContainerWithTuple:
         x: Array
-        y: Tuple[Array, Array]
+        # Deliberately left as Tuple to test compatibility.
+        y: Tuple[Array, Array]  # noqa: UP006
 
     with pytest.raises(TypeError, match="Typing annotation not supported on field 'y'"):
         dataclass_array_container(ArrayContainerWithTuple)
@@ -131,7 +124,6 @@ def test_dataclass_array_container() -> None:
 
 def test_dataclass_container_unions() -> None:
     from dataclasses import dataclass
-    from typing import Union
 
     from arraycontext import Array, dataclass_array_container
 
@@ -140,7 +132,7 @@ def test_dataclass_container_unions() -> None:
     @dataclass
     class ArrayContainerWithUnion:
         x: np.ndarray
-        y: Union[np.ndarray, Array]
+        y: np.ndarray | Array
 
     dataclass_array_container(ArrayContainerWithUnion)
 
@@ -158,7 +150,7 @@ def test_dataclass_container_unions() -> None:
     @dataclass
     class ArrayContainerWithWrongUnion:
         x: np.ndarray
-        y: Union[np.ndarray, float]
+        y: np.ndarray | float
 
     with pytest.raises(TypeError, match="Field 'y' union contains non-array container"):
         # NOTE: float is not an ArrayContainer, so y should fail
@@ -217,9 +209,15 @@ def test_stringify_array_container_tree() -> None:
         extent: float
 
     rng = np.random.default_rng(seed=42)
-    a = ArrayWrapper(ary=rng.random(10))
-    d = SomeContainer(points=rng.random((2, 10)), radius=rng.random(), centers=a)
-    c = SomeContainer(points=rng.random((2, 10)), radius=rng.random(), centers=a)
+    a = ArrayWrapper(ary=cast(Array, rng.random(10)))
+    d = SomeContainer(
+              points=cast(Array, rng.random((2, 10))),
+              radius=rng.random(),
+              centers=a)
+    c = SomeContainer(
+              points=cast(Array, rng.random((2, 10))),
+              radius=rng.random(),
+              centers=a)
     ary = SomeOtherContainer(
         disk=d, circle=c,
         has_disk=True,

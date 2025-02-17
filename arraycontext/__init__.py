@@ -2,6 +2,7 @@
 An array context is an abstraction that helps you dispatch between multiple
 implementations of :mod:`numpy`-like :math:`n`-dimensional arrays.
 """
+from __future__ import annotations
 
 
 __copyright__ = """
@@ -29,6 +30,7 @@ THE SOFTWARE.
 """
 
 from .container import (
+    ArithArrayContainer,
     ArrayContainer,
     ArrayContainerT,
     NotAnArrayContainerError,
@@ -72,6 +74,10 @@ from .container.traversal import (
 from .context import (
     Array,
     ArrayContext,
+    ArrayOrArithContainer,
+    ArrayOrArithContainerOrScalar,
+    ArrayOrArithContainerOrScalarT,
+    ArrayOrArithContainerT,
     ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
@@ -95,10 +101,15 @@ from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 
 
 __all__ = (
+    "ArithArrayContainer",
     "Array",
     "ArrayContainer",
     "ArrayContainerT",
     "ArrayContext",
+    "ArrayOrArithContainer",
+    "ArrayOrArithContainerOrScalar",
+    "ArrayOrArithContainerOrScalarT",
+    "ArrayOrArithContainerT",
     "ArrayOrContainer",
     "ArrayOrContainerOrScalar",
     "ArrayOrContainerOrScalarT",
@@ -175,7 +186,7 @@ _depr_name_to_replacement_and_obj = {
 
 
 def __getattr__(name):
-    replacement_and_obj = _depr_name_to_replacement_and_obj.get(name, None)
+    replacement_and_obj = _depr_name_to_replacement_and_obj.get(name)
     if replacement_and_obj is not None:
         replacement, obj, year = replacement_and_obj
         from warnings import warn

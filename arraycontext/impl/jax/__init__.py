@@ -2,6 +2,8 @@
 .. currentmodule:: arraycontext
 .. autoclass:: EagerJAXArrayContext
 """
+from __future__ import annotations
+
 
 __copyright__ = """
 Copyright (C) 2021 University of Illinois Board of Trustees
@@ -119,7 +121,7 @@ class EagerJAXArrayContext(ArrayContext):
         return array
 
     def tag_axis(self, iaxis, tags: ToTagSetConvertible, array):
-        # TODO: See `jax.experiemental.maps.xmap`, probably that should be useful?
+        # TODO: See `jax.experimental.maps.xmap`, probably that should be useful?
         return array
 
     def call_loopy(self, t_unit, **kwargs):

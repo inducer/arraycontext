@@ -2,6 +2,7 @@ Python 3 POCL:
   script: |
     export PYOPENCL_TEST=portable:cpu
     export EXTRA_INSTALL="jax[cpu]"
+    export JAX_PLATFORMS=cpu
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
     . ./build-and-test-py-project.sh
   tags:
