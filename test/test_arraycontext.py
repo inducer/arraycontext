@@ -34,6 +34,7 @@ from pytools.obj_array import make_obj_array
 from pytools.tag import Tag
 
 from arraycontext import (
+    CupyArrayContext,
     EagerJAXArrayContext,
     NumpyArrayContext,
     PyOpenCLArrayContext,
@@ -45,6 +46,7 @@ from arraycontext import (
     with_container_arithmetic,
 )
 from arraycontext.pytest import (
+    _PytestCupyArrayContextFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestNumpyArrayContextFactory,
     _PytestPyOpenCLArrayContextFactoryWithClass,
@@ -99,6 +101,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestCupyArrayContextFactory,
     _PytestNumpyArrayContextFactory,
     ])
 
@@ -1027,7 +1030,7 @@ def test_numpy_conversion(actx_factory):
     assert np.allclose(ac.mass, ac_roundtrip.mass)
     assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
 
-    if not isinstance(actx, NumpyArrayContext):
+    if not isinstance(actx, NumpyArrayContext | CupyArrayContext):
         from dataclasses import replace
         ac_with_cl = replace(ac, enthalpy=ac_actx.mass)
         with pytest.raises(TypeError):
@@ -1382,7 +1385,7 @@ def test_to_numpy_on_frozen_arrays(actx_factory):
 def test_tagging(actx_factory):
     actx = actx_factory()
 
-    if isinstance(actx, NumpyArrayContext | EagerJAXArrayContext):
+    if isinstance(actx, NumpyArrayContext | EagerJAXArrayContext | CupyArrayContext):
         pytest.skip(f"{type(actx)} has no tagging support")
 
     from pytools.tag import Tag
@@ -1430,6 +1433,9 @@ def test_linspace(actx_factory, args, kwargs):
         pytest.xfail("jax actx does not have arange")
 
     actx = actx_factory()
+
+    if isinstance(actx, CupyArrayContext) and kwargs.get("dtype") == np.complex128:
+        pytest.skip("CupyArrayContext does not support complex args to linspace")
 
     actx_linspace = actx.to_numpy(actx.np.linspace(*args, **kwargs))
     np_linspace = np.linspace(*args, **kwargs)
