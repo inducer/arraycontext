@@ -323,18 +323,31 @@ class BaseLazilyCompilingFunctionCaller:
         :attr:`~BaseLazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
         The intermediary pytato DAG for *args* is memoized in *self*.
         """
-        arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
-            args, kwargs)
+        if not self.single_version_only:
+            arg_id_to_arg, arg_id_to_descr = \
+                _get_arg_id_to_arg_and_arg_id_to_descr(args, kwargs)
 
-        try:
-            compiled_f = self.program_cache[arg_id_to_descr]
-        except KeyError as e:
-            if self.single_version_only and self.program_cache:
-                raise ValueError(
-                    f"Function '{self.f.__name__}' to be compiled "
-                    "was already compiled previously with different arguments.") from e
+            try:
+                compiled_f = self.program_cache[arg_id_to_descr]
+            except KeyError:
+                pass
+            else:
+                return compiled_f(arg_id_to_arg)
         else:
-            return compiled_f(arg_id_to_arg)
+            assert len(self.program_cache) <= 1
+
+            try:
+                arg_id_to_descr, compiled_f = self.program_cache.popitem()
+            except KeyError:
+                pass
+            else:
+                if __debug__:
+                    current_arg_id_to_arg, current_arg_id_to_descr = \
+                        _get_arg_id_to_arg_and_arg_id_to_descr(args, kwargs)
+                    assert arg_id_to_descr == current_arg_id_to_descr
+                    assert self.arg_id_to_arg == current_arg_id_to_arg
+
+                return compiled_f(self.arg_id_to_arg)
 
         dict_of_named_arrays = {}
         output_id_to_name_in_program = {}
@@ -376,6 +389,9 @@ class BaseLazilyCompilingFunctionCaller:
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_id_to_name_in_program=output_id_to_name_in_program,
                 output_template=output_template)
+
+        if self.single_version_only:
+            self.arg_id_to_arg = arg_id_to_arg
 
         self.program_cache[arg_id_to_descr] = compiled_func
         return compiled_func(arg_id_to_arg)
