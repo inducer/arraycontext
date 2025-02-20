@@ -345,9 +345,9 @@ class BaseLazilyCompilingFunctionCaller:
                     current_arg_id_to_arg, current_arg_id_to_descr = \
                         _get_arg_id_to_arg_and_arg_id_to_descr(args, kwargs)
                     assert arg_id_to_descr == current_arg_id_to_descr
-                    assert self.arg_id_to_arg == current_arg_id_to_arg
+                    assert self.arg_id_to_arg == current_arg_id_to_arg  # pylint: disable=access-member-before-definition
 
-                return compiled_f(self.arg_id_to_arg)
+                return compiled_f(self.arg_id_to_arg)  # pylint: disable=access-member-before-definition
 
         dict_of_named_arrays = {}
         output_id_to_name_in_program = {}
@@ -391,7 +391,7 @@ class BaseLazilyCompilingFunctionCaller:
                 output_template=output_template)
 
         if self.single_version_only:
-            self.arg_id_to_arg = arg_id_to_arg
+            self.arg_id_to_arg: Mapping[tuple[Hashable, ...], Any] = arg_id_to_arg
 
         self.program_cache[arg_id_to_descr] = compiled_func
         return compiled_func(arg_id_to_arg)
