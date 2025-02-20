@@ -337,9 +337,10 @@ class BaseLazilyCompilingFunctionCaller:
             assert len(self.program_cache) <= 1
 
             try:
-                arg_id_to_descr, compiled_f = self.program_cache.popitem()
-            except KeyError:
-                pass
+                arg_id_to_descr, compiled_f = next(iter(self.program_cache.items()))
+            except StopIteration:
+                arg_id_to_arg, arg_id_to_descr = \
+                    _get_arg_id_to_arg_and_arg_id_to_descr(args, kwargs)
             else:
                 if __debug__:
                     current_arg_id_to_arg, current_arg_id_to_descr = \
