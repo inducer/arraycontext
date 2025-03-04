@@ -218,8 +218,10 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
     :attr:`BaseLazilyCompilingFunctionCaller.f`.
     """
     if np.isscalar(arg):
+        from pytato.tags import ForceValueArgTag
         name = arg_id_to_name[kw,]
-        return pt.make_placeholder(name, (), np.dtype(type(arg)))
+        return pt.make_placeholder(name, (), np.dtype(type(arg)),
+                                   tags=frozenset({ForceValueArgTag()}))
     elif isinstance(arg, pt.Array):
         name = arg_id_to_name[kw,]
         # Transform the DAG to give metadata inference a chance to do its job
