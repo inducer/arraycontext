@@ -535,9 +535,8 @@ def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
     for arg_id, arg in arg_id_to_arg.items():
         if np.isscalar(arg):
             if isinstance(actx, PytatoPyOpenCLArrayContext):
-                import pyopencl.array as cla
-                arg = cla.to_device(actx.queue, np.array(arg),
-                        allocator=actx.allocator)
+                # Scalar kernel args are passed as lp.ValueArgs
+                pass
             elif isinstance(actx, PytatoJAXArrayContext):
                 import jax
                 arg = jax.device_put(arg)
