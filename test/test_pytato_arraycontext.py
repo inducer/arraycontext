@@ -247,6 +247,23 @@ def test_transfer(actx_factory):
     # }}}
 
 
+def test_pass_args_compiled_func(actx_factory):
+    import numpy as np
+
+    def twice(x, y, a):
+        return 2 * x * y * a
+
+    actx = _PytatoPyOpenCLArrayContextForTests(actx_factory().queue)
+
+    import pyopencl.array as cl_array
+    cl_ary = cl_array.to_device(actx.queue, np.float64(23))
+
+    f = actx.compile(twice)
+
+    with pytest.raises(ValueError):
+        f(99.0, np.float64(2.0), cl_ary)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
