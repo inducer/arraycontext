@@ -218,8 +218,10 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
     :attr:`BaseLazilyCompilingFunctionCaller.f`.
     """
     if np.isscalar(arg):
+        from pytato.tags import ForceValueArgTag
         name = arg_id_to_name[kw,]
-        return pt.make_placeholder(name, (), np.dtype(type(arg)))
+        return pt.make_placeholder(name, (), np.dtype(type(arg)),
+                                   tags=frozenset({ForceValueArgTag()}))
     elif isinstance(arg, pt.Array):
         name = arg_id_to_name[kw,]
         # Transform the DAG to give metadata inference a chance to do its job
@@ -533,9 +535,8 @@ def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
     for arg_id, arg in arg_id_to_arg.items():
         if np.isscalar(arg):
             if isinstance(actx, PytatoPyOpenCLArrayContext):
-                import pyopencl.array as cla
-                arg = cla.to_device(actx.queue, np.array(arg),
-                        allocator=actx.allocator)
+                # Scalar kernel args are passed as lp.ValueArgs
+                pass
             elif isinstance(actx, PytatoJAXArrayContext):
                 import jax
                 arg = jax.device_put(arg)
