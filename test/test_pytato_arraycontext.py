@@ -247,6 +247,33 @@ def test_transfer(actx_factory):
     # }}}
 
 
+def test_pass_args_compiled_func(actx_factory):
+    import numpy as np
+
+    import loopy as lp
+    import pyopencl as cl
+    import pyopencl.array
+    import pytato as pt
+
+    def twice(x, y, a):
+        return 2 * x * y * a
+
+    actx = _PytatoPyOpenCLArrayContextForTests(actx_factory().queue)
+
+    dev_scalar = pt.make_data_wrapper(cl.array.to_device(actx.queue, np.float64(23)))
+
+    f = actx.compile(twice)
+
+    assert actx.to_numpy(f(99.0, np.float64(2.0), dev_scalar)) == 2*23*99*2
+
+    compiled_func, = f.program_cache.values()
+    ep = compiled_func.pytato_program.program.t_unit.default_entrypoint
+
+    assert isinstance(ep.arg_dict["_actx_in_0"], lp.ValueArg)
+    assert isinstance(ep.arg_dict["_actx_in_1"], lp.ValueArg)
+    assert isinstance(ep.arg_dict["_actx_in_2"], lp.ArrayArg)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
