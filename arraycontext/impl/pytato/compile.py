@@ -550,11 +550,15 @@ def _args_to_device_buffers(fn_name, actx, input_id_to_name_in_program, arg_id_t
             pass
         elif isinstance(arg, pt.Array):
             # got an array expression => evaluate it
-            logger.warning("Argument array '%s' to the '%s' compiled function is "
-                    "unevaluated. Evaluating just-in-time, at "
-                    "considerable expense. This is deprecated and will stop "
-                    "working in 2023. To avoid this warning, force evaluation "
-                    "of all arguments via freeze/thaw.", arg_id, fn_name)
+            from warnings import catch_warnings, filterwarnings, warn
+            with catch_warnings():
+                filterwarnings("always")
+                warn(f"Argument array '{arg_id}' to the '{fn_name}' compiled function "
+                     "is unevaluated. Evaluating just-in-time, at "
+                     "considerable expense. This is deprecated and will stop "
+                     "working in 2023. To avoid this warning, force evaluation "
+                     "of all arguments via freeze/thaw.",
+                      stacklevel=4)
 
             arg = actx.freeze(arg)
         else:
