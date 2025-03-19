@@ -630,7 +630,7 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
         from .utils import get_cl_axes_from_pt_axes
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
 
-        fn_name = self.pytato_program.kernel.name
+        fn_name = self.pytato_program.program.entrypoint
 
         input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
@@ -674,7 +674,7 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
         from .utils import get_cl_axes_from_pt_axes
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
 
-        fn_name = self.pytato_program.kernel.name
+        fn_name = self.pytato_program.program.name
 
         input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
@@ -715,7 +715,7 @@ class CompiledJAXFunctionReturningArrayContainer(CompiledFunction):
        type of the callable.
     """
     actx: PytatoJAXArrayContext
-    pytato_program: pt.target.BoundProgram
+    pytato_program: pt.target.python.BoundJAXPythonProgram
     input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
     output_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
     name_in_program_to_tags: Mapping[str, frozenset[Tag]]
@@ -723,7 +723,7 @@ class CompiledJAXFunctionReturningArrayContainer(CompiledFunction):
     output_template: ArrayContainer
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
-        fn_name = self.pytato_program.kernel.name
+        fn_name = self.pytato_program.entrypoint
 
         input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
@@ -748,14 +748,14 @@ class CompiledJAXFunctionReturningArray(CompiledFunction):
         Name of the output array in the program.
     """
     actx: PytatoJAXArrayContext
-    pytato_program: pt.target.BoundProgram
+    pytato_program: pt.target.python.BoundJAXPythonProgram
     input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
     output_tags: frozenset[Tag]
     output_axes: tuple[pt.Axis, ...]
     output_name: str
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
-        fn_name = self.pytato_program.kernel.name
+        fn_name = self.pytato_program.entrypoint
 
         input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
