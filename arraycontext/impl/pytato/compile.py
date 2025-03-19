@@ -550,18 +550,13 @@ def _args_to_device_buffers(fn_name, actx, input_id_to_name_in_program, arg_id_t
             # got a frozen array  => do nothing
             pass
         elif isinstance(arg, pt.Array):
-            # got an array expression => evaluate it
-            from warnings import catch_warnings, filterwarnings, warn
-            with catch_warnings():
-                filterwarnings("always")
-                warn(f"Argument array '{arg_id}' to the '{fn_name}' compiled function "
-                     "is unevaluated. Evaluating just-in-time, at "
-                     "considerable expense. This is deprecated and will stop "
-                     "working in 2023. To avoid this warning, force evaluation "
-                     "of all arguments via freeze/thaw.",
-                      stacklevel=4)
-
-            arg = actx.freeze(arg)
+            # got an array expression => abort
+            raise ValueError(
+                f"Argument '{arg_id}' to the '{fn_name}' compiled function is a"
+                " pytato array expression. Evaluating it just-in-time"
+                " potentially causes a significant overhead on each call to the"
+                " function and is therefore unsupported. "
+            )
         else:
             raise NotImplementedError(type(arg))
 
