@@ -527,7 +527,7 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         return pytato_program, name_in_program_to_tags, name_in_program_to_axes
 
 
-def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
+def _args_to_device_buffers(fn_name, actx, input_id_to_name_in_program, arg_id_to_arg):
     input_kwargs_for_loopy = {}
 
     for arg_id, arg in arg_id_to_arg.items():
@@ -550,11 +550,11 @@ def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
             pass
         elif isinstance(arg, pt.Array):
             # got an array expression => evaluate it
-            logger.warning("Argument array '%s' to a compiled function is "
+            logger.warning("Argument array '%s' to the '%s' compiled function is "
                     "unevaluated. Evaluating just-in-time, at "
                     "considerable expense. This is deprecated and will stop "
                     "working in 2023. To avoid this warning, force evaluation "
-                    "of all arguments via freeze/thaw.", arg_id)
+                    "of all arguments via freeze/thaw.", arg_id, fn_name)
 
             arg = actx.freeze(arg)
         else:
@@ -630,7 +630,9 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
         from .utils import get_cl_axes_from_pt_axes
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
 
-        input_kwargs_for_loopy = _args_to_device_buffers(
+        fn_name = self.pytato_program.kernel.name
+
+        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
@@ -672,7 +674,9 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
         from .utils import get_cl_axes_from_pt_axes
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
 
-        input_kwargs_for_loopy = _args_to_device_buffers(
+        fn_name = self.pytato_program.kernel.name
+
+        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
@@ -719,7 +723,9 @@ class CompiledJAXFunctionReturningArrayContainer(CompiledFunction):
     output_template: ArrayContainer
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
-        input_kwargs_for_loopy = _args_to_device_buffers(
+        fn_name = self.pytato_program.kernel.name
+
+        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
         out_dict = self.pytato_program(**input_kwargs_for_loopy)
@@ -749,7 +755,9 @@ class CompiledJAXFunctionReturningArray(CompiledFunction):
     output_name: str
 
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
-        input_kwargs_for_loopy = _args_to_device_buffers(
+        fn_name = self.pytato_program.kernel.name
+
+        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
 
         _evt, out_dict = self.pytato_program(**input_kwargs_for_loopy)
