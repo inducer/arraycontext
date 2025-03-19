@@ -564,15 +564,6 @@ def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
 
     return input_kwargs_for_loopy
 
-
-def _args_to_cl_buffers(actx, input_id_to_name_in_program, arg_id_to_arg):
-    from warnings import warn
-    warn("_args_to_cl_buffer has been renamed to"
-         " _args_to_device_buffers. This will be"
-         " an error in 2023.", DeprecationWarning, stacklevel=2)
-    return _args_to_device_buffers(actx, input_id_to_name_in_program,
-                                   arg_id_to_arg)
-
 # }}}
 
 
