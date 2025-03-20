@@ -1143,7 +1143,6 @@ def test_actx_compile_kwargs(actx_factory):
 def test_actx_compile_with_tuple_output_keys(actx_factory):
     # arraycontext.git<=3c9aee68 would fail due to a bug in output
     # key stringification logic.
-    from arraycontext import from_numpy, to_numpy
     actx = actx_factory()
     rng = np.random.default_rng()
 
@@ -1157,11 +1156,11 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     v_x = rng.uniform(size=10)
     v_y = rng.uniform(size=10)
 
-    vel = from_numpy(Velocity2D(v_x, v_y, actx), actx)
+    vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
     scaled_speed = compiled_rhs(3.14, vel=vel)
 
-    result = to_numpy(scaled_speed, actx)[0, 0]
+    result = actx.to_numpy(scaled_speed)[0, 0]
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 

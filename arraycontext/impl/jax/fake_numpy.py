@@ -80,7 +80,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def zeros_like(self, ary):
         def _zeros_like(array):
-            return self._array_context.zeros(array.shape, array.dtype)
+            return self._array_context.np.zeros(array.shape, array.dtype)
 
         return self._array_context._rec_map_container(
             _zeros_like, ary, default_scalar=0)
