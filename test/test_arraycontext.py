@@ -1405,14 +1405,16 @@ def test_compile_anonymous_function(actx_factory):
 
     # See https://github.com/inducer/grudge/issues/287
     actx = actx_factory()
+
+    ones = actx.thaw(actx.freeze(
+        actx.np.zeros(shape=(10, 4), dtype=np.float64) + 1
+        ))
+
     f = actx.compile(lambda x: 2*x+40)
-    np.testing.assert_allclose(
-        actx.to_numpy(f(1+actx.np.zeros((10, 4), "float64"))),
-        42)
+    np.testing.assert_allclose(actx.to_numpy(f(ones)), 42)
+
     f = actx.compile(partial(lambda x: 2*x+40))
-    np.testing.assert_allclose(
-        actx.to_numpy(f(1+actx.np.zeros((10, 4), "float64"))),
-        42)
+    np.testing.assert_allclose(actx.to_numpy(f(ones)), 42)
 
 
 @pytest.mark.parametrize(
