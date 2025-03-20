@@ -1287,6 +1287,8 @@ class ArrayContainerWithNumpy:
     u: np.ndarray
     v: DOFArray
 
+    __array_ufunc__ = None
+
 
 def test_array_container_with_numpy(actx_factory):
     actx = actx_factory()
