@@ -529,7 +529,8 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         return pytato_program, name_in_program_to_tags, name_in_program_to_axes
 
 
-def _args_to_device_buffers(fn_name, actx, input_id_to_name_in_program, arg_id_to_arg):
+def _args_to_device_buffers(actx, input_id_to_name_in_program, arg_id_to_arg,
+                            fn_name="<unknown>"):
     input_kwargs_for_loopy = {}
 
     for arg_id, arg in arg_id_to_arg.items():
@@ -632,8 +633,8 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
 
         fn_name = self.pytato_program.program.entrypoint
 
-        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
-                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
+        input_kwargs_for_loopy = _args_to_device_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
@@ -676,8 +677,8 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
 
         fn_name = self.pytato_program.program.name
 
-        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
-                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
+        input_kwargs_for_loopy = _args_to_device_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
         evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
@@ -725,8 +726,8 @@ class CompiledJAXFunctionReturningArrayContainer(CompiledFunction):
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
         fn_name = self.pytato_program.entrypoint
 
-        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
-                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
+        input_kwargs_for_loopy = _args_to_device_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
         out_dict = self.pytato_program(**input_kwargs_for_loopy)
 
@@ -757,8 +758,8 @@ class CompiledJAXFunctionReturningArray(CompiledFunction):
     def __call__(self, arg_id_to_arg) -> ArrayContainer:
         fn_name = self.pytato_program.entrypoint
 
-        input_kwargs_for_loopy = _args_to_device_buffers(fn_name,
-                self.actx, self.input_id_to_name_in_program, arg_id_to_arg)
+        input_kwargs_for_loopy = _args_to_device_buffers(
+                self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
         _evt, out_dict = self.pytato_program(**input_kwargs_for_loopy)
 
