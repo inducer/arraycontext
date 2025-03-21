@@ -342,14 +342,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         def _wrapper(ary):
             if isinstance(ary, allowed_types):
                 return func(ary)
-            elif not strict and isinstance(ary, self._frozen_array_types):
-                from warnings import warn
-                warn(f"Invoking {type(self).__name__}.{func.__name__[1:]} with"
-                    f" {type(ary).__name__} will be unsupported in 2023. Use"
-                    " 'to_tagged_cl_array' to convert instances to"
-                    " TaggableCLArray.", DeprecationWarning, stacklevel=2)
-
-                return func(tga.to_tagged_cl_array(ary))
             elif np.isscalar(ary):
                 if default_scalar is None:
                     return ary
