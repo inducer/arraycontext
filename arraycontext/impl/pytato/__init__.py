@@ -357,7 +357,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     return np.array(ary).dtype.type(default_scalar)
             else:
                 raise TypeError(
-                    f"{type(self).__name__}.{func.__name__[1:]} invoked with "
+                    f"{func.__qualname__} invoked with "
                     f"an unsupported array type: got '{type(ary).__name__}', "
                     f"but expected one of {allowed_types}")
 
