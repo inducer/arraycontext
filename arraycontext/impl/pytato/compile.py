@@ -620,7 +620,7 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
        type of the callable.
     """
     actx: PytatoPyOpenCLArrayContext
-    pytato_program: pt.target.BoundProgram
+    pytato_program: pt.target.loopy.BoundPyOpenCLExecutable
     input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
     output_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
     name_in_program_to_tags: Mapping[str, frozenset[Tag]]
@@ -665,7 +665,7 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
         Name of the output array in the program.
     """
     actx: PytatoPyOpenCLArrayContext
-    pytato_program: pt.target.BoundProgram
+    pytato_program: pt.target.loopy.BoundPyOpenCLExecutable
     input_id_to_name_in_program: Mapping[tuple[Hashable, ...], str]
     output_tags: frozenset[Tag]
     output_axes: tuple[pt.Axis, ...]
@@ -675,7 +675,7 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
         from .utils import get_cl_axes_from_pt_axes
         from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
 
-        fn_name = self.pytato_program.program.name
+        fn_name = self.pytato_program.program.entrypoint
 
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
