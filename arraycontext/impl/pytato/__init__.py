@@ -535,7 +535,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
             pt_prg = pt.generate_loopy(transformed_dag,
                                        options=opts,
-                                       cl_device=self.queue.device,
                                        function_name=function_name,
                                        target=self.get_target()
                                        ).bind_to_context(self.context)
