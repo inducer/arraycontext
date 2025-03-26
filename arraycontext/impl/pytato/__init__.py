@@ -59,7 +59,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from pytools import memoize_method
-from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
+from pytools.tag import Tag, ToTagSetConvertible, UniqueTag as UniqueTag, normalize_tags
 
 from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import (
@@ -550,7 +550,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         evt, out_dict = pt_prg(self.queue,
                 allocator=self.allocator,
                 **bound_arguments)
-        evt.wait()
+        if isinstance(evt, list):
+            [_evt.wait() for _evt in evt]
+        else:
+            evt.wait()
         assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
         key_to_frozen_subary = {

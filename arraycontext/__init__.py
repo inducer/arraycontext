@@ -92,6 +92,7 @@ from .impl.numpy import NumpyArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
 from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
 from .loopy import make_loopy_program
+from .parameter_study import pack_for_parameter_study, unpack_parameter_study
 from .pytest import (
     PytestArrayContextFactory,
     PytestPyOpenCLArrayContextFactory,
@@ -148,6 +149,7 @@ __all__ = (
     "multimap_reduce_array_container",
     "multimapped_over_array_containers",
     "outer",
+    "pack_for_parameter_study",
     "pytest_generate_tests_for_array_contexts",
     "rec_map_array_container",
     "rec_map_reduce_array_container",
@@ -160,6 +162,7 @@ __all__ = (
     "thaw",
     "to_numpy",
     "unflatten",
+    "unpack_parameter_study",
     "with_array_context",
     "with_container_arithmetic",
 )
