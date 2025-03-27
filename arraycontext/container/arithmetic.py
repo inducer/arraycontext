@@ -413,10 +413,8 @@ def with_container_arithmetic(
                 warn(
                     f"Broadcasting array context array types across {cls} "
                     "has been implicitly "
-                    "enabled. As of 2025, this will no longer work. "
-                    "There is no replacement as of right now. "
-                    "See the discussion in "
-                    "https://github.com/inducer/arraycontext/pull/190. "
+                    "enabled. As of 2026, this will no longer work. "
+                    "Use bcast_left/right_until_actx_array instead."
                     "To opt out now (and avoid this warning), "
                     "pass _bcast_actx_array_type=False.",
                     DeprecationWarning, stacklevel=2)
@@ -603,11 +601,9 @@ def with_container_arithmetic(
                             if isinstance(arg2, {tup_str(bcast_actx_ary_types)}):
                                 warn("Broadcasting {cls} over array "
                                     f"context array type {{type(arg2)}} is deprecated "
-                                    "and will no longer work in 2025. "
-                                    "There is no replacement as of right now. "
-                                    "See the discussion in "
-                                    "https://github.com/inducer/arraycontext/"
-                                    "pull/190. ",
+                                    "and will no longer work in 2026. "
+                                    "Use bcast_left/right_until_actx_array "
+                                    "instead.",
                                     DeprecationWarning, stacklevel=2)
 
                         return cls({bcast_init_args_arg1_is_outer})
@@ -654,11 +650,9 @@ def with_container_arithmetic(
                                         warn("Broadcasting {cls} over array "
                                             f"context array type {{type(arg1)}} "
                                             "is deprecated "
-                                            "and will no longer work in 2025."
-                                            "There is no replacement as of right now. "
-                                            "See the discussion in "
-                                            "https://github.com/inducer/arraycontext/"
-                                            "pull/190. ",
+                                            "and will no longer work in 2026."
+                                            "Use bcast_left/right_until_actx_array "
+                                            "instead.",
                                             DeprecationWarning, stacklevel=2)
 
                                 return cls({bcast_init_args_arg2_is_outer})

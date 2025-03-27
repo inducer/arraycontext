@@ -78,6 +78,7 @@ from warnings import warn
 import numpy as np
 
 from arraycontext.container import (
+    ArithArrayContainer,
     ArrayContainer,
     NotAnArrayContainerError,
     SerializationKey,
@@ -88,6 +89,7 @@ from arraycontext.container import (
 from arraycontext.context import (
     Array,
     ArrayContext,
+    ArrayOrArithContainer,
     ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerT,
@@ -986,5 +988,80 @@ def outer(a: Any, b: Any) -> Any:
         return multimap_array_container(lambda x, y: outer(x, y), a, b)
 
 # }}}
+
+
+# {{{
+
+def bcast_left(
+            op: Callable[[ArrayOrArithContainer, ArrayOrArithContainer],
+                    ArrayOrArithContainer],
+            left: ArrayOrArithContainer,
+            right: ArithArrayContainer,
+        ) -> ArrayOrArithContainer:
+    try:
+        serialized = serialize_container(right)
+    except NotAnArrayContainerError:
+        return op(left, right)
+
+    return deserialize_container(right, [
+        (k, op(left, right_v)) for k, right_v in serialized])
+
+
+def bcast_right(
+            op: Callable[[ArrayOrArithContainer, ArrayOrArithContainer],
+                    ArrayOrArithContainer],
+            left: ArrayOrArithContainer,
+            right: ArithArrayContainer,
+        ) -> ArrayOrArithContainer:
+    try:
+        serialized = serialize_container(left)
+    except NotAnArrayContainerError:
+        return op(left, right)
+
+    return deserialize_container(right, [
+        (k, op(left_v, right)) for k, left_v in serialized])
+
+
+def bcast_left_until_actx_array(
+            actx: ArrayContext,
+            op: Callable[[ArrayOrArithContainer, ArrayOrArithContainer],
+                    ArrayOrArithContainer],
+            left: ArrayOrArithContainer,
+            right: ArithArrayContainer,
+        ) -> ArrayOrArithContainer:
+    try:
+        serialized = serialize_container(right)
+    except NotAnArrayContainerError:
+        return op(left, right)
+
+    return deserialize_container(right, [
+        (k, op(left, right_v)
+            if isinstance(right_v, actx.array_types) else
+            bcast_left_until_actx_array(actx, op, left, right_v)
+        )
+        for k, right_v in serialized])
+
+
+def bcast_right_until_actx_array(
+            actx: ArrayContext,
+            op: Callable[[ArrayOrArithContainer, ArrayOrArithContainer],
+                    ArrayOrArithContainer],
+            left: ArrayOrArithContainer,
+            right: ArithArrayContainer,
+        ) -> ArrayOrArithContainer:
+    try:
+        serialized = serialize_container(left)
+    except NotAnArrayContainerError:
+        return op(left, right)
+
+    return deserialize_container(right, [
+        (k, op(left_v, right)
+            if isinstance(left_v, actx.array_types) else
+            bcast_right_until_actx_array(actx, op, left_v, right)
+        )
+        for k, left_v in serialized])
+
+# }}}
+
 
 # vim: foldmethod=marker
