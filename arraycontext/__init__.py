@@ -50,6 +50,10 @@ from .container.arithmetic import (
 )
 from .container.dataclass import dataclass_array_container
 from .container.traversal import (
+    bcast_left,
+    bcast_left_until_actx_array,
+    bcast_right,
+    bcast_right_until_actx_array,
     flat_size_and_dtype,
     flatten,
     freeze,
@@ -129,6 +133,10 @@ __all__ = (
     "ScalarLike",
     "SerializationKey",
     "SerializedContainer",
+    "bcast_left",
+    "bcast_left_until_actx_array",
+    "bcast_right",
+    "bcast_right_until_actx_array",
     "dataclass_array_container",
     "deserialize_container",
     "flat_size_and_dtype",
