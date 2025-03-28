@@ -636,14 +636,9 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
-        evt, out_dict = self.pytato_program(queue=self.actx.queue,
+        _evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
                                             **input_kwargs_for_loopy)
-
-        # FIXME Kernels (for now) allocate tons of memory in temporaries. If we
-        # race too far ahead with enqueuing, there is a distinct risk of
-        # running out of memory. This mitigates that risk a bit, for now.
-        evt.wait()
 
         def to_output_template(keys, _):
             name_in_program = self.output_id_to_name_in_program[keys]
@@ -680,14 +675,9 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
-        evt, out_dict = self.pytato_program(queue=self.actx.queue,
+        _evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
                                             **input_kwargs_for_loopy)
-
-        # FIXME Kernels (for now) allocate tons of memory in temporaries. If we
-        # race too far ahead with enqueuing, there is a distinct risk of
-        # running out of memory. This mitigates that risk a bit, for now.
-        evt.wait()
 
         return self.actx.thaw(to_tagged_cl_array(out_dict[self.output_name],
                                                  axes=get_cl_axes_from_pt_axes(
