@@ -34,6 +34,7 @@ from pytools.obj_array import make_obj_array
 from pytools.tag import Tag
 
 from arraycontext import (
+    BcastUntilActxArray,
     EagerJAXArrayContext,
     NumpyArrayContext,
     PyOpenCLArrayContext,
@@ -1189,7 +1190,7 @@ def test_container_equality(actx_factory):
 # }}}
 
 
-# {{{ test_no_leaf_array_type_broadcasting
+# {{{ test_leaf_array_type_broadcasting
 
 def test_no_leaf_array_type_broadcasting(actx_factory):
     from testlib import Foo
@@ -1198,14 +1199,85 @@ def test_no_leaf_array_type_broadcasting(actx_factory):
 
     dof_ary = DOFArray(actx, (actx.np.zeros(3, dtype=np.float64) + 41, ))
     foo = Foo(dof_ary)
+    bar = foo + 4
+
+    bcast = partial(BcastUntilActxArray, actx)
 
     actx_ary = actx.from_numpy(4*np.ones((3, )))
     with pytest.raises(TypeError):
         foo + actx_ary
 
-    with pytest.raises(TypeError):
-        foo + actx.from_numpy(np.array(4))
+    baz = foo + bcast(actx_ary)
+    qux = bcast(actx_ary) + foo
 
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(baz.u[0]))
+
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(qux.u[0]))
+
+    baz = foo + bcast(actx_ary)
+    qux = bcast(actx_ary) + foo
+
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(baz.u[0]))
+
+    np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                               actx.to_numpy(qux.u[0]))
+
+    mc = MyContainer(
+         name="hi",
+         mass=dof_ary,
+         momentum=make_obj_array([dof_ary, dof_ary]),
+         enthalpy=dof_ary)
+
+    with pytest.raises(TypeError):
+        mc_op = mc + actx_ary
+
+    mom_op = mc.momentum + bcast(actx_ary)
+    np.testing.assert_allclose(45, actx.to_numpy(mom_op[0][0]))
+
+    mc_op = mc + bcast(actx_ary)
+    np.testing.assert_allclose(45, actx.to_numpy(mc_op.mass[0]))
+    np.testing.assert_allclose(45, actx.to_numpy(mc_op.momentum[1][0]))
+
+    mom_op = mc.momentum + bcast(actx_ary)
+    np.testing.assert_allclose(45, actx.to_numpy(mom_op[0][0]))
+
+    mc_op = mc + bcast(actx_ary)
+    np.testing.assert_allclose(45, actx.to_numpy(mc_op.mass[0]))
+    np.testing.assert_allclose(45, actx.to_numpy(mc_op.momentum[1][0]))
+
+    def _actx_allows_scalar_broadcast(actx):
+        if not isinstance(actx, PyOpenCLArrayContext):
+            return True
+        else:
+            import pyopencl as cl
+
+            # See https://github.com/inducer/pyopencl/issues/498
+            return cl.version.VERSION > (2021, 2, 5)
+
+    if _actx_allows_scalar_broadcast(actx):
+        with pytest.raises(TypeError):
+            foo + actx.from_numpy(np.array(4))
+
+        quuz = bcast(actx.from_numpy(np.array(4))) + foo
+        quux = foo + bcast(actx.from_numpy(np.array(4)))
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quux.u[0]))
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quuz.u[0]))
+
+        quuz = bcast(actx.from_numpy(np.array(4))) + foo
+        quux = foo + bcast(actx.from_numpy(np.array(4)))
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quux.u[0]))
+
+        np.testing.assert_allclose(actx.to_numpy(bar.u[0]),
+                                   actx.to_numpy(quuz.u[0]))
 # }}}
 
 
@@ -1219,6 +1291,8 @@ def test_outer(actx_factory):
     b_dof = a_dof + 1
     b_ary_of_dofs = a_ary_of_dofs + 1
     b_bcast_dc_of_dofs = a_bcast_dc_of_dofs + 1
+
+    bcast = partial(BcastUntilActxArray, actx)
 
     from arraycontext import outer
 
@@ -1273,6 +1347,15 @@ def test_outer(actx_factory):
                 a_bcast_dc_of_dofs.momentum,
                 b_bcast_dc_of_dofs.momentum),
             enthalpy=a_bcast_dc_of_dofs.enthalpy*b_bcast_dc_of_dofs.enthalpy))
+
+    # Array context scalars
+    two = actx.from_numpy(np.array(2))
+    assert equal(
+        outer(bcast(two), b_bcast_dc_of_dofs),
+        bcast(two)*b_bcast_dc_of_dofs)
+    assert equal(
+        outer(a_bcast_dc_of_dofs, bcast(two)),
+        a_bcast_dc_of_dofs*bcast(two))
 
 # }}}
 

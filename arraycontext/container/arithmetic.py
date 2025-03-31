@@ -6,6 +6,8 @@ __doc__ = """
 .. currentmodule:: arraycontext
 
 .. autofunction:: with_container_arithmetic
+
+.. autoclass:: BcastUntilActxArray
 """
 
 
@@ -34,11 +36,22 @@ THE SOFTWARE.
 """
 
 import enum
+import operator
 from collections.abc import Callable
+from dataclasses import dataclass, field
+from functools import partialmethod
+from numbers import Number
 from typing import Any, TypeVar
 from warnings import warn
 
 import numpy as np
+
+from arraycontext.container import (
+    NotAnArrayContainerError,
+    deserialize_container,
+    serialize_container,
+)
+from arraycontext.context import ArrayContext, ArrayOrContainer
 
 
 # {{{ with_container_arithmetic
@@ -142,8 +155,9 @@ class ComplainingNumpyNonObjectArrayMetaclass(type):
             warn(
                  "Broadcasting container against non-object numpy array. "
                  "This was never documented to work and will now stop working in "
-                 "2025. Convert the array to an object array to preserve the "
-                 "current semantics.", DeprecationWarning, stacklevel=3)
+                 "2025. Convert the array to an object array or use "
+                 "arraycontext.BcastUntilActxArray (or similar) to obtain the desired "
+                 "broadcasting semantics.", DeprecationWarning, stacklevel=3)
             return True
         else:
             return False
@@ -206,6 +220,14 @@ def with_container_arithmetic(
         Consider this argument an unstable interface. It may disappear at any moment.
 
     Each operator class also includes the "reverse" operators if applicable.
+
+    .. note::
+
+        For the generated binary arithmetic operators, if certain types
+        should be broadcast over the container (with the container as the
+        'outer' structure) but are not handled in this way by their types,
+        you may wrap them in :class:`BcastUntilActxArray` to achieve
+        the desired semantics.
 
     .. note::
 
@@ -402,8 +424,9 @@ def with_container_arithmetic(
                 warn(
                     f"Broadcasting array context array types across {cls} "
                     "has been explicitly "
-                    "enabled. As of 2025, this will stop working. "
-                    "There is no replacement as of right now. "
+                    "enabled. As of 2026, this will stop working. "
+                    "Use arraycontext.Bcast* object wrappers for "
+                    "roughly equivalent functionality. "
                     "See the discussion in "
                     "https://github.com/inducer/arraycontext/pull/190. "
                     "To opt out now (and avoid this warning), "
@@ -413,8 +436,9 @@ def with_container_arithmetic(
                 warn(
                     f"Broadcasting array context array types across {cls} "
                     "has been implicitly "
-                    "enabled. As of 2025, this will no longer work. "
-                    "There is no replacement as of right now. "
+                    "enabled. As of 2026, this will no longer work. "
+                    "Use arraycontext.Bcast* object wrappers for "
+                    "roughly equivalent functionality. "
                     "See the discussion in "
                     "https://github.com/inducer/arraycontext/pull/190. "
                     "To opt out now (and avoid this warning), "
@@ -603,8 +627,9 @@ def with_container_arithmetic(
                             if isinstance(arg2, {tup_str(bcast_actx_ary_types)}):
                                 warn("Broadcasting {cls} over array "
                                     f"context array type {{type(arg2)}} is deprecated "
-                                    "and will no longer work in 2025. "
-                                    "There is no replacement as of right now. "
+                                    "and will no longer work in 2026. "
+                                    "Use arraycontext.Bcast* object wrappers for "
+                                    "roughly equivalent functionality. "
                                     "See the discussion in "
                                     "https://github.com/inducer/arraycontext/"
                                     "pull/190. ",
@@ -654,8 +679,10 @@ def with_container_arithmetic(
                                         warn("Broadcasting {cls} over array "
                                             f"context array type {{type(arg1)}} "
                                             "is deprecated "
-                                            "and will no longer work in 2025."
-                                            "There is no replacement as of right now. "
+                                            "and will no longer work in 2026."
+                                            "Use arraycontext.Bcast* object "
+                                            "wrappers for roughly equivalent "
+                                            "functionality. "
                                             "See the discussion in "
                                             "https://github.com/inducer/arraycontext/"
                                             "pull/190. ",
@@ -686,5 +713,112 @@ def with_container_arithmetic(
 
 # }}}
 
+
+# {{{ Bcast object-ified broadcast rules
+
+# Possible advantages of the "Bcast" broadcast-rule-as-object design:
+#
+# - If one rule does not fit the user's need, they can straightforwardly use
+#   another.
+#
+# - It's straightforward to find where certain broadcast rules are used.
+#
+# - The broadcast rule can contain more state. For example, it's now easy
+#   for the rule to know what array context should be used to determine
+#   actx array types.
+#
+# Possible downsides of the "Bcast" broadcast-rule-as-object design:
+#
+# - User code is a bit more wordy.
+
+@dataclass(frozen=True)
+class BcastUntilActxArray:
+    """
+    An operator-overloading wrapper around an object (*broadcastee*) that should be
+    broadcast across array containers until the 'opposite' operand is one of the
+    :attr:`~arraycontext.ArrayContext.array_types`
+    of *actx* or a :class:`~numbers.Number`.
+
+    Suggested usage pattern::
+
+        bcast = functools.partial(BcastUntilActxArray, actx)
+
+        container + bcast(actx_array)
+
+    .. automethod:: __init__
+    """
+
+    array_context: ArrayContext
+    broadcastee: ArrayOrContainer
+
+    _stop_types: tuple[type, ...] = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+                self, "_stop_types", (*self.array_context.array_types, Number))
+
+    def _binary_op(self,
+                   op: Callable[
+                       [ArrayOrContainer, ArrayOrContainer],
+                       ArrayOrContainer
+                   ],
+                   right: ArrayOrContainer
+               ) -> ArrayOrContainer:
+        try:
+            serialized = serialize_container(right)
+        except NotAnArrayContainerError:
+            return op(self.broadcastee, right)
+
+        return deserialize_container(right, [
+            (k, op(self.broadcastee, right_v)
+                if isinstance(right_v, self._stop_types) else
+                self._binary_op(op, right_v)
+            )
+            for k, right_v in serialized])
+
+    def _rev_binary_op(self,
+                   op: Callable[
+                       [ArrayOrContainer, ArrayOrContainer],
+                       ArrayOrContainer
+                   ],
+                   left: ArrayOrContainer
+               ) -> ArrayOrContainer:
+        try:
+            serialized = serialize_container(left)
+        except NotAnArrayContainerError:
+            return op(left, self.broadcastee)
+
+        return deserialize_container(left, [
+            (k, op(left_v, self.broadcastee)
+                if isinstance(left_v, self._stop_types) else
+                self._rev_binary_op(op, left_v)
+            )
+            for k, left_v in serialized])
+
+    __add__ = partialmethod(_binary_op, operator.add)
+    __radd__ = partialmethod(_rev_binary_op, operator.add)
+    __sub__ = partialmethod(_binary_op, operator.sub)
+    __rsub__ = partialmethod(_rev_binary_op, operator.sub)
+    __mul__ = partialmethod(_binary_op, operator.mul)
+    __rmul__ = partialmethod(_rev_binary_op, operator.mul)
+    __truediv__ = partialmethod(_binary_op, operator.truediv)
+    __rtruediv__ = partialmethod(_rev_binary_op, operator.truediv)
+    __floordiv__ = partialmethod(_binary_op, operator.floordiv)
+    __rfloordiv__ = partialmethod(_rev_binary_op, operator.floordiv)
+    __mod__ = partialmethod(_binary_op, operator.mod)
+    __rmod__ = partialmethod(_rev_binary_op, operator.mod)
+    __pow__ = partialmethod(_binary_op, operator.pow)
+    __rpow__ = partialmethod(_rev_binary_op, operator.pow)
+
+    __lshift__ = partialmethod(_binary_op, operator.lshift)
+    __rlshift__ = partialmethod(_rev_binary_op, operator.lshift)
+    __rshift__ = partialmethod(_binary_op, operator.rshift)
+    __rrshift__ = partialmethod(_rev_binary_op, operator.rshift)
+    __and__ = partialmethod(_binary_op, operator.and_)
+    __rand__ = partialmethod(_rev_binary_op, operator.and_)
+    __or__ = partialmethod(_binary_op, operator.or_)
+    __ror__ = partialmethod(_rev_binary_op, operator.or_)
+
+# }}}
 
 # vim: foldmethod=marker
