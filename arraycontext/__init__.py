@@ -46,6 +46,7 @@ from .container import (
     serialize_container,
 )
 from .container.arithmetic import (
+    BcastUntilActxArray,
     with_container_arithmetic,
 )
 from .container.dataclass import dataclass_array_container
@@ -115,6 +116,7 @@ __all__ = (
     "ArrayOrContainerOrScalarT",
     "ArrayOrContainerT",
     "ArrayT",
+    "BcastUntilActxArray",
     "CommonSubexpressionTag",
     "EagerJAXArrayContext",
     "ElementwiseMapKernelTag",
