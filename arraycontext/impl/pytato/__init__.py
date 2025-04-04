@@ -403,7 +403,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         tbl = pytools.Table()
 
         # Table header
-        tbl.add_row(("Function", "# Calls", "Time_sum [s]", "Time_avg [s]"))
+        tbl.add_row(("Function", "# Calls", "Time_sum [ns]", "Time_avg [ns]"))
 
         # Precision of results
         g = ".4g"
