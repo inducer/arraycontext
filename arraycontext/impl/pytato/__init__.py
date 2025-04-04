@@ -54,10 +54,13 @@ THE SOFTWARE.
 import abc
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+import pyopencl as cl
+import pytools
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 
@@ -74,7 +77,6 @@ from arraycontext.metadata import NameHint
 
 if TYPE_CHECKING:
     import loopy as lp
-    import pyopencl as cl
     import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
@@ -235,6 +237,24 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
 # {{{ PytatoPyOpenCLArrayContext
 
+
+@dataclass
+class ProfileEvent:
+    """Holds a profile event that has not been collected by the profiler yet."""
+
+    cl_event: cl._cl.Event
+    translation_unit: Any
+    # args_tuple: tuple
+
+
+@dataclass
+class MultiCallKernelProfile:
+    """Class to hold the results of multiple kernel executions."""
+
+    num_calls: int
+    time: int
+
+
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
     An :class:`ArrayContext` that uses :mod:`pytato` data types to represent
@@ -259,7 +279,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             self, queue: cl.CommandQueue, allocator=None, *,
             use_memory_pool: bool | None = None,
             compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
-
+            profile_kernels: bool = False,
             # do not use: only for testing
             _force_svm_arg_limit: int | None = None,
             ) -> None:
@@ -271,8 +291,25 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             representation. This interface should be considered
             unstable.
         """
+        import pyopencl as cl
+
         if allocator is not None and use_memory_pool is not None:
             raise TypeError("may not specify both allocator and use_memory_pool")
+
+        self.profile_kernels = profile_kernels
+
+        if profile_kernels:
+            if not queue.properties & cl.command_queue_properties.PROFILING_ENABLE:
+                raise RuntimeError("Profiling was not enabled in the command queue. "
+                 "Please create the queue with "
+                 "cl.command_queue_properties.PROFILING_ENABLE.")
+
+            # List of ProfileEvents that haven't been transferred to profiled
+            # results yet
+            self.profile_events: list[ProfileEvent] = []
+
+            # Dict of kernel name -> list of kernel execution times
+            self.profile_results: dict[str, list[int]] = {}
 
         self.using_svm = None
 
@@ -321,6 +358,79 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         self.context = self.queue.context
 
         self._force_svm_arg_limit = _force_svm_arg_limit
+
+    def _wait_and_transfer_profile_events(self) -> None:
+        # First, wait for completion of all events
+        if self.profile_events:
+            cl.wait_for_events([p_event.cl_event for p_event in self.profile_events])
+
+        # Then, collect all events and store them
+        for t in self.profile_events:
+            name = t.translation_unit.program.entrypoint
+
+            time = t.cl_event.profile.end - t.cl_event.profile.start
+
+            self.profile_results.setdefault(name, []).append(time)
+
+        self.profile_events = []
+
+    def get_profiling_data_for_kernel(self, kernel_name: str) \
+          -> MultiCallKernelProfile:
+        """Return profiling data for kernel `kernel_name`."""
+        self._wait_and_transfer_profile_events()
+
+        time = 0
+        num_calls = 0
+
+        if kernel_name in self.profile_results:
+            knl_results = self.profile_results[kernel_name]
+
+            num_calls = len(knl_results)
+
+            for r in knl_results:
+                time += r
+
+        return MultiCallKernelProfile(num_calls, time)
+
+    def reset_profiling_data_for_kernel(self, kernel_name: str) -> None:
+        """Reset profiling data for kernel `kernel_name`."""
+        self.profile_results.pop(kernel_name, None)
+
+    def tabulate_profiling_data(self) -> pytools.Table:
+        """Return a :class:`pytools.Table` with the profiling results."""
+        self._wait_and_transfer_profile_events()
+
+        tbl = pytools.Table()
+
+        # Table header
+        tbl.add_row(("Function", "# Calls", "Time_sum [s]", "Time_avg [s]"))
+
+        # Precision of results
+        g = ".4g"
+
+        total_calls = 0
+        total_time = 0.0
+
+        for knl in self.profile_results:
+            r = self.get_profiling_data_for_kernel(knl)
+
+            total_calls += r.num_calls
+
+            t_sum = r.time
+            t_avg = r.time / r.num_calls
+            if t_sum is not None:
+                total_time += t_sum
+
+            time_sum = f"{t_sum:{g}}"
+            time_avg = f"{t_avg:{g}}"
+
+            tbl.add_row((knl, r.num_calls, time_sum,
+                 time_avg,))
+
+        tbl.add_row(("", "", "", ""))
+        tbl.add_row(("Total", total_calls, f"{total_time:{g}}", "--"))
+
+        return tbl
 
     @property
     def _frozen_array_types(self) -> tuple[type, ...]:
@@ -546,9 +656,13 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     self._dag_transform_cache[normalized_expr])
 
         assert len(pt_prg.bound_arguments) == 0
-        _evt, out_dict = pt_prg(self.queue,
+        evt, out_dict = pt_prg(self.queue,
                 allocator=self.allocator,
                 **bound_arguments)
+
+        if self.profile_kernels:
+            self.profile_events.append(ProfileEvent(evt, pt_prg))
+
         assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
         key_to_frozen_subary = {
