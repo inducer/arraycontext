@@ -636,9 +636,11 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
-        _evt, out_dict = self.pytato_program(queue=self.actx.queue,
+        evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
                                             **input_kwargs_for_loopy)
+
+        self.actx.add_profiling_event(evt, self.pytato_program)
 
         def to_output_template(keys, _):
             name_in_program = self.output_id_to_name_in_program[keys]
@@ -675,9 +677,11 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
         input_kwargs_for_loopy = _args_to_device_buffers(
                 self.actx, self.input_id_to_name_in_program, arg_id_to_arg, fn_name)
 
-        _evt, out_dict = self.pytato_program(queue=self.actx.queue,
+        evt, out_dict = self.pytato_program(queue=self.actx.queue,
                                             allocator=self.actx.allocator,
                                             **input_kwargs_for_loopy)
+
+        self.actx.add_profiling_event(evt, self.pytato_program)
 
         return self.actx.thaw(to_tagged_cl_array(out_dict[self.output_name],
                                                  axes=get_cl_axes_from_pt_axes(

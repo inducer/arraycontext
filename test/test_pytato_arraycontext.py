@@ -274,6 +274,46 @@ def test_pass_args_compiled_func(actx_factory):
     assert isinstance(ep.arg_dict["_actx_in_2"], lp.ArrayArg)
 
 
+def test_profiling_actx():
+    import pyopencl as cl
+    cl_ctx = cl.create_some_context()
+    queue = cl.CommandQueue(cl_ctx,
+                            properties=cl.command_queue_properties.PROFILING_ENABLE)
+
+    actx = PytatoPyOpenCLArrayContext(queue, profile_kernels=True)
+
+    def twice(x):
+        return 2 * x
+
+    # {{{ Compiled test
+
+    f = actx.compile(twice)
+
+    for _ in range(10):
+        assert actx.to_numpy(f(99)) == 198
+
+    actx._wait_and_transfer_profile_events()
+    assert len(actx.profile_results) == 1
+    assert len(actx.profile_results["twice"]) == 10
+
+    print(actx.tabulate_profiling_data())
+
+    # }}}
+
+    # {{{ Uncompiled/frozen test
+
+    for _ in range(10):
+        assert actx.to_numpy(twice(99)) == 198
+
+    actx._wait_and_transfer_profile_events()
+    assert len(actx.profile_results) == 1
+    assert len(actx.profile_results["twice"]) == 10
+
+    print(actx.tabulate_profiling_data())
+
+    # }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
