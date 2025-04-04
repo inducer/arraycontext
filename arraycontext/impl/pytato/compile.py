@@ -640,9 +640,7 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
                                             allocator=self.actx.allocator,
                                             **input_kwargs_for_loopy)
 
-        if self.actx.profile_kernels:
-            from arraycontext.impl.pytato import ProfileEvent
-            self.actx.profile_events.append(ProfileEvent(evt, self.pytato_program))
+        self.actx.add_profiling_event(evt, self.pytato_program)
 
         def to_output_template(keys, _):
             name_in_program = self.output_id_to_name_in_program[keys]
@@ -683,9 +681,7 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
                                             allocator=self.actx.allocator,
                                             **input_kwargs_for_loopy)
 
-        if self.actx.profile_kernels:
-            from arraycontext.impl.pytato import ProfileEvent
-            self.actx.profile_events.append(ProfileEvent(evt, self.pytato_program))
+        self.actx.add_profiling_event(evt, self.pytato_program)
 
         return self.actx.thaw(to_tagged_cl_array(out_dict[self.output_name],
                                                  axes=get_cl_axes_from_pt_axes(

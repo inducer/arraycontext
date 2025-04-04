@@ -374,6 +374,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         self.profile_events = []
 
+    def add_profiling_event(self, evt: cl._cl.Event, translation_unit: Any) -> None:
+        """Add a profiling event to the list of profiling events."""
+        if self.profile_kernels:
+            self.profile_events.append(ProfileEvent(evt, translation_unit))
+
     def get_profiling_data_for_kernel(self, kernel_name: str) \
           -> MultiCallKernelProfile:
         """Return profiling data for kernel *kernel_name*."""
@@ -660,8 +665,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 allocator=self.allocator,
                 **bound_arguments)
 
-        if self.profile_kernels:
-            self.profile_events.append(ProfileEvent(evt, pt_prg))
+        self.add_profiling_event(evt, pt_prg)
 
         assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
