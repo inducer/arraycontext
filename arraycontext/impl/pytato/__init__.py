@@ -59,7 +59,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-import pyopencl as cl
 import pytools
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
@@ -360,6 +359,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         self._force_svm_arg_limit = _force_svm_arg_limit
 
     def _wait_and_transfer_profile_events(self) -> None:
+        import pyopencl as cl
         # First, wait for completion of all events
         if self.profile_events:
             cl.wait_for_events([p_event.cl_event for p_event in self.profile_events])
