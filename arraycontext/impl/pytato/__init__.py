@@ -376,7 +376,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     def get_profiling_data_for_kernel(self, kernel_name: str) \
           -> MultiCallKernelProfile:
-        """Return profiling data for kernel `kernel_name`."""
+        """Return profiling data for kernel *kernel_name*."""
         self._wait_and_transfer_profile_events()
 
         time = 0
@@ -393,7 +393,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         return MultiCallKernelProfile(num_calls, time)
 
     def reset_profiling_data_for_kernel(self, kernel_name: str) -> None:
-        """Reset profiling data for kernel `kernel_name`."""
+        """Reset profiling data for kernel *kernel_name*."""
         self.profile_results.pop(kernel_name, None)
 
     def tabulate_profiling_data(self) -> pytools.Table:
