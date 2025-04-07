@@ -369,7 +369,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         for t in self.profile_events:
             name = t.t_unit_name
 
-            time = t.start_cl_event.profile.end - t.stop_cl_event.profile.start
+            time = t.stop_cl_event.profile.end - t.start_cl_event.profile.end
 
             self.profile_results.setdefault(name, []).append(time)
 
@@ -410,7 +410,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         tbl = pytools.Table()
 
         # Table header
-        tbl.add_row(("Function", "# Calls", "Time_sum [ns]", "Time_avg [ns]"))
+        tbl.add_row(("Kernel", "# Calls", "Time_sum [ns]", "Time_avg [ns]"))
 
         # Precision of results
         g = ".4g"
@@ -436,6 +436,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         tbl.add_row(("", "", "", ""))
         tbl.add_row(("Total", total_calls, f"{total_time:{g}}", "--"))
+
+        self.profile_results = {}
 
         return tbl
 
@@ -665,6 +667,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         assert len(pt_prg.bound_arguments) == 0
 
         if self.profile_kernels:
+            import pyopencl as cl
             start_evt = cl.enqueue_marker(self.queue)
 
         evt, out_dict = pt_prg(self.queue,
