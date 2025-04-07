@@ -241,9 +241,9 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 class ProfileEvent:
     """Holds a profile event that has not been collected by the profiler yet."""
 
-    cl_event: cl._cl.Event
-    translation_unit: Any
-    # args_tuple: tuple
+    start_cl_event: cl._cl.Event
+    stop_cl_event: cl._cl.Event
+    t_unit_name: str
 
 
 @dataclass
@@ -362,22 +362,24 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         import pyopencl as cl
         # First, wait for completion of all events
         if self.profile_events:
-            cl.wait_for_events([p_event.cl_event for p_event in self.profile_events])
+            cl.wait_for_events([p_event.stop_cl_event
+                                    for p_event in self.profile_events])
 
         # Then, collect all events and store them
         for t in self.profile_events:
-            name = t.translation_unit.program.entrypoint
+            name = t.t_unit_name
 
-            time = t.cl_event.profile.end - t.cl_event.profile.start
+            time = t.start_cl_event.profile.end - t.stop_cl_event.profile.start
 
             self.profile_results.setdefault(name, []).append(time)
 
         self.profile_events = []
 
-    def add_profiling_event(self, evt: cl._cl.Event, translation_unit: Any) -> None:
-        """Add a profiling event to the list of profiling events."""
+    def add_profiling_events(self, start: cl._cl.Event, stop: cl._cl.Event,
+                             t_unit_name: str) -> None:
+        """Add profiling events to the list of profiling events."""
         if self.profile_kernels:
-            self.profile_events.append(ProfileEvent(evt, translation_unit))
+            self.profile_events.append(ProfileEvent(start, stop, t_unit_name))
 
     def get_profiling_data_for_kernel(self, kernel_name: str) \
           -> MultiCallKernelProfile:
@@ -661,11 +663,16 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     self._dag_transform_cache[normalized_expr])
 
         assert len(pt_prg.bound_arguments) == 0
+
+        if self.profile_kernels:
+            start_evt = cl.enqueue_marker(self.queue)
+
         evt, out_dict = pt_prg(self.queue,
                 allocator=self.allocator,
                 **bound_arguments)
 
-        self.add_profiling_event(evt, pt_prg)
+        if self.profile_kernels:
+            self.add_profiling_events(start_evt, evt, pt_prg.program.entrypoint)
 
         assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
