@@ -35,6 +35,7 @@ THE SOFTWARE.
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
+import pytools
 from pytato.array import (
     AbstractResultWithNamedArrays,
     Array,
@@ -51,6 +52,7 @@ from pytools import UniqueNameGenerator, memoize_method
 
 from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
+from arraycontext.impl.pytato import MultiCallKernelProfile
 
 
 if TYPE_CHECKING:
@@ -220,5 +222,39 @@ def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
     return TransferToNumpyMapper(actx)(expr)
 
 # }}}
+
+
+def tabulate_profiling_data(profile_results: dict[str, MultiCallKernelProfile])\
+       -> pytools.Table:
+    """Return a :class:`pytools.Table` with the profiling results."""
+    tbl = pytools.Table()
+
+    # Table header
+    tbl.add_row(("Kernel", "# Calls", "Time_sum [ns]", "Time_avg [ns]"))
+
+    # Precision of results
+    g = ".4g"
+
+    total_calls = 0
+    total_time = 0.0
+
+    for kernel_name, mckp in profile_results.items():
+        total_calls += mckp.num_calls
+
+        t_sum = mckp.time
+        t_avg = mckp.time / mckp.num_calls
+        if t_sum is not None:
+            total_time += t_sum
+
+        time_sum = f"{t_sum:{g}}"
+        time_avg = f"{t_avg:{g}}"
+
+        tbl.add_row((kernel_name, mckp.num_calls, time_sum,
+                time_avg,))
+
+    tbl.add_row(("", "", "", ""))
+    tbl.add_row(("Total", total_calls, f"{total_time:{g}}", "--"))
+
+    return tbl
 
 # vim: foldmethod=marker

@@ -59,7 +59,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-import pytools
+import pytools as pytools
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 
@@ -358,6 +358,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         self._force_svm_arg_limit = _force_svm_arg_limit
 
+    # {{{ Profiling functionality
+
     def _wait_and_transfer_profile_events(self) -> None:
         import pyopencl as cl
         # First, wait for completion of all events
@@ -403,43 +405,20 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         """Reset profiling data for kernel *kernel_name*."""
         self.profile_results.pop(kernel_name, None)
 
-    def tabulate_profiling_data(self) -> pytools.Table:
-        """Return a :class:`pytools.Table` with the profiling results."""
+    def get_and_reset_profiling_data(self) -> dict[str, MultiCallKernelProfile]:
+        """Return and reset profiling data."""
         self._wait_and_transfer_profile_events()
 
-        tbl = pytools.Table()
-
-        # Table header
-        tbl.add_row(("Kernel", "# Calls", "Time_sum [ns]", "Time_avg [ns]"))
-
-        # Precision of results
-        g = ".4g"
-
-        total_calls = 0
-        total_time = 0.0
-
-        for knl in self.profile_results:
-            r = self.get_profiling_data_for_kernel(knl)
-
-            total_calls += r.num_calls
-
-            t_sum = r.time
-            t_avg = r.time / r.num_calls
-            if t_sum is not None:
-                total_time += t_sum
-
-            time_sum = f"{t_sum:{g}}"
-            time_avg = f"{t_avg:{g}}"
-
-            tbl.add_row((knl, r.num_calls, time_sum,
-                 time_avg,))
-
-        tbl.add_row(("", "", "", ""))
-        tbl.add_row(("Total", total_calls, f"{total_time:{g}}", "--"))
+        result = {
+            kernel_name: MultiCallKernelProfile(len(times), sum(times))
+            for kernel_name, times in self.profile_results.items()
+        }
 
         self.profile_results = {}
 
-        return tbl
+        return result
+
+    # }}}
 
     @property
     def _frozen_array_types(self) -> tuple[type, ...]:
