@@ -59,7 +59,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-import pytools as pytools
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 

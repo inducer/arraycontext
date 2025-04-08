@@ -323,6 +323,22 @@ def test_profiling_actx():
 
     print(tabulate_profiling_data(actx.get_and_reset_profiling_data()))
 
+    assert len(actx.profile_results) == 0
+
+    # }}}
+
+    # {{{ test disabling profiling
+
+    actx.profile_kernels = False
+
+    assert len(actx.profile_events) == 0
+
+    for _ in range(10):
+        assert actx.to_numpy(f(99)) == 198
+
+    assert len(actx.profile_events) == 0
+    assert len(actx.profile_results) == 0
+
     # }}}
 
 
