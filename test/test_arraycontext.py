@@ -1248,6 +1248,20 @@ def test_no_leaf_array_type_broadcasting(actx_factory):
     np.testing.assert_allclose(45, actx.to_numpy(mc_op.mass[0]))
     np.testing.assert_allclose(45, actx.to_numpy(mc_op.momentum[1][0]))
 
+    with pytest.raises(TypeError):
+        mc_op = mc + bcast(DOFArray(actx, (actx_ary,)))
+        np.testing.assert_allclose(45, actx.to_numpy(mc_op.mass[0]))
+
+    mcdofbcast = MyContainerDOFBcast(
+         name="hi",
+         mass=dof_ary,
+         momentum=make_obj_array([dof_ary, dof_ary]),
+         enthalpy=dof_ary)
+
+    mc_op = mcdofbcast + bcast(DOFArray(actx, (actx_ary,)))
+    np.testing.assert_allclose(45, actx.to_numpy(mc_op.mass[0]))
+    np.testing.assert_allclose(45, actx.to_numpy(mc_op.momentum[1][0]))
+
     def _actx_allows_scalar_broadcast(actx):
         if not isinstance(actx, PyOpenCLArrayContext):
             return True
