@@ -645,7 +645,7 @@ class CompiledPyOpenCLFunctionReturningArrayContainer(CompiledFunction):
                                             **input_kwargs_for_loopy)
 
         if self.actx.profile_kernels:
-            self.actx.add_profiling_events(start_evt, evt, fn_name)
+            self.actx._add_profiling_events(start_evt, evt, fn_name)
 
         def to_output_template(keys, _):
             name_in_program = self.output_id_to_name_in_program[keys]
@@ -691,7 +691,7 @@ class CompiledPyOpenCLFunctionReturningArray(CompiledFunction):
                                             **input_kwargs_for_loopy)
 
         if self.actx.profile_kernels:
-            self.actx.add_profiling_events(start_evt, evt, fn_name)
+            self.actx._add_profiling_events(start_evt, evt, fn_name)
 
         return self.actx.thaw(to_tagged_cl_array(out_dict[self.output_name],
                                                  axes=get_cl_axes_from_pt_axes(

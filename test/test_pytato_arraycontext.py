@@ -290,40 +290,40 @@ def test_profiling_actx():
 
     f = actx.compile(twice)
 
-    assert len(actx.profile_events) == 0
+    assert len(actx._profile_events) == 0
 
     for _ in range(10):
         assert actx.to_numpy(f(99)) == 198
 
-    assert len(actx.profile_events) == 10
+    assert len(actx._profile_events) == 10
     actx._wait_and_transfer_profile_events()
-    assert len(actx.profile_events) == 0
-    assert len(actx.profile_results) == 1
-    assert len(actx.profile_results["twice"]) == 10
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 1
+    assert len(actx._profile_results["twice"]) == 10
 
     from arraycontext.impl.pytato.utils import tabulate_profiling_data
 
     print(tabulate_profiling_data(actx.get_and_reset_profiling_data()))
-    assert len(actx.profile_results) == 0
+    assert len(actx._profile_results) == 0
 
     # }}}
 
     # {{{ Uncompiled/frozen test
 
-    assert len(actx.profile_events) == 0
+    assert len(actx._profile_events) == 0
 
     for _ in range(10):
         assert np.all(actx.to_numpy(twice(actx.from_numpy(np.array([99, 99])))) == 198)
 
-    assert len(actx.profile_events) == 10
+    assert len(actx._profile_events) == 10
     actx._wait_and_transfer_profile_events()
-    assert len(actx.profile_events) == 0
-    assert len(actx.profile_results) == 1
-    assert len(actx.profile_results["frozen_result"]) == 10
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 1
+    assert len(actx._profile_results["frozen_result"]) == 10
 
     print(tabulate_profiling_data(actx.get_and_reset_profiling_data()))
 
-    assert len(actx.profile_results) == 0
+    assert len(actx._profile_results) == 0
 
     # }}}
 
@@ -331,13 +331,13 @@ def test_profiling_actx():
 
     actx.profile_kernels = False
 
-    assert len(actx.profile_events) == 0
+    assert len(actx._profile_events) == 0
 
     for _ in range(10):
         assert actx.to_numpy(f(99)) == 198
 
-    assert len(actx.profile_events) == 0
-    assert len(actx.profile_results) == 0
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 0
 
     # }}}
 
