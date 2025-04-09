@@ -245,14 +245,6 @@ class ProfileEvent:
     t_unit_name: str
 
 
-@dataclass
-class MultiCallKernelProfile:
-    """Class to hold the results of multiple kernel executions."""
-
-    num_calls: int
-    time: int
-
-
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
     An :class:`ArrayContext` that uses :mod:`pytato` data types to represent
@@ -289,14 +281,13 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             representation. This interface should be considered
             unstable.
         """
-        import pyopencl as cl
-
         if allocator is not None and use_memory_pool is not None:
             raise TypeError("may not specify both allocator and use_memory_pool")
 
         self.profile_kernels = profile_kernels
 
         if profile_kernels:
+            import pyopencl as cl
             if not queue.properties & cl.command_queue_properties.PROFILING_ENABLE:
                 raise RuntimeError("Profiling was not enabled in the command queue. "
                  "Please create the queue with "
@@ -379,43 +370,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def _add_profiling_events(self, start: cl._cl.Event, stop: cl._cl.Event,
                              t_unit_name: str) -> None:
         """Add profiling events to the list of profiling events."""
-        if self.profile_kernels:
-            self._profile_events.append(ProfileEvent(start, stop, t_unit_name))
+        self._profile_events.append(ProfileEvent(start, stop, t_unit_name))
 
-    def get_profiling_data_for_kernel(self, kernel_name: str) \
-          -> MultiCallKernelProfile:
-        """Return profiling data for kernel *kernel_name*."""
-        self._wait_and_transfer_profile_events()
-
-        time = 0
-        num_calls = 0
-
-        if kernel_name in self.profile_results:
-            knl_results = self.profile_results[kernel_name]
-
-            num_calls = len(knl_results)
-
-            for r in knl_results:
-                time += r
-
-        return MultiCallKernelProfile(num_calls, time)
-
-    def reset_profiling_data_for_kernel(self, kernel_name: str) -> None:
-        """Reset profiling data for kernel *kernel_name*."""
-        self.profile_results.pop(kernel_name, None)
-
-    def get_and_reset_profiling_data(self) -> dict[str, MultiCallKernelProfile]:
-        """Return and reset profiling data."""
-        self._wait_and_transfer_profile_events()
-
-        result = {
-            kernel_name: MultiCallKernelProfile(len(times), sum(times))
-            for kernel_name, times in self._profile_results.items()
-        }
-
+    def _reset_profiling_data(self) -> None:
+        """Reset profiling data."""
         self._profile_results = {}
-
-        return result
 
     # }}}
 

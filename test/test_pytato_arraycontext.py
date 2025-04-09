@@ -303,7 +303,7 @@ def test_profiling_actx():
 
     from arraycontext.impl.pytato.utils import tabulate_profiling_data
 
-    print(tabulate_profiling_data(actx.get_and_reset_profiling_data()))
+    print(tabulate_profiling_data(actx))
     assert len(actx._profile_results) == 0
 
     # }}}
@@ -321,7 +321,7 @@ def test_profiling_actx():
     assert len(actx._profile_results) == 1
     assert len(actx._profile_results["frozen_result"]) == 10
 
-    print(tabulate_profiling_data(actx.get_and_reset_profiling_data()))
+    print(tabulate_profiling_data(actx))
 
     assert len(actx._profile_results) == 0
 

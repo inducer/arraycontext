@@ -4,6 +4,12 @@ from __future__ import annotations
 __doc__ = """
 .. autofunction:: transfer_from_numpy
 .. autofunction:: transfer_to_numpy
+
+
+Profiling-related functions:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: tabulate_profiling_data
 """
 
 
@@ -52,7 +58,7 @@ from pytools import UniqueNameGenerator, memoize_method
 
 from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
-from arraycontext.impl.pytato import MultiCallKernelProfile
+from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
 
 
 if TYPE_CHECKING:
@@ -224,9 +230,12 @@ def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
 # }}}
 
 
-def tabulate_profiling_data(profile_results: dict[str, MultiCallKernelProfile])\
-       -> pytools.Table:
+# {{{ Profiling
+
+def tabulate_profiling_data(actx: PytatoPyOpenCLArrayContext) -> pytools.Table:
     """Return a :class:`pytools.Table` with the profiling results."""
+    actx._wait_and_transfer_profile_events()
+
     tbl = pytools.Table()
 
     # Table header
@@ -238,23 +247,27 @@ def tabulate_profiling_data(profile_results: dict[str, MultiCallKernelProfile])\
     total_calls = 0
     total_time = 0.0
 
-    for kernel_name, mckp in profile_results.items():
-        total_calls += mckp.num_calls
+    for kernel_name, times in actx._profile_results.items():
+        num_calls = len(times)
+        total_calls += num_calls
 
-        t_sum = mckp.time
-        t_avg = mckp.time / mckp.num_calls
+        t_sum = sum(times)
+        t_avg = t_sum / num_calls
         if t_sum is not None:
             total_time += t_sum
 
         time_sum = f"{t_sum:{g}}"
         time_avg = f"{t_avg:{g}}"
 
-        tbl.add_row((kernel_name, mckp.num_calls, time_sum,
-                time_avg,))
+        tbl.add_row((kernel_name, num_calls, time_sum, time_avg))
 
     tbl.add_row(("", "", "", ""))
     tbl.add_row(("Total", total_calls, f"{total_time:{g}}", "--"))
 
+    actx._reset_profiling_data()
+
     return tbl
+
+# }}}
 
 # vim: foldmethod=marker
