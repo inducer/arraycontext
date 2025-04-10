@@ -6,8 +6,8 @@ __doc__ = """
 .. autofunction:: transfer_to_numpy
 
 
-Profiling-related functions:
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Profiling-related functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: tabulate_profiling_data
 """
@@ -242,7 +242,7 @@ def tabulate_profiling_data(actx: PytatoPyOpenCLArrayContext) -> pytools.Table:
     tbl.add_row(("Kernel", "# Calls", "Time_sum [ns]", "Time_avg [ns]"))
 
     # Precision of results
-    g = ".4g"
+    g = ".5g"
 
     total_calls = 0
     total_time = 0.0
@@ -256,10 +256,7 @@ def tabulate_profiling_data(actx: PytatoPyOpenCLArrayContext) -> pytools.Table:
         if t_sum is not None:
             total_time += t_sum
 
-        time_sum = f"{t_sum:{g}}"
-        time_avg = f"{t_avg:{g}}"
-
-        tbl.add_row((kernel_name, num_calls, time_sum, time_avg))
+        tbl.add_row((kernel_name, num_calls, f"{t_sum:{g}}", f"{t_avg:{g}}"))
 
     tbl.add_row(("", "", "", ""))
     tbl.add_row(("Total", total_calls, f"{total_time:{g}}", "--"))

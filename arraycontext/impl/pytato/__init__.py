@@ -351,6 +351,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     # {{{ Profiling functionality
 
     def _wait_and_transfer_profile_events(self) -> None:
+        """Wait for all profiling events to finish and transfer the results
+        to *self._profile_results*."""
         import pyopencl as cl
         # First, wait for completion of all events
         if self._profile_events:
