@@ -23,6 +23,7 @@ intersphinx_mapping = {
     "pytest": ("https://docs.pytest.org/en/latest/", None),
     "python": ("https://docs.python.org/3/", None),
     "pytools": ("https://documen.tician.de/pytools", None),
+    "cupy": ("https://docs.cupy.dev/en/stable/", None),
 }
 
 # Some modules need to import things just so that sphinx can resolve symbols in
