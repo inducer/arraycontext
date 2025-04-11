@@ -119,9 +119,9 @@ class TaggableCLArray(cla.Array, Taggable):
         """
         Returns a copy of *self* with *iaxis*-th axis tagged with *tags*.
         """
-        new_axes = (self.axes[:iaxis]
-                    + (self.axes[iaxis].tagged(tags),)
-                    + self.axes[iaxis+1:])
+        new_axes = (*self.axes[:iaxis],
+                    self.axes[iaxis].tagged(tags),
+                    *self.axes[iaxis + 1:])
 
         return type(self)(None, tags=self.tags, axes=new_axes,
                           **_unwrap_cl_array(self))

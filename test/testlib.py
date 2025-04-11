@@ -160,7 +160,7 @@ class MyContainer:
 
 @with_container_arithmetic(
         bcasts_across_obj_array=False,
-        bcast_container_types=(DOFArray, np.ndarray),
+        container_types_bcast_across=(DOFArray, np.ndarray),
         matmul=True,
         rel_comparison=True,
         _cls_has_array_context_attr=True,
@@ -172,6 +172,8 @@ class MyContainerDOFBcast:
     mass: DOFArray | np.ndarray
     momentum: np.ndarray
     enthalpy: DOFArray | np.ndarray
+
+    __array_ufunc__ = None
 
     @property
     def array_context(self):
@@ -208,6 +210,8 @@ class Velocity2D:
     u: ArrayContainer
     v: ArrayContainer
     array_context: ArrayContext
+
+    __array_ufunc__ = None
 
 
 @with_array_context.register(Velocity2D)
