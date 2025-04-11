@@ -329,7 +329,7 @@ def test_profiling_actx():
 
     # {{{ test disabling profiling
 
-    actx.profile_kernels = False
+    actx._enable_profiling(False)
 
     assert len(actx._profile_events) == 0
 
@@ -340,6 +340,32 @@ def test_profiling_actx():
     assert len(actx._profile_results) == 0
 
     # }}}
+
+    # {{{ test enabling profiling
+
+    actx._enable_profiling(True)
+
+    assert len(actx._profile_events) == 0
+
+    for _ in range(10):
+        assert actx.to_numpy(f(99)) == 198
+
+    assert len(actx._profile_events) == 10
+    actx._wait_and_transfer_profile_events()
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 1
+
+    # }}}
+
+    queue2 = cl.CommandQueue(cl_ctx)
+
+    with pytest.raises(RuntimeError):
+        PytatoPyOpenCLArrayContext(queue2, profile_kernels=True)
+
+    actx2 = PytatoPyOpenCLArrayContext(queue2)
+
+    with pytest.raises(RuntimeError):
+        actx2._enable_profiling(True)
 
 
 if __name__ == "__main__":

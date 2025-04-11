@@ -284,22 +284,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         if allocator is not None and use_memory_pool is not None:
             raise TypeError("may not specify both allocator and use_memory_pool")
 
-        self.profile_kernels = profile_kernels
-
-        if profile_kernels:
-            import pyopencl as cl
-            if not queue.properties & cl.command_queue_properties.PROFILING_ENABLE:
-                raise RuntimeError("Profiling was not enabled in the command queue. "
-                 "Please create the queue with "
-                 "cl.command_queue_properties.PROFILING_ENABLE.")
-
-            # List of ProfileEvents that haven't been transferred to profiled
-            # results yet
-            self._profile_events: list[ProfileEvent] = []
-
-            # Dict of kernel name -> list of kernel execution times
-            self._profile_results: dict[str, list[int]] = {}
-
         self.using_svm = None
 
         if allocator is None:
@@ -348,7 +332,28 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         self._force_svm_arg_limit = _force_svm_arg_limit
 
+        self._enable_profiling(profile_kernels)
+
     # {{{ Profiling functionality
+
+    def _enable_profiling(self, enable: bool) -> None:
+        # List of ProfileEvents that haven't been transferred to profiled
+        # results yet
+        self._profile_events: list[ProfileEvent] = []
+
+        # Dict of kernel name -> list of kernel execution times
+        self._profile_results: dict[str, list[int]] = {}
+
+        if enable:
+            import pyopencl as cl
+            if not self.queue.properties & cl.command_queue_properties.PROFILING_ENABLE:
+                raise RuntimeError("Profiling was not enabled in the command queue. "
+                    "Please create the queue with "
+                    "cl.command_queue_properties.PROFILING_ENABLE.")
+            self.profile_kernels = True
+
+        else:
+            self.profile_kernels = False
 
     def _wait_and_transfer_profile_events(self) -> None:
         """Wait for all profiling events to finish and transfer the results
