@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 import logging
 
+import numpy as np
 import pytest
 
 from pytools.tag import Tag
@@ -272,6 +273,99 @@ def test_pass_args_compiled_func(actx_factory):
     assert isinstance(ep.arg_dict["_actx_in_0"], lp.ValueArg)
     assert isinstance(ep.arg_dict["_actx_in_1"], lp.ValueArg)
     assert isinstance(ep.arg_dict["_actx_in_2"], lp.ArrayArg)
+
+
+def test_profiling_actx():
+    import pyopencl as cl
+    cl_ctx = cl.create_some_context()
+    queue = cl.CommandQueue(cl_ctx,
+                            properties=cl.command_queue_properties.PROFILING_ENABLE)
+
+    actx = PytatoPyOpenCLArrayContext(queue, profile_kernels=True)
+
+    def twice(x):
+        return 2 * x
+
+    # {{{ Compiled test
+
+    f = actx.compile(twice)
+
+    assert len(actx._profile_events) == 0
+
+    for _ in range(10):
+        assert actx.to_numpy(f(99)) == 198
+
+    assert len(actx._profile_events) == 10
+    actx._wait_and_transfer_profile_events()
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 1
+    assert len(actx._profile_results["twice"]) == 10
+
+    from arraycontext.impl.pytato.utils import tabulate_profiling_data
+
+    print(tabulate_profiling_data(actx))
+    assert len(actx._profile_results) == 0
+
+    # }}}
+
+    # {{{ Uncompiled/frozen test
+
+    assert len(actx._profile_events) == 0
+
+    for _ in range(10):
+        assert np.all(actx.to_numpy(twice(actx.from_numpy(np.array([99, 99])))) == 198)
+
+    assert len(actx._profile_events) == 10
+    actx._wait_and_transfer_profile_events()
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 1
+    assert len(actx._profile_results["frozen_result"]) == 10
+
+    print(tabulate_profiling_data(actx))
+
+    assert len(actx._profile_results) == 0
+
+    # }}}
+
+    # {{{ test disabling profiling
+
+    actx._enable_profiling(False)
+
+    assert len(actx._profile_events) == 0
+
+    for _ in range(10):
+        assert actx.to_numpy(f(99)) == 198
+
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 0
+
+    # }}}
+
+    # {{{ test enabling profiling
+
+    actx._enable_profiling(True)
+
+    assert len(actx._profile_events) == 0
+
+    for _ in range(10):
+        assert actx.to_numpy(f(99)) == 198
+
+    assert len(actx._profile_events) == 10
+    actx._wait_and_transfer_profile_events()
+    assert len(actx._profile_events) == 0
+    assert len(actx._profile_results) == 1
+
+    # }}}
+
+    queue2 = cl.CommandQueue(cl_ctx)
+
+    with pytest.raises(RuntimeError):
+        PytatoPyOpenCLArrayContext(queue2, profile_kernels=True)
+
+    actx2 = PytatoPyOpenCLArrayContext(queue2)
+
+    with pytest.raises(RuntimeError):
+        actx2._enable_profiling(True)
 
 
 if __name__ == "__main__":
