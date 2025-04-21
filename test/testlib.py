@@ -23,6 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from dataclasses import dataclass
+from numbers import Number
 
 import numpy as np
 
@@ -57,6 +58,14 @@ class DOFArray:
 
         if not isinstance(data, tuple):
             raise TypeError("'data' argument must be a tuple")
+
+        if actx is not None:
+            for ary in data:
+                if (
+                        ary is not None
+                        and not isinstance(ary, (
+                            *actx.array_types, np.ndarray, Number))):
+                    raise TypeError(f"invalid data array type {type(ary)}.")
 
         self.array_context = actx
         self.data = data
