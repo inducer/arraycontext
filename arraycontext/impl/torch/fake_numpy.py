@@ -109,7 +109,9 @@ class TorchFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_multimap_array_container(torch.transpose, a, dim0, dim1)
 
     def broadcast_to(self, array, shape):
-        return rec_map_array_container(partial(torch.broadcast_to, shape=shape), array)
+        return rec_map_array_container(
+            partial(torch.broadcast_to, shape=shape), array
+        )
 
     def concatenate(self, arrays, axis=0):
         return rec_multimap_array_container(torch.cat, arrays, axis)

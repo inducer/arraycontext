@@ -44,7 +44,7 @@ class NumpyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
 
 _NUMPY_UFUNCS = {"abs", "sin", "cos", "tan", "arcsin", "arccos", "arctan",
                  "sinh", "cosh", "tanh", "exp", "log", "log10", "isnan",
-                 "sqrt", "exp", "concatenate", "reshape", "transpose",
+                 "sqrt", "exp", "reshape", "transpose",
                  "ones_like", "maximum", "minimum", "where", "conj", "arctan2",
                  }
 
@@ -86,6 +86,9 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def broadcast_to(self, array, shape):
         return rec_map_array_container(partial(np.broadcast_to, shape=shape), array)
+
+    def concatenate(self, arrays, axis=0):
+        return rec_multimap_array_container(np.concatenate, arrays, axis)
 
     # {{{ relational operators
 
