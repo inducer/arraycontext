@@ -4,6 +4,12 @@ from __future__ import annotations
 __doc__ = """
 .. autofunction:: transfer_from_numpy
 .. autofunction:: transfer_to_numpy
+
+
+Profiling-related functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: tabulate_profiling_data
 """
 
 
@@ -35,6 +41,7 @@ THE SOFTWARE.
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
+import pytools
 from pytato.array import (
     AbstractResultWithNamedArrays,
     Array,
@@ -51,6 +58,7 @@ from pytools import UniqueNameGenerator, memoize_method
 
 from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
+from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
 
 
 if TYPE_CHECKING:
@@ -218,6 +226,44 @@ def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
     :meth:`~arraycontext.ArrayContext.to_numpy`.
     """
     return TransferToNumpyMapper(actx)(expr)
+
+# }}}
+
+
+# {{{ Profiling
+
+def tabulate_profiling_data(actx: PytatoPyOpenCLArrayContext) -> pytools.Table:
+    """Return a :class:`pytools.Table` with the profiling results."""
+    actx._wait_and_transfer_profile_events()
+
+    tbl = pytools.Table()
+
+    # Table header
+    tbl.add_row(("Kernel", "# Calls", "Time_sum [ns]", "Time_avg [ns]"))
+
+    # Precision of results
+    g = ".5g"
+
+    total_calls = 0
+    total_time = 0.0
+
+    for kernel_name, times in actx._profile_results.items():
+        num_calls = len(times)
+        total_calls += num_calls
+
+        t_sum = sum(times)
+        t_avg = t_sum / num_calls
+        if t_sum is not None:
+            total_time += t_sum
+
+        tbl.add_row((kernel_name, num_calls, f"{t_sum:{g}}", f"{t_avg:{g}}"))
+
+    tbl.add_row(("", "", "", ""))
+    tbl.add_row(("Total", total_calls, f"{total_time:{g}}", "--"))
+
+    actx._reset_profiling_data()
+
+    return tbl
 
 # }}}
 

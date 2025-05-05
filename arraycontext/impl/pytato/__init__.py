@@ -54,6 +54,7 @@ THE SOFTWARE.
 import abc
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -74,7 +75,6 @@ from arraycontext.metadata import NameHint
 
 if TYPE_CHECKING:
     import loopy as lp
-    import pyopencl as cl
     import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
@@ -235,6 +235,16 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
 # {{{ PytatoPyOpenCLArrayContext
 
+
+@dataclass
+class ProfileEvent:
+    """Holds a profile event that has not been collected by the profiler yet."""
+
+    start_cl_event: cl._cl.Event
+    stop_cl_event: cl._cl.Event
+    t_unit_name: str
+
+
 class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     """
     An :class:`ArrayContext` that uses :mod:`pytato` data types to represent
@@ -259,7 +269,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             self, queue: cl.CommandQueue, allocator=None, *,
             use_memory_pool: bool | None = None,
             compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
-
+            profile_kernels: bool = False,
             # do not use: only for testing
             _force_svm_arg_limit: int | None = None,
             ) -> None:
@@ -321,6 +331,59 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         self.context = self.queue.context
 
         self._force_svm_arg_limit = _force_svm_arg_limit
+
+        self._enable_profiling(profile_kernels)
+
+    # {{{ Profiling functionality
+
+    def _enable_profiling(self, enable: bool) -> None:
+        # List of ProfileEvents that haven't been transferred to profiled
+        # results yet
+        self._profile_events: list[ProfileEvent] = []
+
+        # Dict of kernel name -> list of kernel execution times
+        self._profile_results: dict[str, list[int]] = {}
+
+        if enable:
+            import pyopencl as cl
+            if not self.queue.properties & cl.command_queue_properties.PROFILING_ENABLE:
+                raise RuntimeError("Profiling was not enabled in the command queue. "
+                    "Please create the queue with "
+                    "cl.command_queue_properties.PROFILING_ENABLE.")
+            self.profile_kernels = True
+
+        else:
+            self.profile_kernels = False
+
+    def _wait_and_transfer_profile_events(self) -> None:
+        """Wait for all profiling events to finish and transfer the results
+        to *self._profile_results*."""
+        import pyopencl as cl
+        # First, wait for completion of all events
+        if self._profile_events:
+            cl.wait_for_events([p_event.stop_cl_event
+                                    for p_event in self._profile_events])
+
+        # Then, collect all events and store them
+        for t in self._profile_events:
+            name = t.t_unit_name
+
+            time = t.stop_cl_event.profile.end - t.start_cl_event.profile.end
+
+            self._profile_results.setdefault(name, []).append(time)
+
+        self._profile_events = []
+
+    def _add_profiling_events(self, start: cl._cl.Event, stop: cl._cl.Event,
+                             t_unit_name: str) -> None:
+        """Add profiling events to the list of profiling events."""
+        self._profile_events.append(ProfileEvent(start, stop, t_unit_name))
+
+    def _reset_profiling_data(self) -> None:
+        """Reset profiling data."""
+        self._profile_results = {}
+
+    # }}}
 
     @property
     def _frozen_array_types(self) -> tuple[type, ...]:
@@ -546,9 +609,18 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     self._dag_transform_cache[normalized_expr])
 
         assert len(pt_prg.bound_arguments) == 0
-        _evt, out_dict = pt_prg(self.queue,
+
+        if self.profile_kernels:
+            import pyopencl as cl
+            start_evt = cl.enqueue_marker(self.queue)
+
+        evt, out_dict = pt_prg(self.queue,
                 allocator=self.allocator,
                 **bound_arguments)
+
+        if self.profile_kernels:
+            self._add_profiling_events(start_evt, evt, pt_prg.program.entrypoint)
+
         assert len(set(out_dict) & set(key_to_frozen_subary)) == 0
 
         key_to_frozen_subary = {
