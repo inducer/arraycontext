@@ -241,12 +241,15 @@ class PyOpenCLArrayContext(ArrayContext):
 
         return self._rec_map_container(_tag_axis, array)
 
+class MyProfilingExecutor:
+    def __call__...
+
     def call_loopy(self, t_unit, **kwargs):
         try:
             executor = self._loopy_transform_cache[t_unit]
         except KeyError:
             orig_t_unit = t_unit
-            executor = self.transform_loopy_program(t_unit).executor(self.context)
+            executor = MyProfilingExecutor(self.transform_loopy_program(t_unit).executor(self.context)
             self._loopy_transform_cache[orig_t_unit] = executor
             del orig_t_unit
 
