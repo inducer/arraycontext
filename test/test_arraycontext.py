@@ -1184,6 +1184,40 @@ def test_actx_compile_with_tuple_output_keys(actx_factory: ArrayContextFactory):
     np.testing.assert_allclose(result.u, -3.14*v_y)
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
+
+def test_actx_compile_with_outlined_function(actx_factory: ArrayContextFactory):
+    actx = actx_factory()
+    rng = np.random.default_rng()
+
+    @actx.outline
+    def outlined_scale_and_orthogonalize(alpha: float, vel: Velocity2D) -> Velocity2D:
+        return scale_and_orthogonalize(alpha, vel)
+
+    def multi_scale_and_orthogonalize(
+            alpha: float, vel1: Velocity2D, vel2: Velocity2D) -> np.ndarray:
+        return make_obj_array([
+            outlined_scale_and_orthogonalize(alpha, vel1),
+            outlined_scale_and_orthogonalize(alpha, vel2)])
+
+    compiled_rhs = actx.compile(multi_scale_and_orthogonalize)
+
+    v1_x = rng.uniform(size=10)
+    v1_y = rng.uniform(size=10)
+    v2_x = rng.uniform(size=10)
+    v2_y = rng.uniform(size=10)
+
+    vel1 = actx.from_numpy(Velocity2D(v1_x, v1_y, actx))
+    vel2 = actx.from_numpy(Velocity2D(v2_x, v2_y, actx))
+
+    scaled_speed1, scaled_speed2 = compiled_rhs(np.float64(3.14), vel1, vel2)
+
+    result1 = actx.to_numpy(scaled_speed1)
+    result2 = actx.to_numpy(scaled_speed2)
+    np.testing.assert_allclose(result1.u, -3.14*v1_y)
+    np.testing.assert_allclose(result1.v, 3.14*v1_x)
+    np.testing.assert_allclose(result2.u, -3.14*v2_y)
+    np.testing.assert_allclose(result2.v, 3.14*v2_x)
+
 # }}}
 
 
