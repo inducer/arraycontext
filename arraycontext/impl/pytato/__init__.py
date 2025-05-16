@@ -789,6 +789,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def transform_dag(self, dag: pytato.DictOfNamedArrays
                       ) -> pytato.DictOfNamedArrays:
         import pytato as pt
+        dag = pt.tag_all_calls_to_be_inlined(dag)
+        dag = pt.inline_calls(dag)
         dag = pt.transform.materialize_with_mpms(dag)
         return dag
 
