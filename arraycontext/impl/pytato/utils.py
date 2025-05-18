@@ -199,12 +199,7 @@ class TransferToNumpyMapper(CopyMapper):
         np_data = self.actx.to_numpy(expr.data)
         assert isinstance(np_data, np.ndarray)
 
-        # https://github.com/pylint-dev/pylint/issues/3893
-        # pylint: disable=unexpected-keyword-arg
-        # type-ignore: discussed at
-        # https://github.com/inducer/arraycontext/pull/289#discussion_r1855523967
-        # possibly related: https://github.com/python/mypy/issues/17375
-        return DataWrapper(  # type: ignore[call-arg]
+        return DataWrapper(
             data=np_data,
             shape=expr.shape,
             axes=expr.axes,
