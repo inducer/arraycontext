@@ -56,6 +56,21 @@ jobs:
                 python -m pip install mypy pytest
                 ./run-mypy.sh
 
+    basedpyright:
+        runs-on: ubuntu-latest
+        steps:
+        -   uses: actions/checkout@v4
+        -   name: "Main Script"
+            run: |
+                EXTRA_INSTALL="pytest types-colorama types-Pygments"
+                curl -L -O https://tiker.net/ci-support-v0
+                . ./ci-support-v0
+
+                build_py_project_in_conda_env
+                cipip install basedpyright
+
+                basedpyright "$(get_proj_name)" test
+
     pytest3_pocl:
         name: Pytest Conda Py3 POCL
         runs-on: ubuntu-latest
