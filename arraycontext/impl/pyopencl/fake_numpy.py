@@ -47,13 +47,6 @@ from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 
-try:
-    import pyopencl as cl  # noqa: F401
-    import pyopencl.array as cl_array
-except ImportError:
-    pass
-
-
 # {{{ fake numpy
 
 class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
@@ -121,6 +114,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return self._array_context._rec_map_container(_copy, ary)
 
     def arange(self, *args, **kwargs):
+        import pyopencl.array as cl_array
         return cl_array.arange(self._array_context.queue, *args, **kwargs)
 
     # }}}
@@ -155,6 +149,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_map_array_container(_rec_ravel, a)
 
     def concatenate(self, arrays, axis=0):
+        import pyopencl.array as cl_array
         return cl_array.concatenate(
             arrays, axis,
             self._array_context.queue,
@@ -162,6 +157,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         )
 
     def stack(self, arrays, axis=0):
+        import pyopencl.array as cl_array
         return rec_multimap_array_container(
                 lambda *args: cl_array.stack(arrays=args, axis=axis,
                     queue=self._array_context.queue),
@@ -172,6 +168,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # {{{ linear algebra
 
     def vdot(self, x, y, dtype=None):
+        import pyopencl.array as cl_array
         return rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
@@ -189,6 +186,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(all([ary]))
             return ary.all(queue=queue)
 
+        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _all,
@@ -202,6 +200,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(any([ary]))
             return ary.any(queue=queue)
 
+        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _any,
@@ -214,6 +213,8 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         # NOTE: pyopencl doesn't like `bool` much, so use `int8` instead
         true_ary = actx.from_numpy(np.int8(True))
         false_ary = actx.from_numpy(np.int8(False))
+
+        import pyopencl.array as cl_array
 
         def rec_equal(x: ArrayOrContainer, y: ArrayOrContainer) -> cl_array.Array:
             if type(x) is not type(y):
@@ -270,12 +271,15 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_multimap_array_container(operator.ne, x, y)
 
     def logical_or(self, x, y):
+        import pyopencl.array as cl_array
         return rec_multimap_array_container(cl_array.logical_or, x, y)
 
     def logical_and(self, x, y):
+        import pyopencl.array as cl_array
         return rec_multimap_array_container(cl_array.logical_and, x, y)
 
     def logical_not(self, x):
+        import pyopencl.array as cl_array
         return rec_map_array_container(cl_array.logical_not, x)
 
     # }}}
@@ -290,11 +294,13 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             if axis not in [None, tuple(range(ary.ndim))]:
                 raise NotImplementedError(f"Sum over '{axis}' axes not supported.")
 
+            import pyopencl.array as cl_array
             return cl_array.sum(ary, dtype=dtype, queue=self._array_context.queue)
 
         return rec_map_reduce_array_container(sum, _rec_sum, a)
 
     def maximum(self, x, y):
+        import pyopencl.array as cl_array
         return rec_multimap_array_container(
                 partial(cl_array.maximum, queue=self._array_context.queue),
                 x, y)
@@ -308,8 +314,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def _rec_max(ary):
             if axis not in [None, tuple(range(ary.ndim))]:
                 raise NotImplementedError(f"Max. over '{axis}' axes not supported.")
+            import pyopencl.array as cl_array
             return cl_array.max(ary, queue=queue)
 
+        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _rec_max,
@@ -318,6 +326,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     max = amax
 
     def minimum(self, x, y):
+        import pyopencl.array as cl_array
         return rec_multimap_array_container(
                 partial(cl_array.minimum, queue=self._array_context.queue),
                 x, y)
@@ -331,8 +340,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def _rec_min(ary):
             if axis not in [None, tuple(range(ary.ndim))]:
                 raise NotImplementedError(f"Min. over '{axis}' axes not supported.")
+            import pyopencl.array as cl_array
             return cl_array.min(ary, queue=queue)
 
+        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _rec_min,
@@ -351,6 +362,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def where_inner(inner_crit, inner_then, inner_else):
             if isinstance(inner_crit, bool | np.bool_):
                 return inner_then if inner_crit else inner_else
+            import pyopencl.array as cl_array
             return cl_array.if_positive(inner_crit != 0, inner_then, inner_else,
                     queue=self._array_context.queue)
 
