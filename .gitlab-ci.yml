@@ -96,16 +96,6 @@ Ruff:
   except:
   - tags
 
-Pylint:
-  script: |
-    EXTRA_INSTALL="jax[cpu]"
-    curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/master/prepare-and-run-pylint.sh
-    . ./prepare-and-run-pylint.sh "$CI_PROJECT_NAME" examples/*.py test/test_*.py
-  tags:
-  - python3
-  except:
-  - tags
-
 Mypy:
   script: |
     EXTRA_INSTALL="mypy pytest"
