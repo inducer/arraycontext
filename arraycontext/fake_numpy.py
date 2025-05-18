@@ -235,22 +235,6 @@ class BaseFakeNumpyLinalgNamespace:
         actx = self._array_context
 
         try:
-            from meshmode.dof_array import DOFArray, flat_norm
-        except ImportError:
-            pass
-        else:
-            if isinstance(ary, DOFArray):
-                from warnings import warn
-                warn("Taking an actx.np.linalg.norm of a DOFArray is deprecated. "
-                        "(DOFArrays use 2D arrays internally, and "
-                        "actx.np.linalg.norm should compute matrix norms of those.) "
-                        "This will stop working in 2022. "
-                        "Use meshmode.dof_array.flat_norm instead.",
-                        DeprecationWarning, stacklevel=2)
-
-                return flat_norm(ary, ord=ord)
-
-        try:
             iterable = serialize_container(ary)
         except NotAnArrayContainerError:
             pass
