@@ -53,7 +53,7 @@ THE SOFTWARE.
 
 import abc
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -229,6 +229,21 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         return None
 
     # }}}
+
+    def outline(self,
+                f: Callable[..., Any],
+                *,
+                id: Hashable | None = None,
+                tags: frozenset[Tag] = frozenset()
+                ) -> Callable[..., Any]:
+        from pytato.tags import FunctionIdentifier
+
+        from .outline import OutlinedCall
+        id = id or getattr(f, "__name__", None)
+        if id is not None:
+            tags = tags | {FunctionIdentifier(id)}
+
+        return OutlinedCall(self, f, tags)
 
 # }}}
 
@@ -502,8 +517,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             TaggableCLArray,
             to_tagged_cl_array,
         )
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
         from arraycontext.impl.pytato.utils import (
+            _ary_container_key_stringifier,
             _normalize_pt_expr,
             get_cl_axes_from_pt_axes,
         )
@@ -566,6 +581,15 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 key_to_pt_arrays)
+
+        pt_dict_of_named_arrays = pt.transform.Deduplicator()(
+            pt_dict_of_named_arrays)
+
+        # FIXME: Remove this if/when _normalize_pt_expr gets support for functions
+        pt_dict_of_named_arrays = pt.tag_all_calls_to_be_inlined(
+            pt_dict_of_named_arrays)
+        pt_dict_of_named_arrays = pt.inline_calls(pt_dict_of_named_arrays)
+
         normalized_expr, bound_arguments = _normalize_pt_expr(
                 pt_dict_of_named_arrays)
 
@@ -721,7 +745,13 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def transform_dag(self, dag: pytato.DictOfNamedArrays
                       ) -> pytato.DictOfNamedArrays:
         import pytato as pt
-        dag = pt.transform.materialize_with_mpms(dag)
+
+        # FIXME: Having to use _verify_is_dag seems clunky, but I'm not sure how to
+        # avoid it
+        from .utils import _verify_is_dag
+        dag = _verify_is_dag(pt.tag_all_calls_to_be_inlined(dag))
+        dag = _verify_is_dag(pt.inline_calls(dag))
+        dag = _verify_is_dag(pt.transform.materialize_with_mpms(dag))
         return dag
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
@@ -756,7 +786,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 # multiple placeholders with the same name that are not
                 # also the same object are not allowed, and this would produce
                 # a different Placeholder object of the same name.
-                if (not isinstance(ary, pt.Placeholder)
+                if (not isinstance(ary, pt.Placeholder | pt.NamedArray)
                         and not ary.tags_of_type(NameHint)):
                     ary = ary.tagged(NameHint(name))
 
@@ -861,7 +891,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         import pytato as pt
 
         from arraycontext.container.traversal import rec_keyed_map_array_container
-        from arraycontext.impl.pytato.compile import _ary_container_key_stringifier
+        from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
 
         array_as_dict: dict[str, jnp.ndarray | pt.Array] = {}
         key_to_frozen_subary: dict[str, jnp.ndarray] = {}

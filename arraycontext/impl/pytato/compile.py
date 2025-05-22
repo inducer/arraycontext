@@ -110,28 +110,6 @@ class LeafArrayDescriptor(AbstractInputDescriptor):
 
 # {{{ utilities
 
-def _ary_container_key_stringifier(keys: tuple[Any, ...]) -> str:
-    """
-    Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
-    array-container's component's key. Goals of this routine:
-
-    * No two different keys should have the same stringification
-    * Stringified key must a valid identifier according to :meth:`str.isidentifier`
-    * (informal) Shorter identifiers are preferred
-    """
-    def _rec_str(key: Any) -> str:
-        if isinstance(key, str | int):
-            return str(key)
-        elif isinstance(key, tuple):
-            # t in '_actx_t': stands for tuple
-            return "_actx_t" + "_".join(_rec_str(k) for k in key) + "_actx_endt"
-        else:
-            raise NotImplementedError("Key-stringication unimplemented for "
-                                      f"'{type(key).__name__}'.")
-
-    return "_".join(_rec_str(key) for key in keys)
-
-
 def _get_arg_id_to_arg_and_arg_id_to_descr(args: tuple[Any, ...],
                                            kwargs: Mapping[str, Any]
                                            ) -> \
@@ -192,7 +170,8 @@ def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
         to_tagged_cl_array,
     )
     if isinstance(ary, pt.Array):
-        dag = pt.make_dict_of_named_arrays({"_actx_out": ary})
+        dag = pt.transform.Deduplicator()(
+            pt.make_dict_of_named_arrays({"_actx_out": ary}))
         # Transform the DAG to give metadata inference a chance to do its job
         return actx.transform_dag(dag)["_actx_out"].expr
     elif isinstance(ary, TaggableCLArray):
@@ -324,6 +303,7 @@ class BaseLazilyCompilingFunctionCaller:
         :attr:`~BaseLazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
         The intermediary pytato DAG for *args* is memoized in *self*.
         """
+        from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
         arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
             args, kwargs)
 
