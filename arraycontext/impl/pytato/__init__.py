@@ -745,9 +745,13 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def transform_dag(self, dag: pytato.DictOfNamedArrays
                       ) -> pytato.DictOfNamedArrays:
         import pytato as pt
-        dag = pt.tag_all_calls_to_be_inlined(dag)
-        dag = pt.inline_calls(dag)
-        dag = pt.transform.materialize_with_mpms(dag)
+
+        # FIXME: Having to use _verify_is_dag seems clunky, but I'm not sure how to
+        # avoid it
+        from .utils import _verify_is_dag
+        dag = _verify_is_dag(pt.tag_all_calls_to_be_inlined(dag))
+        dag = _verify_is_dag(pt.inline_calls(dag))
+        dag = _verify_is_dag(pt.transform.materialize_with_mpms(dag))
         return dag
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):

@@ -72,6 +72,11 @@ if TYPE_CHECKING:
     import loopy as lp
 
 
+def _verify_is_dag(dag: ArrayOrNames) -> DictOfNamedArrays:
+    assert isinstance(dag, DictOfNamedArrays)
+    return dag
+
+
 class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
     """
     Helper mapper for :func:`normalize_pt_expr`. Every
@@ -141,7 +146,7 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
-    expr = Deduplicator()(expr)
+    expr = _verify_is_dag(Deduplicator()(expr))
 
     if get_num_call_sites(expr):
         raise NotImplementedError(

@@ -193,6 +193,8 @@ class OutlinedCall:
     def __call__(self, *args: Any, **kwargs: Any) -> ArrayOrContainer:
         arg_id_to_arg = _get_arg_id_to_arg(args, kwargs)
 
+        from .utils import _verify_is_dag
+
         if __debug__:
             # Add a prefix to the names to distinguish them from any existing
             # placeholders
@@ -201,9 +203,10 @@ class OutlinedCall:
 
             prefixed_output = _call_with_placeholders(
                 self.f, args, kwargs, arg_id_to_prefixed_placeholder)
-            unpacked_prefixed_output = pt.transform.Deduplicator()(
-                pt.make_dict_of_named_arrays(
-                    _unpack_output(prefixed_output)))
+            unpacked_prefixed_output = _verify_is_dag(
+                pt.transform.Deduplicator()(
+                    pt.make_dict_of_named_arrays(
+                        _unpack_output(prefixed_output))))
 
             prefixed_placeholders = frozenset(
                 arg_id_to_prefixed_placeholder.values())
@@ -220,9 +223,10 @@ class OutlinedCall:
         arg_id_to_placeholder = _get_arg_id_to_placeholder(arg_id_to_arg)
 
         output = _call_with_placeholders(self.f, args, kwargs, arg_id_to_placeholder)
-        unpacked_output = pt.transform.Deduplicator()(
-            pt.make_dict_of_named_arrays(
-                _unpack_output(output)))
+        unpacked_output = _verify_is_dag(
+            pt.transform.Deduplicator()(
+                pt.make_dict_of_named_arrays(
+                    _unpack_output(output))))
         if len(unpacked_output) == 1 and "_" in unpacked_output:
             ret_type = pt.function.ReturnType.ARRAY
         else:
