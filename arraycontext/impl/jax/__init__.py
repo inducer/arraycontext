@@ -101,7 +101,7 @@ class EagerJAXArrayContext(ArrayContext):
     def to_numpy(self, array):
         def _to_numpy(ary):
             import jax
-            return jax.device_get(ary)
+            return np.copy(jax.device_get(ary))
 
         return with_array_context(
             self._rec_map_container(_to_numpy, array),
