@@ -132,11 +132,6 @@ class EagerJAXArrayContext(ArrayContext):
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import jax.numpy as jnp
-        if arg_names is not None:
-            from warnings import warn
-            warn("'arg_names' don't bear any significance in "
-                 f"{type(self).__name__}.", stacklevel=2)
-
         return jnp.einsum(spec, *args)
 
     def clone(self):
