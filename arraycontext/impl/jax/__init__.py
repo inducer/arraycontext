@@ -36,7 +36,7 @@ import numpy as np
 from pytools.tag import ToTagSetConvertible
 
 from arraycontext.container.traversal import rec_map_array_container, with_array_context
-from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
+from arraycontext.context import ArrayContext, ArrayOrContainer, ScalarLike
 
 
 class EagerJAXArrayContext(ArrayContext):
@@ -64,7 +64,7 @@ class EagerJAXArrayContext(ArrayContext):
         return EagerJAXFakeNumpyNamespace(self)
 
     def _rec_map_container(
-            self, func: Callable[[Array], Array], array: ArrayOrContainer,
+            self, func: Callable[[object], object], array: ArrayOrContainer,
             allowed_types: tuple[type, ...] | None = None, *,
             default_scalar: ScalarLike | None = None,
             strict: bool = False) -> ArrayOrContainer:
@@ -101,7 +101,7 @@ class EagerJAXArrayContext(ArrayContext):
     def to_numpy(self, array):
         def _to_numpy(ary):
             import jax
-            return jax.device_get(ary)
+            return np.copy(jax.device_get(ary))  # pyright: ignore[reportAny]
 
         return with_array_context(
             self._rec_map_container(_to_numpy, array),

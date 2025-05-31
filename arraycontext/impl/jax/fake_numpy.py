@@ -202,7 +202,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def sum(self, a, axis=None, dtype=None):
         return rec_map_reduce_array_container(
             sum,
-            partial(jnp.sum, axis=axis, dtype=dtype),
+            partial(jnp.sum, axis=axis, dtype=dtype),  # pyright: ignore[reportArgumentType]
             a)
 
     def amin(self, a, axis=None):
