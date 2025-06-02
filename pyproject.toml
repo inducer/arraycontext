@@ -129,6 +129,7 @@ reportImplicitStringConcatenation = "none"
 reportUnnecessaryIsInstance = "none"
 reportUnusedCallResult = "none"
 reportExplicitAny = "none"
+reportPrivateUsage = "hint"
 
 # This reports even cycles that are qualified by 'if TYPE_CHECKING'. Not what
 # we care about at this moment.
@@ -139,6 +140,17 @@ pythonPlatform = "All"
 
 [[tool.basedpyright.executionEnvironments]]
 root = "test"
+reportUnknownArgumentType = "hint"
+reportUnknownMemberType = "hint"
+reportUnknownVariableType = "hint"
+reportUnknownParameterType = "hint"
+reportMissingTypeArgument = "hint"
+reportPrivateUsage = "none"
+reportMissingTypeStubs = "hint"
+reportAny = "hint"
+
+[[tool.basedpyright.executionEnvironments]]
+root = "examples"
 reportUnknownArgumentType = "hint"
 reportUnknownMemberType = "hint"
 reportUnknownVariableType = "hint"
