@@ -808,6 +808,9 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     An arraycontext that uses :mod:`pytato` to represent the thawed state of
     the arrays and compiles the expressions using
     :class:`pytato.target.python.JAXPythonTarget`.
+
+
+    .. automethod:: transform_dag
     """
 
     def __init__(self,
@@ -957,6 +960,14 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
         from .compile import LazilyJAXCompilingFunctionCaller
         return LazilyJAXCompilingFunctionCaller(self, f)
+
+    def transform_dag(self, dag: pytato.DictOfNamedArrays
+                      ) -> pytato.DictOfNamedArrays:
+        import pytato as pt
+
+        dag = pt.tag_all_calls_to_be_inlined(dag)
+        dag = pt.inline_calls(dag)
+        return dag
 
     def tag(self, tags: ToTagSetConvertible, array):
         def _tag(ary):
