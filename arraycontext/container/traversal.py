@@ -399,9 +399,25 @@ def keyed_map_array_container(
             ])
 
 
+def _rec_keyed_map_array_container_rec(
+            f: Callable[[tuple[SerializationKey, ...], ArrayT], ArrayT],
+            keys: tuple[SerializationKey, ...],
+            ary_: ArrayOrContainerT
+        ) -> ArrayOrContainerT:
+    try:
+        iterable = serialize_container(ary_)
+    except NotAnArrayContainerError:
+        return cast(ArrayOrContainerT, f(keys, cast(ArrayT, ary_)))
+    else:
+        return deserialize_container(ary_, [
+            (key, _rec_keyed_map_array_container_rec(
+                f, (*keys, key), subary)) for key, subary in iterable
+            ])
+
+
 def rec_keyed_map_array_container(
         f: Callable[[tuple[SerializationKey, ...], ArrayT], ArrayT],
-        ary: ArrayOrContainer) -> ArrayOrContainer:
+        ary: ArrayOrContainerT) -> ArrayOrContainerT:
     """
     Works similarly to :func:`rec_map_array_container`, except that *f* also
     takes in a traversal path to the leaf array. The traversal path argument is
@@ -409,18 +425,7 @@ def rec_keyed_map_array_container(
     the current array.
     """
 
-    def rec(keys: tuple[SerializationKey, ...],
-            ary_: ArrayOrContainerT) -> ArrayOrContainerT:
-        try:
-            iterable = serialize_container(ary_)
-        except NotAnArrayContainerError:
-            return cast(ArrayOrContainerT, f(keys, cast(ArrayT, ary_)))
-        else:
-            return deserialize_container(ary_, [
-                (key, rec((*keys, key), subary)) for key, subary in iterable
-                ])
-
-    return rec((), ary)
+    return _rec_keyed_map_array_container_rec(f, (), ary)
 
 # }}}
 
