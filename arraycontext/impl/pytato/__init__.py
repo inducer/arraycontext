@@ -58,6 +58,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from typing_extensions import override
 
 from pytools import memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
@@ -230,6 +231,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     # }}}
 
+    @override
     def outline(self,
                 f: Callable[..., Any],
                 *,
@@ -582,8 +584,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(
                 key_to_pt_arrays)
 
-        pt_dict_of_named_arrays = pt.transform.Deduplicator()(
-            pt_dict_of_named_arrays)
+        pt_dict_of_named_arrays = pt.deduplicate(pt_dict_of_named_arrays)
 
         # FIXME: Remove this if/when _normalize_pt_expr gets support for functions
         pt_dict_of_named_arrays = pt.tag_all_calls_to_be_inlined(
