@@ -40,10 +40,11 @@ THE SOFTWARE.
 
 from typing import TYPE_CHECKING, Any, cast
 
+from typing_extensions import override
+
 import pytools
 from pytato.analysis import get_num_call_sites
 from pytato.array import (
-    AbstractResultWithNamedArrays,
     Array,
     Axis as PtAxis,
     DataWrapper,
@@ -57,8 +58,8 @@ from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import (
     ArrayOrNames,
     CopyMapper,
-    Deduplicator,
     TransformMapperCache,
+    deduplicate,
 )
 from pytools import UniqueNameGenerator, memoize_method
 
@@ -97,6 +98,7 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
         self.vng = UniqueNameGenerator()
         self.seen_inputs: set[str] = set()
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         if expr.name is not None:
             if expr.name in self.seen_inputs:
@@ -118,13 +120,16 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                     axes=expr.axes,
                     tags=expr.tags)
 
+    @override
     def map_size_param(self, expr: SizeParam) -> Array:
         raise NotImplementedError
 
+    @override
     def map_placeholder(self, expr: Placeholder) -> Array:
         raise ValueError("Placeholders cannot appear in"
                          " DatawrapperToBoundPlaceholderMapper.")
 
+    @override
     def map_function_definition(
             self, expr: FunctionDefinition) -> FunctionDefinition:
         raise ValueError("Function definitions cannot appear in"
@@ -135,7 +140,7 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
 # definitions can't contain non-argument placeholders
 def _normalize_pt_expr(
         expr: DictOfNamedArrays
-        ) -> tuple[Array | AbstractResultWithNamedArrays, Mapping[str, Any]]:
+        ) -> tuple[DictOfNamedArrays, Mapping[str, Any]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
     normalized form of *expr*, with all instances of
@@ -145,7 +150,7 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
-    expr = Deduplicator()(expr)
+    expr = deduplicate(expr)
 
     if get_num_call_sites(expr):
         raise NotImplementedError(
@@ -154,7 +159,7 @@ def _normalize_pt_expr(
 
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
     normalized_expr = normalize_mapper(expr)
-    assert isinstance(normalized_expr, AbstractResultWithNamedArrays)
+    assert isinstance(normalized_expr, DictOfNamedArrays)
     return normalized_expr, normalize_mapper.bound_arguments
 
 
@@ -192,6 +197,7 @@ class TransferFromNumpyMapper(CopyMapper):
         super().__init__()
         self.actx = actx
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import numpy as np
 
@@ -224,6 +230,7 @@ class TransferToNumpyMapper(CopyMapper):
         super().__init__()
         self.actx = actx
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import numpy as np
 
