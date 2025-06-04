@@ -45,7 +45,6 @@ from arraycontext.container.traversal import rec_keyed_map_array_container
 from arraycontext.context import (
     Array,
     ArrayOrContainer,
-    ArrayOrContainerTc,
     ArrayT,
 )
 from arraycontext.impl.pytato import _BasePytatoArrayContext
@@ -53,7 +52,7 @@ from arraycontext.impl.pytato import _BasePytatoArrayContext
 
 def _get_arg_id_to_arg(args: tuple[object, ...],
                        kwargs: Mapping[str, object]
-                       ) -> immutabledict[tuple[object, ...], object]:
+                       ) -> immutabledict[tuple[object, ...], pt.Array]:
     """
     Helper for :meth:`OulinedCall.__call__`. Extracts mappings from argument id
     to argument values. See
@@ -104,7 +103,7 @@ def _get_output_arg_id_str(arg_id: tuple[object, ...]) -> str:
 
 
 def _get_arg_id_to_placeholder(
-        arg_id_to_arg: Mapping[tuple[object, ...], object],
+        arg_id_to_arg: Mapping[tuple[object, ...], pt.Array],
         prefix: str | None = None) -> immutabledict[tuple[object, ...], pt.Placeholder]:
     """
     Helper for :meth:`OulinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
@@ -122,25 +121,25 @@ def _get_arg_id_to_placeholder(
 
 def _call_with_placeholders(
         f: Callable[..., object],
-        args: tuple[object],
+        args: tuple[object, ...],
         kwargs: Mapping[str, object],
         arg_id_to_placeholder: Mapping[tuple[object, ...], pt.Placeholder]) -> object:
     """
     Construct placeholders analogous to *args* and *kwargs* and call *f*.
     """
     def get_placeholder_replacement(
-            arg: ArrayOrContainerTc | Scalar | None, key: tuple[object, ...]
-            ) -> ArrayOrContainerTc | Scalar | None:
+            arg: ArrayOrContainer | Scalar | None, key: tuple[object, ...]
+            ) -> ArrayOrContainer | Scalar | None:
         if arg is None:
             return None
         elif np.isscalar(arg):
             return cast(Scalar, arg)
         elif isinstance(arg, pt.Array):
-            return cast(ArrayOrContainerTc, arg_id_to_placeholder[key])
+            return arg_id_to_placeholder[key]
         elif is_array_container_type(arg.__class__):
-            def _rec_to_placeholder(keys: tuple[object, ...], ary: ArrayT) -> ArrayT:
-                result = get_placeholder_replacement(ary, key + keys)
-                return cast(ArrayT, result)
+            def _rec_to_placeholder(
+                    keys: tuple[object, ...], ary: Array) -> Array:
+                return cast("Array", get_placeholder_replacement(ary, key + keys))
 
             return rec_keyed_map_array_container(_rec_to_placeholder, arg)
         else:
@@ -176,7 +175,7 @@ def _unpack_output(
 
 def _pack_output(
         output_template: ArrayOrContainer,
-        unpacked_output: Array | immutabledict[str, Array]
+        unpacked_output: pt.Array | immutabledict[str, pt.Array]
         ) -> ArrayOrContainer:
     """
     Pack *unpacked_output* into array containers according to *output_template*.
@@ -187,7 +186,7 @@ def _pack_output(
     elif is_array_container_type(output_template.__class__):
         assert isinstance(unpacked_output, immutabledict)
 
-        def _pack_into_container(key: tuple[object, ...], ary: Array) -> Array:
+        def _pack_into_container(key: tuple[object, ...], ary: Array) -> Array:  # pyright: ignore[reportUnusedParameter]
             key_str = _get_output_arg_id_str(key)
             return unpacked_output[key_str]
 
@@ -261,9 +260,6 @@ class OutlinedCall:
         call_site_output = func_def(**call_bindings)
 
         assert isinstance(call_site_output, pt.Array | immutabledict)
-        # FIXME: pt.Array is not an actx Array
-        return _pack_output(cast("Array | immutabledict[str, Array]", output),
-                            cast("Array | immutabledict[str, Array]", call_site_output))
-
+        return _pack_output(output, call_site_output)
 
 # vim: foldmethod=marker
