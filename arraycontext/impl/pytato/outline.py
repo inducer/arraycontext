@@ -31,30 +31,36 @@ THE SOFTWARE.
 import itertools
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import cast
 
 import numpy as np
 from immutabledict import immutabledict
 
 import pytato as pt
+from pymbolic import Scalar
 from pytools.tag import Tag
 
 from arraycontext.container import is_array_container_type
 from arraycontext.container.traversal import rec_keyed_map_array_container
-from arraycontext.context import ArrayOrContainer, ArrayT
+from arraycontext.context import (
+    Array,
+    ArrayOrContainer,
+    ArrayOrContainerTc,
+    ArrayT,
+)
 from arraycontext.impl.pytato import _BasePytatoArrayContext
 
 
-def _get_arg_id_to_arg(args: tuple[Any, ...],
-                       kwargs: Mapping[str, Any]
-                       ) -> immutabledict[tuple[Any, ...], Any]:
+def _get_arg_id_to_arg(args: tuple[object, ...],
+                       kwargs: Mapping[str, object]
+                       ) -> immutabledict[tuple[object, ...], object]:
     """
     Helper for :meth:`OulinedCall.__call__`. Extracts mappings from argument id
     to argument values. See
     :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
     representation.
     """
-    arg_id_to_arg: dict[tuple[Any, ...], Any] = {}
+    arg_id_to_arg: dict[tuple[object, ...], object] = {}
 
     for kw, arg in itertools.chain(enumerate(args),
                                    kwargs.items()):
@@ -64,7 +70,7 @@ def _get_arg_id_to_arg(args: tuple[Any, ...],
             # do not make scalars as placeholders since we inline them.
             pass
         elif is_array_container_type(arg.__class__):
-            def id_collector(keys: tuple[Any, ...], ary: ArrayT) -> ArrayT:
+            def id_collector(keys: tuple[object, ...], ary: ArrayT) -> ArrayT:
                 if np.isscalar(ary):
                     pass
                 else:
@@ -85,21 +91,21 @@ def _get_arg_id_to_arg(args: tuple[Any, ...],
 
 
 def _get_input_arg_id_str(
-        arg_id: tuple[Any, ...], prefix: str | None = None) -> str:
+        arg_id: tuple[object, ...], prefix: str | None = None) -> str:
     if prefix is None:
         prefix = ""
     from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
     return f"_actx_{prefix}_in_{_ary_container_key_stringifier(arg_id)}"
 
 
-def _get_output_arg_id_str(arg_id: tuple[Any, ...]) -> str:
+def _get_output_arg_id_str(arg_id: tuple[object, ...]) -> str:
     from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
     return f"_actx_out_{_ary_container_key_stringifier(arg_id)}"
 
 
 def _get_arg_id_to_placeholder(
-        arg_id_to_arg: Mapping[tuple[Any, ...], Any],
-        prefix: str | None = None) -> immutabledict[tuple[Any, ...], pt.Placeholder]:
+        arg_id_to_arg: Mapping[tuple[object, ...], object],
+        prefix: str | None = None) -> immutabledict[tuple[object, ...], pt.Placeholder]:
     """
     Helper for :meth:`OulinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
     for each argument in *arg_id_to_arg*. See
@@ -115,27 +121,26 @@ def _get_arg_id_to_placeholder(
 
 
 def _call_with_placeholders(
-        f: Callable[..., Any],
-        args: tuple[Any],
-        kwargs: Mapping[str, Any],
-        arg_id_to_placeholder: Mapping[tuple[Any, ...], pt.Placeholder]) -> Any:
+        f: Callable[..., object],
+        args: tuple[object],
+        kwargs: Mapping[str, object],
+        arg_id_to_placeholder: Mapping[tuple[object, ...], pt.Placeholder]) -> object:
     """
     Construct placeholders analogous to *args* and *kwargs* and call *f*.
     """
     def get_placeholder_replacement(
-            arg: ArrayOrContainer | None, key: tuple[Any, ...]
-            ) -> ArrayOrContainer | None:
+            arg: ArrayOrContainerTc | Scalar | None, key: tuple[object, ...]
+            ) -> ArrayOrContainerTc | Scalar | None:
         if arg is None:
             return None
         elif np.isscalar(arg):
-            return arg
+            return cast(Scalar, arg)
         elif isinstance(arg, pt.Array):
-            return arg_id_to_placeholder[key]
+            return cast(ArrayOrContainerTc, arg_id_to_placeholder[key])
         elif is_array_container_type(arg.__class__):
-            def _rec_to_placeholder(keys: tuple[Any, ...], ary: pt.Array) -> pt.Array:
+            def _rec_to_placeholder(keys: tuple[object, ...], ary: ArrayT) -> ArrayT:
                 result = get_placeholder_replacement(ary, key + keys)
-                assert isinstance(result, pt.Array)
-                return result
+                return cast(ArrayT, result)
 
             return rec_keyed_map_array_container(_rec_to_placeholder, arg)
         else:
@@ -157,7 +162,7 @@ def _unpack_output(
     elif is_array_container_type(output.__class__):
         unpacked_output = {}
 
-        def _unpack_container(key: tuple[Any, ...], ary: ArrayT) -> ArrayT:
+        def _unpack_container(key: tuple[object, ...], ary: ArrayT) -> ArrayT:
             key_str = _get_output_arg_id_str(key)
             unpacked_output[key_str] = ary
             return ary
@@ -171,7 +176,7 @@ def _unpack_output(
 
 def _pack_output(
         output_template: ArrayOrContainer,
-        unpacked_output: pt.Array | immutabledict[str, pt.Array]
+        unpacked_output: Array | immutabledict[str, Array]
         ) -> ArrayOrContainer:
     """
     Pack *unpacked_output* into array containers according to *output_template*.
@@ -182,7 +187,7 @@ def _pack_output(
     elif is_array_container_type(output_template.__class__):
         assert isinstance(unpacked_output, immutabledict)
 
-        def _pack_into_container(key: tuple[Any, ...], ary: pt.Array) -> pt.Array:
+        def _pack_into_container(key: tuple[object, ...], ary: Array) -> Array:
             key_str = _get_output_arg_id_str(key)
             return unpacked_output[key_str]
 
@@ -194,10 +199,10 @@ def _pack_output(
 @dataclass(frozen=True)
 class OutlinedCall:
     actx: _BasePytatoArrayContext
-    f: Callable[..., Any]
+    f: Callable[..., object]
     tags: frozenset[Tag]
 
-    def __call__(self, *args: Any, **kwargs: Any) -> ArrayOrContainer:
+    def __call__(self, *args: object, **kwargs: object) -> ArrayOrContainer:
         arg_id_to_arg = _get_arg_id_to_arg(args, kwargs)
 
         if __debug__:
@@ -257,7 +262,9 @@ class OutlinedCall:
         call_site_output = func_def(**call_bindings)
 
         assert isinstance(call_site_output, pt.Array | immutabledict)
-        return _pack_output(output, call_site_output)
+        # FIXME: pt.Array is not an actx Array
+        return _pack_output(cast("Array | immutabledict[str, Array]", output),
+                            cast("Array | immutabledict[str, Array]", call_site_output))
 
 
 # vim: foldmethod=marker
