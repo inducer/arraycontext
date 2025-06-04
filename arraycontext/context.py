@@ -174,6 +174,7 @@ from warnings import warn
 import numpy as np
 from typing_extensions import Self
 
+from pymbolic.typing import Integer, Scalar as _Scalar
 from pytools import memoize_method
 from pytools.tag import ToTagSetConvertible
 
@@ -202,11 +203,11 @@ class Array(Protocol):
     """
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self) -> tuple[Array | Integer, ...]:
         ...
 
     @property
-    def size(self) -> int:
+    def size(self) -> Array | Integer:
         ...
 
     @property
@@ -234,8 +235,8 @@ class Array(Protocol):
 
 
 # deprecated, use ScalarLike instead
-ScalarLike: TypeAlias = int | float | complex | np.generic
-Scalar = ScalarLike
+Scalar = _Scalar
+ScalarLike = Scalar
 ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
 # NOTE: I'm kind of not sure about the *Tc versions of these type variables.

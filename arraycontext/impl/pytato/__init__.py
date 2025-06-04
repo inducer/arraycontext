@@ -892,7 +892,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
-        def _to_frozen(key: tuple[Any, ...], ary) -> jnp.ndarray:
+        def _to_frozen(key: tuple[Any, ...], ary: pt.Array) -> jnp.ndarray:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             return key_to_frozen_subary[key_str]
 
