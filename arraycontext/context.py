@@ -582,7 +582,7 @@ class ArrayContext(ABC):
     def outline(self,
                 f: Callable[..., Any],
                 *,
-                id: Hashable | None = None) -> Callable[..., Any]:
+                id: Hashable | None = None) -> Callable[..., Any]:  # pyright: ignore[reportUnusedParameter]
         """
         Returns a drop-in-replacement for *f*. The behavior of the returned
         callable is specific to the derived class.

@@ -236,7 +236,7 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
                 f: Callable[..., Any],
                 *,
                 id: Hashable | None = None,
-                tags: frozenset[Tag] = frozenset()
+                tags: frozenset[Tag] = frozenset()  # pyright: ignore[reportCallInDefaultInitializer]
                 ) -> Callable[..., Any]:
         from pytato.tags import FunctionIdentifier
 
@@ -962,6 +962,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         from .compile import LazilyJAXCompilingFunctionCaller
         return LazilyJAXCompilingFunctionCaller(self, f)
 
+    @override
     def transform_dag(self, dag: pytato.DictOfNamedArrays
                       ) -> pytato.DictOfNamedArrays:
         import pytato as pt

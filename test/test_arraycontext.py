@@ -24,8 +24,10 @@ THE SOFTWARE.
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
+from typing import TypeAlias
 
 import numpy as np
 import pytest
@@ -34,6 +36,7 @@ from pytools.obj_array import make_obj_array
 from pytools.tag import Tag
 
 from arraycontext import (
+    ArrayContext,
     BcastUntilActxArray,
     EagerJAXArrayContext,
     NumpyArrayContext,
@@ -56,6 +59,9 @@ from testlib import DOFArray, MyContainer, MyContainerDOFBcast, Velocity2D
 
 
 logger = logging.getLogger(__name__)
+
+
+ArrayContextFactory: TypeAlias = Callable[[], ArrayContext]
 
 
 # {{{ array context fixture
@@ -1166,15 +1172,16 @@ def test_actx_compile_with_tuple_output_keys(actx_factory):
     np.testing.assert_allclose(result.v, 3.14*v_x)
 
 
-def test_actx_compile_with_outlined_function(actx_factory):
+def test_actx_compile_with_outlined_function(actx_factory: ArrayContextFactory):
     actx = actx_factory()
     rng = np.random.default_rng()
 
     @actx.outline
-    def outlined_scale_and_orthogonalize(alpha, vel):
+    def outlined_scale_and_orthogonalize(alpha: float, vel: Velocity2D) -> Velocity2D:
         return scale_and_orthogonalize(alpha, vel)
 
-    def multi_scale_and_orthogonalize(alpha, vel1, vel2):
+    def multi_scale_and_orthogonalize(
+            alpha: float, vel1: Velocity2D, vel2: Velocity2D) -> np.ndarray:
         return make_obj_array([
             outlined_scale_and_orthogonalize(alpha, vel1),
             outlined_scale_and_orthogonalize(alpha, vel2)])
@@ -1193,10 +1200,10 @@ def test_actx_compile_with_outlined_function(actx_factory):
 
     result1 = actx.to_numpy(scaled_speed1)
     result2 = actx.to_numpy(scaled_speed2)
-    np.testing.assert_allclose(result1.u, -3.14*v1_y)
-    np.testing.assert_allclose(result1.v, 3.14*v1_x)
-    np.testing.assert_allclose(result2.u, -3.14*v2_y)
-    np.testing.assert_allclose(result2.v, 3.14*v2_x)
+    np.testing.assert_allclose(result1.u, -3.14*v1_y)  # pyright: ignore[reportAttributeAccessIssue]
+    np.testing.assert_allclose(result1.v, 3.14*v1_x)  # pyright: ignore[reportAttributeAccessIssue]
+    np.testing.assert_allclose(result2.u, -3.14*v2_y)  # pyright: ignore[reportAttributeAccessIssue]
+    np.testing.assert_allclose(result2.v, 3.14*v2_x)  # pyright: ignore[reportAttributeAccessIssue]
 
 # }}}
 

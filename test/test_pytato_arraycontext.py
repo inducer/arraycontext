@@ -220,6 +220,7 @@ def test_transfer(actx_factory):
         _ahh = transfer_to_numpy(ah, actx)
 
     ad = transfer_from_numpy(ah, actx)
+    assert isinstance(ad, pt.DataWrapper)
     assert isinstance(ad.data, TaggableCLArray)
     assert ad != ah
     assert ad != a  # copied DataWrappers compare unequal
@@ -239,11 +240,21 @@ def test_transfer(actx_factory):
         })
 
     dagh = transfer_to_numpy(dag, actx)
+    assert isinstance(dagh, pt.DictOfNamedArrays)
     assert dagh != dag
-    assert isinstance(dagh["a_expr"].expr.bindings["_in0"].data, np.ndarray)
+    a_exprh = dagh["a_expr"].expr
+    assert isinstance(a_exprh, pt.IndexLambda)
+    bndh = a_exprh.bindings["_in0"]
+    assert isinstance(bndh, pt.DataWrapper)
+    assert isinstance(bndh.data, np.ndarray)
 
     daghd = transfer_from_numpy(dagh, actx)
-    assert isinstance(daghd["a_expr"].expr.bindings["_in0"].data, TaggableCLArray)
+    assert isinstance(daghd, pt.DictOfNamedArrays)
+    a_exprhd = daghd["a_expr"].expr
+    assert isinstance(a_exprhd, pt.IndexLambda)
+    bndhd = a_exprhd.bindings["_in0"]
+    assert isinstance(bndhd, pt.DataWrapper)
+    assert isinstance(bndhd.data, TaggableCLArray)
 
     # }}}
 

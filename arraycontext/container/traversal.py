@@ -777,7 +777,7 @@ def unflatten(
         checks are skipped.
     """
     # NOTE: https://github.com/python/mypy/issues/7057
-    offset = 0
+    offset: int = 0
     common_dtype = None
 
     def _unflatten(template_subary: ArrayOrContainer) -> ArrayOrContainer:
@@ -791,7 +791,8 @@ def unflatten(
             # {{{ validate subary
 
             if (
-                    isinstance(template_subary_c.size, Integer)
+                    isinstance(offset, Integer)
+                    and isinstance(template_subary_c.size, Integer)
                     and isinstance(ary.size, Integer)
                     and (offset + template_subary_c.size) > ary.size):
                 raise ValueError("'template' and 'ary' sizes do not match: "
@@ -816,6 +817,12 @@ def unflatten(
 
             # {{{ reshape
 
+            if not isinstance(template_subary_c.size, Integer):
+                raise NotImplementedError(
+                    "unflatten is not implemented for arrays with array-valued "
+                    "size.") from None
+
+            # FIXME: Not sure how to make the slicing part work for Array-valued sizes
             flat_subary = ary[offset:offset + template_subary_c.size]
             try:
                 subary = actx.np.reshape(flat_subary,
