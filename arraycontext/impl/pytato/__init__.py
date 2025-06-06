@@ -265,6 +265,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     .. automethod:: compile
     """
+    queue: cl.CommandQueue  # pyright: ignore[reportUnknownMemberType]
+
     def __init__(
             self, queue: cl.CommandQueue, allocator=None, *,
             use_memory_pool: bool | None = None,
@@ -425,7 +427,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
-        def _from_numpy(ary):
+        def _from_numpy(ary: np.ndarray[Any, Any]) -> pt.Array:
             return pt.make_data_wrapper(
                 tga.to_device(self.queue, ary, allocator=self.allocator)
                 )
@@ -642,10 +644,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         from .utils import get_pt_axes_from_cl_axes
 
-        def _thaw(ary):
-            return pt.make_data_wrapper(ary.with_queue(self.queue),
-                                        axes=get_pt_axes_from_cl_axes(ary.axes),
-                                        tags=ary.tags)
+        def _thaw(ary: tga.TaggableCLArray) -> pt.Array:
+            return pt.make_data_wrapper(
+                ary.with_queue(self.queue),  # pyright: ignore[reportArgumentType, reportUnknownMemberType, reportUnknownArgumentType]
+                axes=get_pt_axes_from_cl_axes(ary.axes),
+                tags=ary.tags)
 
         return with_array_context(
             self._rec_map_container(_thaw, array, (tga.TaggableCLArray,)),
@@ -836,7 +839,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         import jax
         import pytato as pt
 
-        def _from_numpy(ary):
+        def _from_numpy(ary: np.ndarray[Any, Any]) -> pt.Array:
             return pt.make_data_wrapper(jax.device_put(ary))
 
         return with_array_context(
@@ -892,7 +895,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
-        def _to_frozen(key: tuple[Any, ...], ary) -> jnp.ndarray:
+        def _to_frozen(key: tuple[Any, ...], ary: pt.Array) -> jnp.ndarray:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             return key_to_frozen_subary[key_str]
 
@@ -919,9 +922,10 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             actx=None)
 
     def thaw(self, array):
+        import jax.numpy as jnp
         import pytato as pt
 
-        def _thaw(ary):
+        def _thaw(ary: jnp.ndarray) -> pt.Array:
             return pt.make_data_wrapper(ary)
 
         return with_array_context(

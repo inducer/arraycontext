@@ -25,10 +25,12 @@ THE SOFTWARE.
 """
 
 import logging
+from typing import Any
 
 import numpy as np
 import pytest
 
+import pytato as pt
 from pytools.tag import Tag
 
 from arraycontext import (
@@ -39,6 +41,25 @@ from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
 
 
 logger = logging.getLogger(__name__)
+
+
+# {{{ type checking
+
+def verify_is_dag(dag: Any) -> pt.DictOfNamedArrays:
+    assert isinstance(dag, pt.DictOfNamedArrays)
+    return dag
+
+
+def verify_is_idx_lambda(ary: Any) -> pt.IndexLambda:
+    assert isinstance(ary, pt.IndexLambda)
+    return ary
+
+
+def verify_is_data_wrapper(ary: Any) -> pt.DataWrapper:
+    assert isinstance(ary, pt.DataWrapper)
+    return ary
+
+# }}}
 
 
 # {{{ pytato-array context fixture
@@ -198,7 +219,6 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
 def test_transfer(actx_factory):
     import numpy as np
 
-    import pytato as pt
     actx = actx_factory()
 
     # {{{ simple tests
@@ -219,7 +239,7 @@ def test_transfer(actx_factory):
     with pytest.raises(ValueError):
         _ahh = transfer_to_numpy(ah, actx)
 
-    ad = transfer_from_numpy(ah, actx)
+    ad = verify_is_data_wrapper(transfer_from_numpy(ah, actx))
     assert isinstance(ad.data, TaggableCLArray)
     assert ad != ah
     assert ad != a  # copied DataWrappers compare unequal
@@ -238,12 +258,18 @@ def test_transfer(actx_factory):
         "a_expr": a + 2
         })
 
-    dagh = transfer_to_numpy(dag, actx)
+    dagh = verify_is_dag(transfer_to_numpy(dag, actx))
     assert dagh != dag
-    assert isinstance(dagh["a_expr"].expr.bindings["_in0"].data, np.ndarray)
+    bndh = verify_is_data_wrapper(
+        verify_is_idx_lambda(
+            dagh["a_expr"].expr).bindings["_in0"])
+    assert isinstance(bndh.data, np.ndarray)
 
-    daghd = transfer_from_numpy(dagh, actx)
-    assert isinstance(daghd["a_expr"].expr.bindings["_in0"].data, TaggableCLArray)
+    daghd = verify_is_dag(transfer_from_numpy(dagh, actx))
+    bndhd = verify_is_data_wrapper(
+        verify_is_idx_lambda(
+            daghd["a_expr"].expr).bindings["_in0"])
+    assert isinstance(bndhd.data, TaggableCLArray)
 
     # }}}
 
@@ -254,7 +280,6 @@ def test_pass_args_compiled_func(actx_factory):
     import loopy as lp
     import pyopencl as cl
     import pyopencl.array
-    import pytato as pt
 
     def twice(x, y, a):
         return 2 * x * y * a
