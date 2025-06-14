@@ -17,3 +17,12 @@ Program creation for :mod:`loopy`
 ---------------------------------
 
 .. automodule:: arraycontext.loopy
+
+References
+----------
+
+.. currentmodule:: cl_array
+
+.. class:: Allocator
+
+    See :class:`pyopencl.array.Allocator`.
