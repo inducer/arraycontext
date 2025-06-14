@@ -240,8 +240,8 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 class ProfileEvent:
     """Holds a profile event that has not been collected by the profiler yet."""
 
-    start_cl_event: cl._cl.Event
-    stop_cl_event: cl._cl.Event
+    start_cl_event: cl.Event
+    stop_cl_event: cl.Event
     t_unit_name: str
 
 
