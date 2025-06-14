@@ -75,6 +75,8 @@ from arraycontext.metadata import NameHint
 
 if TYPE_CHECKING:
     import loopy as lp
+    import pyopencl as cl
+    import pyopencl.array as cl_array
     import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
@@ -265,8 +267,18 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     .. automethod:: compile
     """
+    context: cl.Context
+    queue: cl.CommandQueue
+    allocator: cl_array.Allocator
+    using_svm: bool | None
+    profile_kernels: bool
+
+    _force_svm_arg_limit: int | None
+
     def __init__(
-            self, queue: cl.CommandQueue, allocator=None, *,
+            self, queue: cl.CommandQueue,
+            allocator: cl_array.Allocator | None = None,
+            *,
             use_memory_pool: bool | None = None,
             compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
             profile_kernels: bool = False,
