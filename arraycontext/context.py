@@ -167,13 +167,14 @@ THE SOFTWARE.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Hashable, Mapping
 from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, Union, overload
 from warnings import warn
 
 import numpy as np
 from typing_extensions import Self
 
+from pymbolic.typing import Integer, Scalar as _Scalar
 from pytools import memoize_method
 from pytools.tag import ToTagSetConvertible
 
@@ -202,11 +203,11 @@ class Array(Protocol):
     """
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self) -> tuple[Array | Integer, ...]:
         ...
 
     @property
-    def size(self) -> int:
+    def size(self) -> Array | Integer:
         ...
 
     @property
@@ -236,8 +237,8 @@ class Array(Protocol):
 
 
 # deprecated, use ScalarLike instead
-ScalarLike: TypeAlias = int | float | complex | np.generic
-Scalar = ScalarLike
+Scalar = _Scalar
+ScalarLike = Scalar
 ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
 # NOTE: I'm kind of not sure about the *Tc versions of these type variables.
@@ -330,6 +331,7 @@ class ArrayContext(ABC):
     .. automethod:: tag
     .. automethod:: tag_axis
     .. automethod:: compile
+    .. automethod:: outline
     """
 
     array_types: tuple[type, ...] = ()
@@ -575,6 +577,25 @@ class ArrayContext(ABC):
         it may be called only once (or a few times).
 
         :arg f: the function executing the computation.
+        :return: a function with the same signature as *f*.
+        """
+        return f
+
+    def outline(self,
+                f: Callable[..., Any],
+                *,
+                id: Hashable | None = None) -> Callable[..., Any]:  # pyright: ignore[reportUnusedParameter]
+        """
+        Returns a drop-in-replacement for *f*. The behavior of the returned
+        callable is specific to the derived class.
+
+        The reason for the existence of such a routine is mainly for
+        arraycontexts that allow a lazy mode of execution. In such
+        arraycontexts, the computations within *f* maybe staged to potentially
+        enable additional compiler transformations. See
+        :func:`pytato.trace_call` or :func:`jax.named_call` for examples.
+
+        :arg f: the function executing the computation to be staged.
         :return: a function with the same signature as *f*.
         """
         return f
