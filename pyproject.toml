@@ -47,7 +47,7 @@ pytato = [
     "pytato>=2021.1",
 ]
 test = [
-    "mypy",
+    "basedpyright",
     "pytest",
     "ruff",
 ]
@@ -118,24 +118,6 @@ required-imports = ["from __future__ import annotations"]
 # To avoid a requirement of array container definitions being someplace importable
 # from @dataclass_array_container.
 "test/test_utils.py" = ["I002"]
-
-[tool.mypy]
-python_version = "3.10"
-warn_unused_ignores = true
-# TODO: enable this
-# check_untyped_defs = true
-
-[[tool.mypy.overrides]]
-module = [
-    "islpy.*",
-    "loopy.*",
-    "meshmode.*",
-    "pymbolic",
-    "pymbolic.*",
-    "pyopencl.*",
-    "jax.*",
-]
-ignore_missing_imports = true
 
 [tool.typos.default]
 extend-ignore-re = [

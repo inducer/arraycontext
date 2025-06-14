@@ -31,20 +31,6 @@ jobs:
                 pip install ruff
                 ruff check
 
-    mypy:
-        name: Mypy
-        runs-on: ubuntu-latest
-        steps:
-        -   uses: actions/checkout@v4
-        -   name: "Main Script"
-            run: |
-                curl -L -O https://tiker.net/ci-support-v0
-                . ./ci-support-v0
-
-                build_py_project_in_conda_env
-                python -m pip install mypy pytest
-                ./run-mypy.sh
-
     basedpyright:
         runs-on: ubuntu-latest
         steps:
