@@ -76,6 +76,9 @@ class TaggableCLArray(cla.Array, Taggable):
         record application-specific metadata to drive the optimizations in
         :meth:`arraycontext.PyOpenCLArrayContext.transform_loopy_program`.
     """
+    tags: frozenset[Tag]
+    axes: tuple[Axis, ...]
+
     def __init__(self, cq, shape, dtype, order="C", allocator=None,
                  data=None, offset=0, strides=None, events=None, _flags=None,
                  _fast=False, _size=None, _context=None, _queue=None,
