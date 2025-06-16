@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING, Any, cast
 from typing_extensions import override
 
 import pytools
+from pytato import AbstractResultWithNamedArrays
 from pytato.analysis import get_num_call_sites
 from pytato.array import (
     Array,
@@ -58,8 +59,9 @@ from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import (
     ArrayOrNames,
     CopyMapper,
+    Deduplicator,
+    MappedT,
     TransformMapperCache,
-    deduplicate,
 )
 from pytools import UniqueNameGenerator, memoize_method
 
@@ -139,7 +141,7 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
 # FIXME: This strategy doesn't work if the DAG has functions, since function
 # definitions can't contain non-argument placeholders
 def _normalize_pt_expr(
-        expr: DictOfNamedArrays
+        expr: AbstractResultWithNamedArrays
         ) -> tuple[DictOfNamedArrays, Mapping[str, Any]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
@@ -150,7 +152,7 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
-    expr = deduplicate(expr)
+    expr = Deduplicator()(expr)
 
     if get_num_call_sites(expr):
         raise NotImplementedError(
@@ -250,7 +252,7 @@ class TransferToNumpyMapper(CopyMapper):
             non_equality_tags=expr.non_equality_tags)
 
 
-def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+def transfer_from_numpy(expr: MappedT, actx: ArrayContext) -> MappedT:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be device arrays, using
     :meth:`~arraycontext.ArrayContext.from_numpy`.
@@ -258,7 +260,7 @@ def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
     return TransferFromNumpyMapper(actx)(expr)
 
 
-def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+def transfer_to_numpy(expr: MappedT, actx: ArrayContext) -> MappedT:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be :class:`numpy.ndarray` instances, using
     :meth:`~arraycontext.ArrayContext.to_numpy`.

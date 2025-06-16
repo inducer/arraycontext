@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pytato.transform import Deduplicator
+
 
 __doc__ = """
 .. autoclass:: OutlinedCall
@@ -212,7 +214,7 @@ class OutlinedCall:
 
             prefixed_output = _call_with_placeholders(
                 self.f, args, kwargs, arg_id_to_prefixed_placeholder)
-            unpacked_prefixed_output = pt.deduplicate(
+            unpacked_prefixed_output = Deduplicator()(
                 pt.make_dict_of_named_arrays(_unpack_output(prefixed_output)))
 
             prefixed_placeholders = frozenset(
@@ -230,7 +232,7 @@ class OutlinedCall:
         arg_id_to_placeholder = _get_arg_id_to_placeholder(arg_id_to_arg)
 
         output = _call_with_placeholders(self.f, args, kwargs, arg_id_to_placeholder)
-        unpacked_output = pt.deduplicate(
+        unpacked_output = Deduplicator()(
             pt.make_dict_of_named_arrays(_unpack_output(output)))
         if len(unpacked_output) == 1 and "_" in unpacked_output:
             ret_type = pt.function.ReturnType.ARRAY
@@ -246,10 +248,6 @@ class OutlinedCall:
             for arg_id, placeholder in arg_id_to_placeholder.items()
             if placeholder in used_placeholders}
 
-        # pylint-disable-reason: pylint has a hard time with kw_only fields in
-        # dataclasses
-
-        # pylint: disable=unexpected-keyword-arg
         func_def = pt.function.FunctionDefinition(
             parameters=frozenset(call_bindings.keys()),
             return_type=ret_type,

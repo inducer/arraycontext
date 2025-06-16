@@ -7,6 +7,9 @@
 """
 from __future__ import annotations
 
+from pytato.array import AxesT
+from pytato.transform import Deduplicator
+
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -193,7 +196,7 @@ def _to_input_for_compiled(
     """
     from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
     if isinstance(ary, pt.Array):
-        dag = pt.deduplicate(pt.make_dict_of_named_arrays({"_actx_out": ary}))
+        dag = Deduplicator()(pt.make_dict_of_named_arrays({"_actx_out": ary}))
         # Transform the DAG to give metadata inference a chance to do its job
         return actx.transform_dag(dag)["_actx_out"].expr
     elif isinstance(ary, TaggableCLArray):
@@ -410,12 +413,16 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         self.actx._compile_trace_callback(
                 prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
-        name_in_program_to_tags = {
-            name: out.tags
-            for name, out in pt_dict_of_named_arrays._data.items()}
-        name_in_program_to_axes = {
-            name: out.axes
-            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_tags: dict[str, frozenset[Tag]] = {}
+        name_in_program_to_axes: dict[str, AxesT] = {}
+        if isinstance(pt_dict_of_named_arrays, pt.DictOfNamedArrays):
+            name_in_program_to_tags.update({
+                name: out.tags
+                for name, out in pt_dict_of_named_arrays._data.items()})
+
+            name_in_program_to_axes.update({
+                name: out.axes
+                for name, out in pt_dict_of_named_arrays._data.items()})
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_generate_loopy", pt_dict_of_named_arrays)
@@ -507,12 +514,16 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         self.actx._compile_trace_callback(
                 prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
-        name_in_program_to_tags = {
-            name: out.tags
-            for name, out in pt_dict_of_named_arrays._data.items()}
-        name_in_program_to_axes = {
-            name: out.axes
-            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_tags: dict[str, frozenset[Tag]] = {}
+        name_in_program_to_axes: dict[str, AxesT] = {}
+        if isinstance(pt_dict_of_named_arrays, pt.DictOfNamedArrays):
+            name_in_program_to_tags.update({
+                name: out.tags
+                for name, out in pt_dict_of_named_arrays._data.items()})
+
+            name_in_program_to_axes.update({
+                name: out.axes
+                for name, out in pt_dict_of_named_arrays._data.items()})
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_generate_jax", pt_dict_of_named_arrays)
