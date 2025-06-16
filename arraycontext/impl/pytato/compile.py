@@ -37,18 +37,21 @@ import itertools
 import logging
 from collections.abc import Callable, Hashable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 from immutabledict import immutabledict
 
+import pyopencl.array as cla
 import pytato as pt
 from pytools import ProcessLogger, to_identifier
 from pytools.tag import Tag
 
 from arraycontext.container import ArrayContainer, is_array_container_type
 from arraycontext.container.traversal import rec_keyed_map_array_container
-from arraycontext.context import ArrayT
+from arraycontext.impl.pyopencl.taggable_cl_array import (
+    TaggableCLArray,
+)
 from arraycontext.impl.pytato import (
     PytatoJAXArrayContext,
     PytatoPyOpenCLArrayContext,
@@ -110,7 +113,7 @@ class LeafArrayDescriptor(AbstractInputDescriptor):
 
 # {{{ utilities
 
-def _ary_container_key_stringifier(keys: tuple[Any, ...]) -> str:
+def _ary_container_key_stringifier(keys: tuple[object, ...]) -> str:
     """
     Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
     array-container's component's key. Goals of this routine:
@@ -119,12 +122,12 @@ def _ary_container_key_stringifier(keys: tuple[Any, ...]) -> str:
     * Stringified key must a valid identifier according to :meth:`str.isidentifier`
     * (informal) Shorter identifiers are preferred
     """
-    def _rec_str(key: Any) -> str:
+    def _rec_str(key: object) -> str:
         if isinstance(key, str | int):
             return str(key)
         elif isinstance(key, tuple):
             # t in '_actx_t': stands for tuple
-            return "_actx_t" + "_".join(_rec_str(k) for k in key) + "_actx_endt"
+            return "_actx_t" + "_".join(_rec_str(k) for k in key) + "_actx_endt"  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
         else:
             raise NotImplementedError("Key-stringication unimplemented for "
                                       f"'{type(key).__name__}'.")
@@ -175,7 +178,28 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: tuple[Any, ...],
     return immutabledict(arg_id_to_arg), immutabledict(arg_id_to_descr)
 
 
-def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
+@overload
+def _to_input_for_compiled(
+        ary: pt.Array, actx: PytatoPyOpenCLArrayContext) -> pt.Array:
+    ...
+
+
+@overload
+def _to_input_for_compiled(
+        ary: TaggableCLArray, actx: PytatoPyOpenCLArrayContext) -> TaggableCLArray:
+    ...
+
+
+@overload
+def _to_input_for_compiled(
+        ary: cla.Array, actx: PytatoPyOpenCLArrayContext
+        ) -> cla.Array:
+    ...
+
+
+def _to_input_for_compiled(
+        ary: pt.Array | TaggableCLArray | cla.Array,
+        actx: PytatoPyOpenCLArrayContext) -> pt.Array | TaggableCLArray | cla.Array:
     """
     Preprocess *ary* before turning it into a :class:`pytato.array.Placeholder`
     in :meth:`LazilyCompilingFunctionCaller.__call__`.
@@ -185,19 +209,14 @@ def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
     - Metadata Inference that is supplied via *actx*\'s
       :meth:`PytatoPyOpenCLArrayContext.transform_dag`.
     """
-    import pyopencl.array as cla
-
-    from arraycontext.impl.pyopencl.taggable_cl_array import (
-        TaggableCLArray,
-        to_tagged_cl_array,
-    )
+    from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
     if isinstance(ary, pt.Array):
         dag = pt.make_dict_of_named_arrays({"_actx_out": ary})
         # Transform the DAG to give metadata inference a chance to do its job
         return actx.transform_dag(dag)["_actx_out"].expr
     elif isinstance(ary, TaggableCLArray):
         return ary
-    elif isinstance(ary, cla.Array):
+    else:
         from warnings import warn
         warn("Passing pyopencl.array.Array to a compiled callable"
              " is deprecated and will stop working in 2023."
@@ -207,8 +226,6 @@ def _to_input_for_compiled(ary: ArrayT, actx: PytatoPyOpenCLArrayContext):
         return to_tagged_cl_array(ary,
                                   axes=None,
                                   tags=frozenset())
-    else:
-        raise NotImplementedError(type(ary))
 
 
 def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
@@ -230,7 +247,7 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
                                    axes=arg.axes,
                                    tags=arg.tags)
     elif is_array_container_type(arg.__class__):
-        def _rec_to_placeholder(keys, ary):
+        def _rec_to_placeholder(keys, ary: pt.Array):
             index = (kw, *keys)
             name = arg_id_to_name[index]
             # Transform the DAG to give metadata inference a chance to do its job

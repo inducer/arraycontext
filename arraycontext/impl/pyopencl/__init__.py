@@ -32,7 +32,7 @@ THE SOFTWARE.
 """
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from warnings import warn
 
 import numpy as np
@@ -51,7 +51,8 @@ from arraycontext.context import (
 
 if TYPE_CHECKING:
     import loopy as lp
-    import pyopencl
+    import pyopencl as cl
+    import pyopencl.array as cl_array
 
 
 # {{{ PyOpenCLArrayContext
@@ -81,9 +82,17 @@ class PyOpenCLArrayContext(ArrayContext):
     .. automethod:: transform_loopy_program
     """
 
+    context: cl.Context
+    queue: cl.CommandQueue
+    allocator: cl_array.Allocator | None
+
+    _force_device_scalars: Literal[True]
+    _passed_force_device_scalars: bool
+    _wait_event_queue_length: int
+
     def __init__(self,
-            queue: pyopencl.CommandQueue,
-            allocator: pyopencl.tools.AllocatorBase | None = None,
+            queue: cl.CommandQueue,
+            allocator: cl_array.Allocator | None = None,
             wait_event_queue_length: int | None = None,
             force_device_scalars: bool | None = None) -> None:
         r"""

@@ -41,7 +41,7 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
-from arraycontext.context import Array, ArrayOrContainer
+from arraycontext.context import Array as actx_Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
@@ -206,7 +206,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 _any,
                 a)
 
-    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
+    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> actx_Array:
         actx = self._array_context
         queue = actx.queue
 

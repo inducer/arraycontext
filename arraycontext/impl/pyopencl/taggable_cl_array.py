@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
+from numpy.typing import DTypeLike
 
+import pyopencl as cl
 import pyopencl.array as cla
 from pytools import memoize
 from pytools.tag import Tag, Taggable, ToTagSetConvertible
@@ -74,6 +76,9 @@ class TaggableCLArray(cla.Array, Taggable):
         record application-specific metadata to drive the optimizations in
         :meth:`arraycontext.PyOpenCLArrayContext.transform_loopy_program`.
     """
+    tags: frozenset[Tag]
+    axes: tuple[Axis, ...]
+
     def __init__(self, cq, shape, dtype, order="C", allocator=None,
                  data=None, offset=0, strides=None, events=None, _flags=None,
                  _fast=False, _size=None, _context=None, _queue=None,
@@ -165,13 +170,20 @@ def to_tagged_cl_array(ary: cla.Array,
 # }}}
 
 
+_EMPTY_TAG_SET: frozenset[Tag] = frozenset()
+
+
 # {{{ creation
 
-def empty(queue, shape, dtype=float, *,
-        axes: tuple[Axis, ...] | None = None,
-        tags: frozenset[Tag] = frozenset(),
-        order: str = "C",
-        allocator=None) -> TaggableCLArray:
+def empty(
+            queue: cl.CommandQueue,
+            shape: tuple[int, ...] | int,
+            dtype: DTypeLike = float,
+            *, axes: tuple[Axis, ...] | None = None,
+            tags: frozenset[Tag] = _EMPTY_TAG_SET,
+            order: Literal["C"] | Literal["F"] = "C",
+            allocator: cla.Allocator | None = None,
+        ) -> TaggableCLArray:
     if dtype is not None:
         dtype = np.dtype(dtype)
 
@@ -181,11 +193,15 @@ def empty(queue, shape, dtype=float, *,
         order=order, allocator=allocator)
 
 
-def zeros(queue, shape, dtype=float, *,
-        axes: tuple[Axis, ...] | None = None,
-        tags: frozenset[Tag] = frozenset(),
-        order: str = "C",
-        allocator=None) -> TaggableCLArray:
+def zeros(
+            queue: cl.CommandQueue,
+            shape: tuple[int, ...] | int,
+            dtype: DTypeLike = float,
+            *, axes: tuple[Axis, ...] | None = None,
+            tags: frozenset[Tag] = _EMPTY_TAG_SET,
+            order: Literal["C"] | Literal["F"] = "C",
+            allocator: cla.Allocator | None = None,
+        ) -> TaggableCLArray:
     result = empty(
         queue, shape, dtype=dtype, axes=axes, tags=tags,
         order=order, allocator=allocator)
@@ -194,10 +210,13 @@ def zeros(queue, shape, dtype=float, *,
     return result
 
 
-def to_device(queue, ary, *,
-        axes: tuple[Axis, ...] | None = None,
-        tags: frozenset[Tag] = frozenset(),
-        allocator=None):
+def to_device(
+            queue: cl.CommandQueue,
+            ary: np.ndarray[Any],
+            *, axes: tuple[Axis, ...] | None = None,
+            tags: frozenset[Tag] = _EMPTY_TAG_SET,
+            allocator: cla.Allocator | None = None,
+        ) -> TaggableCLArray:
     return to_tagged_cl_array(
         cla.to_device(queue, ary, allocator=allocator),
         axes=axes, tags=tags)

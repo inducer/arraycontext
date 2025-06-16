@@ -75,6 +75,8 @@ from arraycontext.metadata import NameHint
 
 if TYPE_CHECKING:
     import loopy as lp
+    import pyopencl as cl
+    import pyopencl.array as cl_array
     import pytato
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
@@ -240,8 +242,8 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 class ProfileEvent:
     """Holds a profile event that has not been collected by the profiler yet."""
 
-    start_cl_event: cl._cl.Event
-    stop_cl_event: cl._cl.Event
+    start_cl_event: cl.Event
+    stop_cl_event: cl.Event
     t_unit_name: str
 
 
@@ -265,8 +267,18 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
     .. automethod:: compile
     """
+    context: cl.Context
+    queue: cl.CommandQueue
+    allocator: cl_array.Allocator
+    using_svm: bool | None
+    profile_kernels: bool
+
+    _force_svm_arg_limit: int | None
+
     def __init__(
-            self, queue: cl.CommandQueue, allocator=None, *,
+            self, queue: cl.CommandQueue,
+            allocator: cl_array.Allocator | None = None,
+            *,
             use_memory_pool: bool | None = None,
             compile_trace_callback: Callable[[Any, str, Any], None] | None = None,
             profile_kernels: bool = False,
@@ -425,7 +437,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
-        def _from_numpy(ary):
+        def _from_numpy(ary: np.ndarray[Any, Any]) -> pt.Array:
             return pt.make_data_wrapper(
                 tga.to_device(self.queue, ary, allocator=self.allocator)
                 )
@@ -642,10 +654,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         from .utils import get_pt_axes_from_cl_axes
 
-        def _thaw(ary):
-            return pt.make_data_wrapper(ary.with_queue(self.queue),
-                                        axes=get_pt_axes_from_cl_axes(ary.axes),
-                                        tags=ary.tags)
+        def _thaw(ary: tga.TaggableCLArray) -> pt.Array:
+            return pt.make_data_wrapper(
+                ary.with_queue(self.queue),
+                axes=get_pt_axes_from_cl_axes(ary.axes),
+                tags=ary.tags)
 
         return with_array_context(
             self._rec_map_container(_thaw, array, (tga.TaggableCLArray,)),
@@ -656,7 +669,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
-        def _ft(ary):
+        def _ft(ary: tga.TaggableCLArray | pt.Array) -> tga.TaggableCLArray | pt.Array:
             if isinstance(ary, (pt.DataWrapper, tga.TaggableCLArray)):
                 return ary
             else:
@@ -836,7 +849,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         import jax
         import pytato as pt
 
-        def _from_numpy(ary):
+        def _from_numpy(ary: np.ndarray[Any, Any]) -> pt.Array:
             return pt.make_data_wrapper(jax.device_put(ary))
 
         return with_array_context(
@@ -892,7 +905,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
 
         # }}}
 
-        def _to_frozen(key: tuple[Any, ...], ary) -> jnp.ndarray:
+        def _to_frozen(key: tuple[Any, ...], ary: pt.Array) -> jnp.ndarray:
             key_str = "_ary" + _ary_container_key_stringifier(key)
             return key_to_frozen_subary[key_str]
 
@@ -919,9 +932,10 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             actx=None)
 
     def thaw(self, array):
+        import jax.numpy as jnp
         import pytato as pt
 
-        def _thaw(ary):
+        def _thaw(ary: jnp.ndarray) -> pt.Array:
             return pt.make_data_wrapper(ary)
 
         return with_array_context(

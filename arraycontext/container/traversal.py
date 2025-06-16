@@ -77,6 +77,8 @@ from warnings import warn
 
 import numpy as np
 
+from pymbolic.typing import Integer
+
 from arraycontext.container import (
     ArrayContainer,
     NotAnArrayContainerError,
@@ -91,7 +93,6 @@ from arraycontext.context import (
     ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerT,
-    ArrayT,
     ScalarLike,
 )
 
@@ -400,7 +401,7 @@ def keyed_map_array_container(
 
 
 def rec_keyed_map_array_container(
-        f: Callable[[tuple[SerializationKey, ...], ArrayT], ArrayT],
+        f: Callable[[tuple[SerializationKey, ...], Array], Array],
         ary: ArrayOrContainer) -> ArrayOrContainer:
     """
     Works similarly to :func:`rec_map_array_container`, except that *f* also
@@ -408,13 +409,12 @@ def rec_keyed_map_array_container(
     passed in as a tuple of identifiers of the arrays traversed before reaching
     the current array.
     """
-
     def rec(keys: tuple[SerializationKey, ...],
-            ary_: ArrayOrContainerT) -> ArrayOrContainerT:
+            ary_: ArrayOrContainer) -> ArrayOrContainer:
         try:
             iterable = serialize_container(ary_)
         except NotAnArrayContainerError:
-            return cast(ArrayOrContainerT, f(keys, cast(ArrayT, ary_)))
+            return cast(ArrayOrContainer, f(keys, cast(Array, ary_)))
         else:
             return deserialize_container(ary_, [
                 (key, rec((*keys, key), subary)) for key, subary in iterable
@@ -777,7 +777,7 @@ def unflatten(
         checks are skipped.
     """
     # NOTE: https://github.com/python/mypy/issues/7057
-    offset = 0
+    offset: int = 0
     common_dtype = None
 
     def _unflatten(template_subary: ArrayOrContainer) -> ArrayOrContainer:
@@ -790,7 +790,11 @@ def unflatten(
 
             # {{{ validate subary
 
-            if (offset + template_subary_c.size) > ary.size:
+            if (
+                    isinstance(offset, Integer)
+                    and isinstance(template_subary_c.size, Integer)
+                    and isinstance(ary.size, Integer)
+                    and (offset + template_subary_c.size) > ary.size):
                 raise ValueError("'template' and 'ary' sizes do not match: "
                     "'template' is too large") from None
 
@@ -813,6 +817,12 @@ def unflatten(
 
             # {{{ reshape
 
+            if not isinstance(template_subary_c.size, Integer):
+                raise NotImplementedError(
+                    "unflatten is not implemented for arrays with array-valued "
+                    "size.") from None
+
+            # FIXME: Not sure how to make the slicing part work for Array-valued sizes
             flat_subary = ary[offset:offset + template_subary_c.size]
             try:
                 subary = actx.np.reshape(flat_subary,
@@ -871,7 +881,7 @@ def unflatten(
 
 
 def flat_size_and_dtype(
-        ary: ArrayOrContainer) -> tuple[int, np.dtype[Any] | None]:
+        ary: ArrayOrContainer) -> tuple[Array | Integer, np.dtype[Any] | None]:
     """
     :returns: a tuple ``(size, dtype)`` that would be the length and
         :class:`numpy.dtype` of the one-dimensional array returned by
@@ -879,7 +889,7 @@ def flat_size_and_dtype(
     """
     common_dtype = None
 
-    def _flat_size(subary: ArrayOrContainer) -> int:
+    def _flat_size(subary: ArrayOrContainer) -> Array | Integer:
         nonlocal common_dtype
 
         try:
