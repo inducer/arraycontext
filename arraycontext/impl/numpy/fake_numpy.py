@@ -150,7 +150,7 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 return false_ary
             return np.logical_and.reduce(
                     [(true_ary if kx_i == ky_i else false_ary)
-                        and cast(np.ndarray, self.array_equal(x_i, y_i))
+                        and cast(np.ndarray, self.array_equal(x_i, y_i))  # pyright: ignore[reportMissingTypeArgument]
                         for (kx_i, x_i), (ky_i, y_i)
                         in zip(serialized_x, serialized_y, strict=True)],
                     initial=true_ary)

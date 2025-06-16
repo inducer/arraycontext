@@ -94,6 +94,8 @@ from arraycontext.context import ArrayContext, ArrayOrScalar
 
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from pymbolic.geometric_algebra import MultiVector
 
     from arraycontext import ArrayOrContainer
@@ -283,7 +285,7 @@ def get_container_context_opt(ary: ArrayContainer) -> ArrayContext | None:
 
 @serialize_container.register(np.ndarray)
 def _serialize_ndarray_container(
-        ary: numpy.ndarray) -> SerializedContainer:
+        ary: numpy.ndarray[Any, Any]) -> SerializedContainer:
     if ary.dtype.char != "O":
         raise NotAnArrayContainerError(
                 f"cannot serialize '{type(ary).__name__}' with dtype '{ary.dtype}'")
@@ -303,8 +305,8 @@ def _serialize_ndarray_container(
 @deserialize_container.register(np.ndarray)
 # https://github.com/python/mypy/issues/13040
 def _deserialize_ndarray_container(  # type: ignore[misc]
-        template: numpy.ndarray,
-        serialized: SerializedContainer) -> numpy.ndarray:
+        template: numpy.ndarray[Any, Any],
+        serialized: SerializedContainer) -> numpy.ndarray[Any, Any]:
     # disallow subclasses
     assert type(template) is np.ndarray
     assert template.dtype.char == "O"

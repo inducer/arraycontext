@@ -178,7 +178,7 @@ class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
         import cupy as cp
         return cp.linspace(*args, **kwargs)
 
-    def zeros_like(self, ary):
+    def zeros_like(self, ary):  # pyright: ignore[reportIncompatibleMethodOverride]
         import cupy as cp
         if isinstance(ary, int | float | complex):
             # Cupy does not support zeros_like with scalar arguments

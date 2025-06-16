@@ -282,7 +282,7 @@ ArrayOrArithContainerOrScalarTc = TypeVar(
 ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | ScalarLike")
 
 
-NumpyOrContainerOrScalar = Union[np.ndarray, "ArrayContainer", ScalarLike]
+NumpyOrContainerOrScalar = Union[np.ndarray[Any, Any], "ArrayContainer", ScalarLike]
 
 # }}}
 
@@ -358,7 +358,7 @@ class ArrayContext(ABC):
         return self.np.zeros(shape, dtype)
 
     @overload
-    def from_numpy(self, array: np.ndarray) -> Array:
+    def from_numpy(self, array: np.ndarray[Any, Any]) -> Array:
         ...
 
     @overload
@@ -379,7 +379,7 @@ class ArrayContext(ABC):
         """
 
     @overload
-    def to_numpy(self, array: Array) -> np.ndarray:
+    def to_numpy(self, array: Array) -> np.ndarray[Any, Any]:
         ...
 
     @overload

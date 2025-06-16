@@ -100,12 +100,12 @@ class AbstractInputDescriptor:
 
 @dataclass(frozen=True, eq=True)
 class ScalarInputDescriptor(AbstractInputDescriptor):
-    dtype: np.dtype
+    dtype: np.dtype[Any]
 
 
 @dataclass(frozen=True, eq=True)
 class LeafArrayDescriptor(AbstractInputDescriptor):
-    dtype: np.dtype
+    dtype: np.dtype[Any]
     shape: pt.array.ShapeType
 
 # }}}

@@ -86,7 +86,7 @@ class NumpyArrayContext(ArrayContext):
         return type(self)()
 
     @overload
-    def from_numpy(self, array: np.ndarray) -> Array:
+    def from_numpy(self, array: np.ndarray[Any, Any]) -> Array:
         ...
 
     @overload
@@ -99,7 +99,7 @@ class NumpyArrayContext(ArrayContext):
         return array
 
     @overload
-    def to_numpy(self, array: Array) -> np.ndarray:
+    def to_numpy(self, array: Array) -> np.ndarray[Any, Any]:
         ...
 
     @overload
