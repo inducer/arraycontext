@@ -1,16 +1,16 @@
 """
 .. currentmodule:: arraycontext
 
-A :mod:`numpy`-based array context.
+A :mod:`cupy`-based array context.
 
-.. autoclass:: NumpyArrayContext
+.. autoclass:: CupyArrayContext
 """
 
 from __future__ import annotations
 
 
 __copyright__ = """
-Copyright (C) 2021 University of Illinois Board of Trustees
+Copyright (C) 2024 University of Illinois Board of Trustees
 """
 
 __license__ = """
@@ -48,37 +48,27 @@ from arraycontext.context import (
     ArrayOrContainerOrScalarT,
     ContainerOrScalarT,
     NumpyOrContainerOrScalar,
-    UntransformedCodeWarning,
 )
 
 
-class NumpyNonObjectArrayMetaclass(type):
+class CupyNonObjectArrayMetaclass(type):
     def __instancecheck__(cls, instance: Any) -> bool:
-        return isinstance(instance, np.ndarray) and instance.dtype != object
+        import cupy as cp  # type: ignore[import-untyped]
+        return isinstance(instance, cp.ndarray) and instance.dtype != object
 
 
-class NumpyNonObjectArray(metaclass=NumpyNonObjectArrayMetaclass):
+class CupyNonObjectArray(metaclass=CupyNonObjectArrayMetaclass):
     pass
 
 
-class NumpyArrayContext(ArrayContext):
-    """
-    An :class:`ArrayContext` that uses :class:`numpy.ndarray` to represent arrays.
+class CupyArrayContext(ArrayContext):
+    """An :class:`ArrayContext` that uses :class:`cupy.ndarray` to represent arrays."""
 
-    .. automethod:: __init__
-    """
-
-    _loopy_transform_cache: dict[lp.TranslationUnit, lp.ExecutorBase]
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._loopy_transform_cache = {}
-
-    array_types = (NumpyNonObjectArray,)
+    array_types = (CupyNonObjectArray,)
 
     def _get_fake_numpy_namespace(self):
-        from .fake_numpy import NumpyFakeNumpyNamespace
-        return NumpyFakeNumpyNamespace(self)
+        from .fake_numpy import CupyFakeNumpyNamespace
+        return CupyFakeNumpyNamespace(self)
 
     # {{{ ArrayContext interface
 
@@ -96,7 +86,9 @@ class NumpyArrayContext(ArrayContext):
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
-        return array
+        import cupy as cp
+        return with_array_context(rec_map_array_container(cp.array, array),
+                                  actx=self)
 
     @overload
     def to_numpy(self, array: Array) -> np.ndarray[Any, Any]:
@@ -109,68 +101,46 @@ class NumpyArrayContext(ArrayContext):
     def to_numpy(self,
                  array: ArrayOrContainerOrScalar
                  ) -> NumpyOrContainerOrScalar:
-        return array
+        import cupy as cp
+        return with_array_context(rec_map_array_container(cp.asnumpy, array),
+                                  actx=None)
 
     def call_loopy(
                 self,
                 t_unit: lp.TranslationUnit, **kwargs: Any
             ) -> dict[str, Array]:
-        t_unit = t_unit.copy(target=lp.ExecutableCTarget())
-        try:
-            executor = self._loopy_transform_cache[t_unit]
-        except KeyError:
-            executor = self.transform_loopy_program(t_unit).executor()
-            self._loopy_transform_cache[t_unit] = executor
-
-        _, result = executor(**kwargs)
-
-        return result
+        raise NotImplementedError(
+            "Calling loopy on CuPy arrays is not supported. Maybe rewrite"
+            " the loopy kernel as numpy-flavored array operations using"
+            " ArrayContext.np.")
 
     def freeze(self, array):
-        def _freeze(ary):
-            return ary
-
-        return with_array_context(rec_map_array_container(_freeze, array), actx=None)
+        import cupy as cp
+        # Note that we could use a non-blocking version of cp.asnumpy here, but
+        # it appears to have very little impact on performance.
+        return with_array_context(rec_map_array_container(cp.asnumpy, array), actx=None)
 
     def thaw(self, array):
-        def _thaw(ary):
-            return ary
-
-        return with_array_context(rec_map_array_container(_thaw, array), actx=self)
+        import cupy as cp
+        return with_array_context(rec_map_array_container(cp.array, array), actx=self)
 
     # }}}
-
-    def transform_loopy_program(self, t_unit):
-        from warnings import warn
-        warn("Using the base "
-                f"{type(self).__name__}.transform_loopy_program "
-                "to transform a translation unit. "
-                "This is a no-op and will result in unoptimized C code for"
-                "the requested optimization, all in a single statement."
-                "This will work, but is unlikely to be performant."
-                f"Instead, subclass {type(self).__name__} and implement "
-                "the specific transform logic required to transform the program "
-                "for your package or application. Check higher-level packages "
-                "(e.g. meshmode), which may already have subclasses you may want "
-                "to build on.",
-                UntransformedCodeWarning, stacklevel=2)
-
-        return t_unit
 
     def tag(self,
             tags: ToTagSetConvertible,
             array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
-        # Numpy doesn't support tagging
+        # Cupy (like numpy) doesn't support tagging
         return array
 
     def tag_axis(self,
                  iaxis: int, tags: ToTagSetConvertible,
                  array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
-        # Numpy doesn't support tagging
+        # Cupy (like numpy) doesn't support tagging
         return array
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
-        return np.einsum(spec, *args)
+        import cupy as cp
+        return cp.einsum(spec, *args)
 
     @property
     def permits_inplace_modification(self):

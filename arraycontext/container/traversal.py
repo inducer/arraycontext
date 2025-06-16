@@ -917,7 +917,7 @@ def flat_size_and_dtype(
 # {{{ numpy conversion
 
 def from_numpy(
-        ary: np.ndarray | ScalarLike,
+        ary: np.ndarray[Any, Any] | ScalarLike,
         actx: ArrayContext) -> ArrayOrContainerOrScalar:
     """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
     to the base array type of :class:`~arraycontext.ArrayContext`.

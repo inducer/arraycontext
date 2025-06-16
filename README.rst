@@ -15,7 +15,8 @@ GPU arrays? Deferred-evaluation arrays? Just plain ``numpy`` arrays? You'd like 
 code to work with all of them? No problem! Comes with pre-made array context
 implementations for:
 
-- numpy
+- `numpy <https://numpy.org>`__
+- `cupy <https://cupy.dev>`__
 - `PyOpenCL <https://documen.tician.de/pyopencl/array.html>`__
 - `JAX <https://jax.readthedocs.io/en/latest/>`__
 - `Pytato <https://documen.tician.de/pytato>`__ (for lazy/deferred evaluation)
@@ -24,7 +25,7 @@ implementations for:
 - Profiling
 
 ``arraycontext`` started life as an array abstraction for use with the
-`meshmode <https://documen.tician.de/meshmode/>`__ unstrucuted discretization
+`meshmode <https://documen.tician.de/meshmode/>`__ unstructured discretization
 package.
 
 Distributed under the MIT license.

@@ -227,6 +227,26 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
         return "<PytatoJAXArrayContext>"
 
 
+class _PytestCupyArrayContextFactory(PytestArrayContextFactory):
+    @classmethod
+    def is_available(cls) -> bool:
+        try:
+            import cupy  # type: ignore[import-untyped]  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    def __call__(self):
+        from arraycontext import CupyArrayContext
+        return CupyArrayContext()
+
+    def __str__(self):
+        import cupy  # pylint: disable=import-error
+        d = cupy.cuda.runtime.getDeviceProperties(cupy.cuda.Device())
+        name = d["name"].decode("utf-8")
+        return f"<CupyArrayContext> on {cupy.cuda.Device()}:{name}"
+
+
 # {{{ _PytestArrayContextFactory
 
 class _NumpyArrayContextForTests(NumpyArrayContext):
@@ -253,6 +273,7 @@ _ARRAY_CONTEXT_FACTORY_REGISTRY: dict[str, type[PytestArrayContextFactory]] = {
     "pytato:jax": _PytestPytatoJaxArrayContextFactory,
     "eagerjax": _PytestEagerJaxArrayContextFactory,
     "numpy": _PytestNumpyArrayContextFactory,
+    "cupy": _PytestCupyArrayContextFactory,
     }
 
 

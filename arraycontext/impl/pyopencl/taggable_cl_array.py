@@ -212,7 +212,7 @@ def zeros(
 
 def to_device(
             queue: cl.CommandQueue,
-            ary: np.ndarray[Any],
+            ary: np.ndarray[Any, Any],
             *, axes: tuple[Axis, ...] | None = None,
             tags: frozenset[Tag] = _EMPTY_TAG_SET,
             allocator: cla.Allocator | None = None,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 __copyright__ = """
-Copyright (C) 2021 University of Illinois Board of Trustees
+Copyright (C) 2024 University of Illinois Board of Trustees
 """
 
 __license__ = """
@@ -24,11 +24,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 from functools import partial, reduce
-from typing import cast
-
-import numpy as np
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
@@ -44,97 +40,115 @@ from arraycontext.fake_numpy import (
 )
 
 
-class NumpyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
+class CupyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     # Everything is implemented in the base class for now.
     pass
 
 
 _NUMPY_UFUNCS = frozenset({"concatenate", "reshape", "transpose",
-                 "ones_like", "where",
+                 "where",
                  *BaseFakeNumpyNamespace._numpy_math_functions
                  })
 
 
-class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class CupyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     """
-    A :mod:`numpy` mimic for :class:`NumpyArrayContext`.
+    A :mod:`cupy` mimic for :class:`CupyArrayContext`.
     """
     def _get_fake_numpy_linalg_namespace(self):
-        return NumpyFakeNumpyLinalgNamespace(self._array_context)
+        return CupyFakeNumpyLinalgNamespace(self._array_context)
 
     def zeros(self, shape, dtype):
-        return np.zeros(shape, dtype)
+        import cupy as cp  # type: ignore[import-untyped]
+        return cp.zeros(shape, dtype)
 
     def __getattr__(self, name):
+        import cupy as cp
 
         if name in _NUMPY_UFUNCS:
             from functools import partial
             return partial(rec_multimap_array_container,
-                           getattr(np, name))
+                           getattr(cp, name))
 
         raise AttributeError(name)
 
     def sum(self, a, axis=None, dtype=None):
-        return rec_map_reduce_array_container(sum, partial(np.sum,
+        import cupy as cp
+        return rec_map_reduce_array_container(sum, partial(cp.sum,
                                                            axis=axis,
                                                            dtype=dtype),
                                               a)
 
     def min(self, a, axis=None):
+        import cupy as cp
         return rec_map_reduce_array_container(
-                partial(reduce, np.minimum), partial(np.amin, axis=axis), a)
+                partial(reduce, cp.minimum), partial(cp.amin, axis=axis), a)
 
     def max(self, a, axis=None):
+        import cupy as cp
         return rec_map_reduce_array_container(
-                partial(reduce, np.maximum), partial(np.amax, axis=axis), a)
+                partial(reduce, cp.maximum), partial(cp.amax, axis=axis), a)
 
     def stack(self, arrays, axis=0):
+        import cupy as cp
         return rec_multimap_array_container(
-                lambda *args: np.stack(arrays=args, axis=axis),
+                lambda *args: cp.stack(args, axis=axis),
                 *arrays)
 
     def broadcast_to(self, array, shape):
-        return rec_map_array_container(partial(np.broadcast_to, shape=shape), array)
+        import cupy as cp
+        return rec_map_array_container(partial(cp.broadcast_to, shape=shape), array)
 
     # {{{ relational operators
 
     def equal(self, x, y):
-        return rec_multimap_array_container(np.equal, x, y)
+        import cupy as cp
+        return rec_multimap_array_container(cp.equal, x, y)
 
     def not_equal(self, x, y):
-        return rec_multimap_array_container(np.not_equal, x, y)
+        import cupy as cp
+        return rec_multimap_array_container(cp.not_equal, x, y)
 
     def greater(self, x, y):
-        return rec_multimap_array_container(np.greater, x, y)
+        import cupy as cp
+        return rec_multimap_array_container(cp.greater, x, y)
 
     def greater_equal(self, x, y):
-        return rec_multimap_array_container(np.greater_equal, x, y)
+        import cupy as cp
+        return rec_multimap_array_container(cp.greater_equal, x, y)
 
     def less(self, x, y):
-        return rec_multimap_array_container(np.less, x, y)
+        import cupy as cp
+        return rec_multimap_array_container(cp.less, x, y)
 
     def less_equal(self, x, y):
-        return rec_multimap_array_container(np.less_equal, x, y)
+        import cupy as cp
+        return rec_multimap_array_container(cp.less_equal, x, y)
 
     # }}}
 
     def ravel(self, a, order="C"):
-        return rec_map_array_container(partial(np.ravel, order=order), a)
+        import cupy as cp
+        return rec_map_array_container(partial(cp.ravel, order=order), a)
 
     def vdot(self, x, y):
-        return rec_multimap_reduce_array_container(sum, np.vdot, x, y)
+        import cupy as cp
+        return rec_multimap_reduce_array_container(sum, cp.vdot, x, y)
 
     def any(self, a):
-        return rec_map_reduce_array_container(partial(reduce, np.logical_or),
-                                              lambda subary: np.any(subary), a)
+        import cupy as cp
+        return rec_map_reduce_array_container(partial(reduce, cp.logical_or),
+                                              lambda subary: cp.any(subary), a)
 
     def all(self, a):
-        return rec_map_reduce_array_container(partial(reduce, np.logical_and),
-                                              lambda subary: np.all(subary), a)
+        import cupy as cp
+        return rec_map_reduce_array_container(partial(reduce, cp.logical_and),
+                                              lambda subary: cp.all(subary), a)
 
     def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
-        false_ary = np.array(False)
-        true_ary = np.array(True)
+        import cupy as cp
+        false_ary = cp.array(False)
+        true_ary = cp.array(True)
         if type(a) is not type(b):
             return false_ary
 
@@ -142,27 +156,41 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
             serialized_x = serialize_container(a)
             serialized_y = serialize_container(b)
         except NotAnArrayContainerError:
-            assert isinstance(a, np.ndarray)
-            assert isinstance(b, np.ndarray)
-            return np.array(np.array_equal(a, b))
+            assert isinstance(a, cp.ndarray)
+            assert isinstance(b, cp.ndarray)
+            return cp.array(cp.array_equal(a, b))
         else:
             if len(serialized_x) != len(serialized_y):
                 return false_ary
-            return np.logical_and.reduce(
+            return reduce(
+                    cp.logical_and,
                     [(true_ary if kx_i == ky_i else false_ary)
-                        and cast(np.ndarray, self.array_equal(x_i, y_i))  # pyright: ignore[reportMissingTypeArgument]
+                        and self.array_equal(x_i, y_i)
                         for (kx_i, x_i), (ky_i, y_i)
                         in zip(serialized_x, serialized_y, strict=True)],
-                    initial=true_ary)
+                    true_ary)
 
     def arange(self, *args, **kwargs):
-        return np.arange(*args, **kwargs)
+        import cupy as cp
+        return cp.arange(*args, **kwargs)
 
     def linspace(self, *args, **kwargs):
-        return np.linspace(*args, **kwargs)
+        import cupy as cp
+        return cp.linspace(*args, **kwargs)
 
-    def zeros_like(self, ary):
-        return rec_map_array_container(np.zeros_like, ary)
+    def zeros_like(self, ary):  # pyright: ignore[reportIncompatibleMethodOverride]
+        import cupy as cp
+        if isinstance(ary, int | float | complex):
+            # Cupy does not support zeros_like with scalar arguments
+            ary = cp.array(ary)
+        return rec_map_array_container(cp.zeros_like, ary)
+
+    def ones_like(self, ary):
+        import cupy as cp
+        if isinstance(ary, int | float | complex):
+            # Cupy does not support ones_like with scalar arguments
+            ary = cp.array(ary)
+        return rec_map_array_container(cp.ones_like, ary)
 
     def reshape(self, a, newshape, order="C"):
         return rec_map_array_container(

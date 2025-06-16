@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 
 class PyOpenCLArrayContext(ArrayContext):
     """
-    A :class:`ArrayContext` that uses :class:`pyopencl.array.Array` instances
+    An :class:`ArrayContext` that uses :class:`pyopencl.array.Array` instances
     for its base array class.
 
     .. attribute:: context
