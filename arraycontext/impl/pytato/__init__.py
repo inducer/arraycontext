@@ -154,9 +154,10 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         super().__init__()
 
-        self._freeze_prg_cache: dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
+        self._freeze_prg_cache: dict[
+            pt.AbstractResultWithNamedArrays, lp.TranslationUnit] = {}
         self._dag_transform_cache: dict[
-                pt.DictOfNamedArrays,
+                pt.AbstractResultWithNamedArrays,
                 tuple[pt.AbstractResultWithNamedArrays, str]] = {}
 
         if compile_trace_callback is None:
@@ -602,12 +603,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         dag = Deduplicator()(dag)
 
         # FIXME: Remove this if/when _normalize_pt_expr gets support for functions
-        dag = pt.tag_all_calls_to_be_inlined(
-            dag)
+        dag = pt.tag_all_calls_to_be_inlined(dag)
         dag = pt.inline_calls(dag)
 
-        normalized_expr, bound_arguments = _normalize_pt_expr(
-                dag)
+        normalized_expr, bound_arguments = _normalize_pt_expr(dag)
 
         try:
             pt_prg = self._freeze_prg_cache[normalized_expr]
@@ -762,10 +761,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
     def transform_dag(self, dag: pytato.AbstractResultWithNamedArrays
                       ) -> pytato.AbstractResultWithNamedArrays:
         import pytato as pt
-        tdag = pt.tag_all_calls_to_be_inlined(dag)
-        tdag = pt.inline_calls(tdag)
-        tdag = pt.transform.materialize_with_mpms(tdag)
-        return tdag
+        dag = pt.tag_all_calls_to_be_inlined(dag)
+        dag = pt.inline_calls(dag)
+        dag = pt.transform.materialize_with_mpms(dag)
+        return dag
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pytato as pt

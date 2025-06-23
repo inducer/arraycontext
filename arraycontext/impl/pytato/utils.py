@@ -49,7 +49,6 @@ from pytato.array import (
     Array,
     Axis as PtAxis,
     DataWrapper,
-    DictOfNamedArrays,
     Placeholder,
     SizeParam,
     make_placeholder,
@@ -142,7 +141,7 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
 # definitions can't contain non-argument placeholders
 def _normalize_pt_expr(
         expr: AbstractResultWithNamedArrays
-        ) -> tuple[DictOfNamedArrays, Mapping[str, Any]]:
+        ) -> tuple[AbstractResultWithNamedArrays, Mapping[str, Any]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
     normalized form of *expr*, with all instances of
@@ -161,7 +160,6 @@ def _normalize_pt_expr(
 
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
     normalized_expr = normalize_mapper(expr)
-    assert isinstance(normalized_expr, DictOfNamedArrays)
     return normalized_expr, normalize_mapper.bound_arguments
 
 
