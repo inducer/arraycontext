@@ -25,6 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -39,8 +40,11 @@ from arraycontext.container.traversal import (
     rec_map_reduce_array_container,
     rec_multimap_array_container,
 )
-from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace
+
+
+if TYPE_CHECKING:
+    from arraycontext.context import Array, ArrayOrContainer
 
 
 class EagerJAXFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):

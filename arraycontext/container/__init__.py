@@ -40,10 +40,6 @@ Canonical locations for type annotations
 
     :canonical: arraycontext.ArrayContainerT
 
-.. class:: ArrayOrContainerT
-
-    :canonical: arraycontext.ArrayOrContainerT
-
 .. class:: SerializationKey
 
     :canonical: arraycontext.SerializationKey
@@ -90,13 +86,12 @@ import numpy
 import numpy as np
 from typing_extensions import Self
 
-from arraycontext.context import ArrayContext, ArrayOrScalar
-
 
 if TYPE_CHECKING:
     from pymbolic.geometric_algebra import MultiVector
 
     from arraycontext import ArrayOrContainer
+    from arraycontext.context import ArrayContext, ArrayOrScalar
 
 
 # {{{ ArrayContainer

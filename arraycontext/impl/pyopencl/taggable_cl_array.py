@@ -7,15 +7,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
-from numpy.typing import DTypeLike
 
 import pyopencl as cl
 import pyopencl.array as cla
 from pytools import memoize
 from pytools.tag import Tag, Taggable, ToTagSetConvertible
+
+
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike
 
 
 # {{{ utils

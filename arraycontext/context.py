@@ -85,6 +85,11 @@ The :class:`ArrayContext` Interface
 Types and Type Variables for Arrays and Containers
 --------------------------------------------------
 
+.. autodata:: ScalarLike
+    :noindex:
+
+    A type alias of :data:`pymbolic.Scalar`.
+
 .. autoclass:: Array
 
 .. autodata:: ArrayT
@@ -176,11 +181,11 @@ from typing_extensions import Self
 
 from pymbolic.typing import Integer, Scalar as _Scalar
 from pytools import memoize_method
-from pytools.tag import ToTagSetConvertible
 
 
 if TYPE_CHECKING:
     import loopy
+    from pytools.tag import ToTagSetConvertible
 
     from arraycontext.container import ArithArrayContainer, ArrayContainer
 
@@ -254,7 +259,7 @@ ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 #
 # For now, they're purposefully not in the main arraycontext.* name space.
 ArrayT = TypeVar("ArrayT", bound=Array)
-ArrayOrScalar: TypeAlias = "Array | ScalarLike"
+ArrayOrScalar: TypeAlias = Array | ScalarLike
 ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
 ArrayOrArithContainer: TypeAlias = "Array | ArithArrayContainer"
 ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)

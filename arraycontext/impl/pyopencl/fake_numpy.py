@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 import operator
 from functools import partial, reduce
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -41,10 +42,13 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
-from arraycontext.context import Array as actx_Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
-from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
+
+
+if TYPE_CHECKING:
+    from arraycontext.context import Array as actx_Array, ArrayOrContainer
+    from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 
 
 # {{{ fake numpy

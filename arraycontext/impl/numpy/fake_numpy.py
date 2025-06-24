@@ -26,7 +26,7 @@ THE SOFTWARE.
 """
 
 from functools import partial, reduce
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -37,11 +37,14 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
-from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import (
     BaseFakeNumpyLinalgNamespace,
     BaseFakeNumpyNamespace,
 )
+
+
+if TYPE_CHECKING:
+    from arraycontext.context import Array, ArrayOrContainer
 
 
 class NumpyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -150,7 +153,7 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 return false_ary
             return np.logical_and.reduce(
                     [(true_ary if kx_i == ky_i else false_ary)
-                        and cast(np.ndarray, self.array_equal(x_i, y_i))
+                        and cast("np.ndarray", self.array_equal(x_i, y_i))
                         for (kx_i, x_i), (ky_i, y_i)
                         in zip(serialized_x, serialized_y, strict=True)],
                     initial=true_ary)

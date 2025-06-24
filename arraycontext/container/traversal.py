@@ -70,9 +70,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Callable, Iterable
 from functools import partial, singledispatch, update_wrapper
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
 import numpy as np
@@ -87,14 +86,19 @@ from arraycontext.container import (
     get_container_context_recursively_opt,
     serialize_container,
 )
-from arraycontext.context import (
-    Array,
-    ArrayContext,
-    ArrayOrContainer,
-    ArrayOrContainerOrScalar,
-    ArrayOrContainerT,
-    ScalarLike,
-)
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
+    from arraycontext.context import (
+        Array,
+        ArrayContext,
+        ArrayOrContainer,
+        ArrayOrContainerOrScalar,
+        ArrayOrContainerT,
+        ScalarLike,
+    )
 
 
 # {{{ array container traversal helpers
@@ -414,7 +418,7 @@ def rec_keyed_map_array_container(
         try:
             iterable = serialize_container(ary_)
         except NotAnArrayContainerError:
-            return cast(ArrayOrContainer, f(keys, cast(Array, ary_)))
+            return cast("ArrayOrContainer", f(keys, cast("Array", ary_)))
         else:
             return deserialize_container(ary_, [
                 (key, rec((*keys, key), subary)) for key, subary in iterable
@@ -699,7 +703,7 @@ def flatten(
         try:
             iterable = serialize_container(subary)
         except NotAnArrayContainerError:
-            subary_c = cast(Array, subary)
+            subary_c = cast("Array", subary)
 
             if common_dtype is None:
                 common_dtype = subary_c.dtype
@@ -786,7 +790,7 @@ def unflatten(
         try:
             iterable = serialize_container(template_subary)
         except NotAnArrayContainerError:
-            template_subary_c = cast(Array, template_subary)
+            template_subary_c = cast("Array", template_subary)
 
             # {{{ validate subary
 
@@ -877,7 +881,7 @@ def unflatten(
         raise ValueError("'template' and 'ary' sizes do not match: "
             "'ary' is too large")
 
-    return cast(ArrayOrContainerT, result)
+    return cast("ArrayOrContainerT", result)
 
 
 def flat_size_and_dtype(
@@ -895,7 +899,7 @@ def flat_size_and_dtype(
         try:
             iterable = serialize_container(subary)
         except NotAnArrayContainerError:
-            subary_c = cast(Array, subary)
+            subary_c = cast("Array", subary)
 
             if common_dtype is None:
                 common_dtype = subary_c.dtype

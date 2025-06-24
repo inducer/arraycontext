@@ -35,14 +35,12 @@ THE SOFTWARE.
 import abc
 import itertools
 import logging
-from collections.abc import Callable, Hashable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 from immutabledict import immutabledict
 
-import pyopencl.array as cla
 import pytato as pt
 from pytools import ProcessLogger, to_identifier
 from pytools.tag import Tag
@@ -57,6 +55,12 @@ from arraycontext.impl.pytato import (
     PytatoPyOpenCLArrayContext,
     _BasePytatoArrayContext,
 )
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Hashable, Mapping
+
+    import pyopencl.array as cla
 
 
 logger = logging.getLogger(__name__)

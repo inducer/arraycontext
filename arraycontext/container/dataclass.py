@@ -31,11 +31,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Mapping, Sequence
 from dataclasses import fields, is_dataclass
-from typing import NamedTuple, Union, get_args, get_origin
+from typing import TYPE_CHECKING, NamedTuple, Union, get_args, get_origin
 
 from arraycontext.container import is_array_container_type
+
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 
 # {{{ dataclass containers
