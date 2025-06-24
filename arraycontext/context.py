@@ -502,7 +502,7 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag_axis(self,
                  iaxis: int, tags: ToTagSetConvertible,
-                 array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
+                 array: ArrayOrContainerT) -> ArrayOrContainerT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* in which axis number *iaxis* has
         the *tags* applied. *array* itself is not modified. When working with
