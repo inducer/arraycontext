@@ -43,7 +43,6 @@ from typing import TYPE_CHECKING, Any, cast
 from typing_extensions import override
 
 import pytools
-from pytato import AbstractResultWithNamedArrays
 from pytato.analysis import get_num_call_sites
 from pytato.array import (
     Array,
@@ -53,7 +52,6 @@ from pytato.array import (
     SizeParam,
     make_placeholder,
 )
-from pytato.function import FunctionDefinition
 from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import (
     ArrayOrNames,
@@ -71,6 +69,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     import loopy as lp
+    from pytato import AbstractResultWithNamedArrays
+    from pytato.function import FunctionDefinition
 
     from arraycontext import ArrayContext
     from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext

@@ -29,25 +29,30 @@ THE SOFTWARE.
 """
 
 import itertools
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from immutabledict import immutabledict
 
 import pytato as pt
-from pymbolic import Scalar
-from pytools.tag import Tag
 
 from arraycontext.container import is_array_container_type
 from arraycontext.container.traversal import rec_keyed_map_array_container
-from arraycontext.context import (
-    Array,
-    ArrayOrContainer,
-    ArrayT,
-)
-from arraycontext.impl.pytato import _BasePytatoArrayContext
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from pymbolic import Scalar
+    from pytools.tag import Tag
+
+    from arraycontext.context import (
+        Array,
+        ArrayOrContainer,
+        ArrayT,
+    )
+    from arraycontext.impl.pytato import _BasePytatoArrayContext
 
 
 def _get_arg_id_to_arg(args: tuple[object, ...],
@@ -133,7 +138,7 @@ def _call_with_placeholders(
         if arg is None:
             return None
         elif np.isscalar(arg):
-            return cast(Scalar, arg)
+            return cast("Scalar", arg)
         elif isinstance(arg, pt.Array):
             return arg_id_to_placeholder[key]
         elif is_array_container_type(arg.__class__):

@@ -7,8 +7,6 @@
 """
 from __future__ import annotations
 
-from pytato.array import AxesT
-
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -63,6 +61,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Hashable, Mapping
 
     import pyopencl.array as cla
+    from pytato.array import AxesT
 
 
 logger = logging.getLogger(__name__)
