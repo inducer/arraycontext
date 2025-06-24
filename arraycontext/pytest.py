@@ -33,11 +33,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Callable, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from arraycontext import NumpyArrayContext
-from arraycontext.context import ArrayContext
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    from arraycontext.context import ArrayContext
 
 
 # {{{ array context factories

@@ -25,7 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -37,9 +37,12 @@ from arraycontext.container.traversal import (
     rec_map_reduce_array_container,
     rec_multimap_array_container,
 )
-from arraycontext.context import Array, ArrayOrContainer
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
+
+
+if TYPE_CHECKING:
+    from arraycontext.context import Array, ArrayOrContainer
 
 
 class PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -196,7 +199,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 if x.shape != y.shape:
                     return false_ary
                 else:
-                    return pt.all(cast(pt.Array, pt.equal(x, y)))
+                    return pt.all(cast("pt.Array", pt.equal(x, y)))
             else:
                 if len(serialized_x) != len(serialized_y):
                     return false_ary
@@ -209,7 +212,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                             in zip(serialized_x, serialized_y, strict=True)],
                         true_ary)
 
-        return cast(Array, rec_equal(a, b))
+        return cast("Array", rec_equal(a, b))
 
     # }}}
 

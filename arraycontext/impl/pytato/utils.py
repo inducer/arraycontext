@@ -38,7 +38,6 @@ THE SOFTWARE.
 """
 
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 import pytools
@@ -56,13 +55,16 @@ from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import ArrayOrNames, CopyMapper
 from pytools import UniqueNameGenerator, memoize_method
 
-from arraycontext import ArrayContext
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
-from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     import loopy as lp
+
+    from arraycontext import ArrayContext
+    from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
 
 
 class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
@@ -90,8 +92,10 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
         self.bound_arguments[name] = expr.data
         return make_placeholder(
                     name=name,
-                    shape=tuple(cast(Array, self.rec(s)) if isinstance(s, Array) else s
-                                for s in expr.shape),
+                    shape=tuple(
+                            cast("Array", self.rec(s))
+                            if isinstance(s, Array) else s
+                            for s in expr.shape),
                     dtype=expr.dtype,
                     axes=expr.axes,
                     tags=expr.tags)

@@ -83,6 +83,7 @@ extend-select = [
     "UP",  # pyupgrade
     "W",   # pycodestyle
     "SIM",
+    "TC",
 ]
 extend-ignore = [
     "C90",   # McCabe complexity

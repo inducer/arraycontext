@@ -33,12 +33,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 
 import loopy as lp
-from pytools.tag import ToTagSetConvertible
 
 from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import (
@@ -50,6 +49,10 @@ from arraycontext.context import (
     NumpyOrContainerOrScalar,
     UntransformedCodeWarning,
 )
+
+
+if TYPE_CHECKING:
+    from pytools.tag import ToTagSetConvertible
 
 
 class NumpyNonObjectArrayMetaclass(type):

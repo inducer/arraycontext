@@ -29,8 +29,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Mapping
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
@@ -40,6 +39,10 @@ from pytools import memoize_in
 
 from arraycontext.container.traversal import multimapped_over_array_containers
 from arraycontext.fake_numpy import BaseFakeNumpyNamespace
+
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 # {{{ loopy

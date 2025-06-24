@@ -37,11 +37,10 @@ THE SOFTWARE.
 
 import enum
 import operator
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partialmethod
 from numbers import Number
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from warnings import warn
 
 import numpy as np
@@ -51,7 +50,12 @@ from arraycontext.container import (
     deserialize_container,
     serialize_container,
 )
-from arraycontext.context import ArrayContext, ArrayOrContainer
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from arraycontext.context import ArrayContext, ArrayOrContainer
 
 
 # {{{ with_container_arithmetic

@@ -53,7 +53,6 @@ THE SOFTWARE.
 
 import abc
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -74,13 +73,17 @@ from arraycontext.metadata import NameHint
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import jax.numpy as jnp
     import loopy as lp
     import pyopencl as cl
     import pyopencl.array as cl_array
     import pytato
+    import pytato as pt
 
 if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
-    import pyopencl as cl
+    pass
 
 import logging
 
@@ -150,7 +153,6 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         super().__init__()
 
-        import pytato as pt
         self._freeze_prg_cache: dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
         self._dag_transform_cache: dict[
                 pt.DictOfNamedArrays,
@@ -932,7 +934,6 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             actx=None)
 
     def thaw(self, array):
-        import jax.numpy as jnp
         import pytato as pt
 
         def _thaw(ary: jnp.ndarray) -> pt.Array:

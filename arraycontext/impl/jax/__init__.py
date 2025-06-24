@@ -29,14 +29,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Callable
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pytools.tag import ToTagSetConvertible
-
 from arraycontext.container.traversal import rec_map_array_container, with_array_context
 from arraycontext.context import Array, ArrayContext, ArrayOrContainer, ScalarLike
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytools.tag import ToTagSetConvertible
 
 
 class EagerJAXArrayContext(ArrayContext):

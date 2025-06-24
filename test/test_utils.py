@@ -209,13 +209,13 @@ def test_stringify_array_container_tree() -> None:
         extent: float
 
     rng = np.random.default_rng(seed=42)
-    a = ArrayWrapper(ary=cast(Array, rng.random(10)))
+    a = ArrayWrapper(ary=cast("Array", rng.random(10)))
     d = SomeContainer(
-              points=cast(Array, rng.random((2, 10))),
+              points=cast("Array", rng.random((2, 10))),
               radius=rng.random(),
               centers=a)
     c = SomeContainer(
-              points=cast(Array, rng.random((2, 10))),
+              points=cast("Array", rng.random((2, 10))),
               radius=rng.random(),
               centers=a)
     ary = SomeOtherContainer(
