@@ -8,6 +8,13 @@ __doc__ = """
 .. autofunction:: with_container_arithmetic
 
 .. autoclass:: BcastUntilActxArray
+
+References
+----------
+
+.. class:: TypeT
+
+    A type variable with an upper bound of :class:`type`.
 """
 
 
@@ -61,6 +68,8 @@ if TYPE_CHECKING:
 # {{{ with_container_arithmetic
 
 T = TypeVar("T")
+
+TypeT = TypeVar("TypeT", bound=type)
 
 
 @enum.unique
@@ -190,7 +199,7 @@ def with_container_arithmetic(
             bcast_numpy_array: bool = False,
             _bcast_actx_array_type: bool | None = None,
             bcast_container_types: tuple[type, ...] | None = None,
-        ) -> Callable[[type], type]:
+        ) -> Callable[[TypeT], TypeT]:
     """A class decorator that implements built-in operators for array containers
     by propagating the operations to the elements of the container.
 
