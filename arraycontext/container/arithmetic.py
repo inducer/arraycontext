@@ -777,6 +777,10 @@ class BcastUntilActxArray:
                    ],
                    right: ArrayOrContainer
                ) -> ArrayOrContainer:
+        if not isinstance(self.broadcastee, self._stop_types):
+            # Defer to array container broadcast rules
+            return op(self.broadcastee, right)
+
         try:
             serialized = serialize_container(right)
         except NotAnArrayContainerError:
@@ -796,6 +800,10 @@ class BcastUntilActxArray:
                    ],
                    left: ArrayOrContainer
                ) -> ArrayOrContainer:
+        if not isinstance(self.broadcastee, self._stop_types):
+            # Defer to array container broadcast rules
+            return op(left, self.broadcastee)
+
         try:
             serialized = serialize_container(left)
         except NotAnArrayContainerError:
