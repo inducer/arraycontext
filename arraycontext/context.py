@@ -171,12 +171,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    overload,
+)
 from warnings import warn
 
-import numpy as np
 from typing_extensions import Self
 
 from pymbolic.typing import Integer, Scalar as _Scalar
@@ -184,6 +192,9 @@ from pytools import memoize_method
 
 
 if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import DTypeLike
+
     import loopy
     from pytools.tag import ToTagSetConvertible
 
@@ -243,6 +254,21 @@ class Array(Protocol):
     def __truediv__(self, other: Self | ScalarLike) -> Array: ...
     def __rtruediv__(self, other: Self | ScalarLike) -> Array: ...
 
+    def copy(self) -> Self: ...
+
+    @property
+    def real(self) -> Array: ...
+    @property
+    def imag(self) -> Array: ...
+    def conj(self) -> Array: ...
+
+    def astype(self, dtype: DTypeLike) -> Array: ...
+
+    def reshape(self,
+            *shape: int,
+            order: Literal["C"] | Literal["F"]
+        ) -> Array: ...
+
 
 # deprecated, use ScalarLike instead
 Scalar = _Scalar
@@ -287,7 +313,7 @@ ArrayOrArithContainerOrScalarTc = TypeVar(
 ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | ScalarLike")
 
 
-NumpyOrContainerOrScalar = Union[np.ndarray, "ArrayContainer", ScalarLike]
+NumpyOrContainerOrScalar: TypeAlias = "np.ndarray | ArrayContainer | ScalarLike"
 
 # }}}
 
