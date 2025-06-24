@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pytato.transform import Deduplicator
-
 
 __doc__ = """
 .. autoclass:: OutlinedCall
@@ -214,7 +212,7 @@ class OutlinedCall:
 
             prefixed_output = _call_with_placeholders(
                 self.f, args, kwargs, arg_id_to_prefixed_placeholder)
-            unpacked_prefixed_output = Deduplicator()(
+            unpacked_prefixed_output = pt.transform.deduplicate(
                 pt.make_dict_of_named_arrays(_unpack_output(prefixed_output)))
 
             prefixed_placeholders = frozenset(
@@ -232,7 +230,7 @@ class OutlinedCall:
         arg_id_to_placeholder = _get_arg_id_to_placeholder(arg_id_to_arg)
 
         output = _call_with_placeholders(self.f, args, kwargs, arg_id_to_placeholder)
-        unpacked_output = Deduplicator()(
+        unpacked_output = pt.transform.deduplicate(
             pt.make_dict_of_named_arrays(_unpack_output(output)))
         if len(unpacked_output) == 1 and "_" in unpacked_output:
             ret_type = pt.function.ReturnType.ARRAY

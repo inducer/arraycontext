@@ -59,8 +59,8 @@ from pytato.transform import (
     ArrayOrNames,
     ArrayOrNamesTc,
     CopyMapper,
-    Deduplicator,
     TransformMapperCache,
+    deduplicate,
 )
 from pytools import UniqueNameGenerator, memoize_method
 
@@ -151,7 +151,7 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
-    expr = Deduplicator()(expr)
+    expr = deduplicate(expr)
 
     if get_num_call_sites(expr):
         raise NotImplementedError(
