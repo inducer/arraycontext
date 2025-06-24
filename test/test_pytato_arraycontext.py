@@ -23,9 +23,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pytest
@@ -34,10 +33,15 @@ import pytato as pt
 from pytools.tag import Tag
 
 from arraycontext import (
+    ArrayContextFactory,
     PytatoPyOpenCLArrayContext,
     pytest_generate_tests_for_array_contexts,
 )
 from arraycontext.pytest import _PytestPytatoPyOpenCLArrayContextFactory
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 logger = logging.getLogger(__name__)
@@ -108,7 +112,7 @@ class BazTag(Tag):
 # }}}
 
 
-def test_tags_preserved_after_freeze(actx_factory):
+def test_tags_preserved_after_freeze(actx_factory: ArrayContextFactory):
     actx = actx_factory()
 
     from arraycontext.impl.pytato import _BasePytatoArrayContext
@@ -130,7 +134,7 @@ def test_tags_preserved_after_freeze(actx_factory):
     assert foo.axes[1].tags_of_type(BazTag)
 
 
-def test_arg_size_limit(actx_factory):
+def test_arg_size_limit(actx_factory: Callable[[], PytatoPyOpenCLArrayContext]):
     ran_callback = False
 
     def my_ctc(what, stage, ir):
@@ -154,8 +158,8 @@ def test_arg_size_limit(actx_factory):
 @pytest.mark.parametrize("pass_allocator", ["auto_none", "auto_true", "auto_false",
                                             "pass_buffer", "pass_svm",
                                             "pass_buffer_pool", "pass_svm_pool"])
-def test_pytato_actx_allocator(actx_factory, pass_allocator):
-    base_actx = actx_factory()
+def test_pytato_actx_allocator(actx_factory: ArrayContextFactory, pass_allocator):
+    base_actx = cast("PytatoPyOpenCLArrayContext", actx_factory())
     alloc = None
     use_memory_pool = None
 
@@ -216,7 +220,7 @@ def test_pytato_actx_allocator(actx_factory, pass_allocator):
             assert res == 198
 
 
-def test_transfer(actx_factory):
+def test_transfer(actx_factory: ArrayContextFactory):
     import numpy as np
 
     actx = actx_factory()
@@ -274,7 +278,8 @@ def test_transfer(actx_factory):
     # }}}
 
 
-def test_pass_args_compiled_func(actx_factory):
+def test_pass_args_compiled_func(
+            actx_factory: Callable[[], PytatoPyOpenCLArrayContext]):
     import numpy as np
 
     import loopy as lp
