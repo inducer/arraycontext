@@ -75,6 +75,7 @@ from .container.traversal import (
 from .context import (
     Array,
     ArrayContext,
+    ArrayContextFactory,
     ArrayOrArithContainer,
     ArrayOrArithContainerOrScalar,
     ArrayOrArithContainerOrScalarT,
@@ -107,6 +108,7 @@ __all__ = (
     "ArrayContainer",
     "ArrayContainerT",
     "ArrayContext",
+    "ArrayContextFactory",
     "ArrayOrArithContainer",
     "ArrayOrArithContainerOrScalar",
     "ArrayOrArithContainerOrScalarT",
