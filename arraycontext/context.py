@@ -610,6 +610,9 @@ class ArrayContext(ABC):
 # }}}
 
 
+ArrayContextFactory: TypeAlias = Callable[[], ArrayContext]
+
+
 # {{{ tagging helpers
 
 def tag_axes(
