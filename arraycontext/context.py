@@ -649,7 +649,7 @@ ArrayContextFactory: TypeAlias = Callable[[], ArrayContext]
 def tag_axes(
         actx: ArrayContext,
         dim_to_tags: Mapping[int, ToTagSetConvertible],
-        ary: ArrayT) -> ArrayT:
+        ary: ArrayOrContainerT) -> ArrayOrContainerT:
     """
     Return a copy of *ary* with the axes in *dim_to_tags* tagged with their
     corresponding tags. Equivalent to repeated application of
