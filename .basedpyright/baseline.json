@@ -1852,26 +1852,10 @@
         ],
         "./arraycontext/context.py": [
             {
-                "code": "reportDeprecated",
-                "range": {
-                    "startColumn": 69,
-                    "endColumn": 74,
-                    "lineCount": 1
-                }
-            },
-            {
                 "code": "reportAny",
                 "range": {
                     "startColumn": 26,
                     "endColumn": 31,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportDeprecated",
-                "range": {
-                    "startColumn": 27,
-                    "endColumn": 32,
                     "lineCount": 1
                 }
             },
@@ -17010,6 +16994,14 @@
                 }
             },
             {
+                "code": "reportInvalidCast",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 45,
+                    "lineCount": 1
+                }
+            },
+            {
                 "code": "reportUnknownParameterType",
                 "range": {
                     "startColumn": 18,
@@ -19762,6 +19754,46 @@
                 }
             },
             {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 54,
+                    "endColumn": 63,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 54,
+                    "endColumn": 63,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 54,
+                    "endColumn": 63,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 54,
+                    "endColumn": 63,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 54,
+                    "endColumn": 63,
+                    "lineCount": 1
+                }
+            },
+            {
                 "code": "reportIndexIssue",
                 "range": {
                     "startColumn": 24,
@@ -20266,6 +20298,14 @@
                 }
             },
             {
+                "code": "reportOperatorIssue",
+                "range": {
+                    "startColumn": 21,
+                    "endColumn": 28,
+                    "lineCount": 1
+                }
+            },
+            {
                 "code": "reportUnknownLambdaType",
                 "range": {
                     "startColumn": 48,
@@ -20314,10 +20354,34 @@
                 }
             },
             {
+                "code": "reportOperatorIssue",
+                "range": {
+                    "startColumn": 8,
+                    "endColumn": 53,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportOperatorIssue",
+                "range": {
+                    "startColumn": 8,
+                    "endColumn": 32,
+                    "lineCount": 1
+                }
+            },
+            {
                 "code": "reportUnusedExpression",
                 "range": {
                     "startColumn": 8,
                     "endColumn": 32,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportOperatorIssue",
+                "range": {
+                    "startColumn": 8,
+                    "endColumn": 27,
                     "lineCount": 1
                 }
             },
@@ -20374,6 +20438,22 @@
                 "range": {
                     "startColumn": 29,
                     "endColumn": 47,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportOperatorIssue",
+                "range": {
+                    "startColumn": 36,
+                    "endColumn": 55,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportOperatorIssue",
+                "range": {
+                    "startColumn": 32,
+                    "endColumn": 51,
                     "lineCount": 1
                 }
             },
@@ -20598,6 +20678,14 @@
                 "range": {
                     "startColumn": 12,
                     "endColumn": 46,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportOperatorIssue",
+                "range": {
+                    "startColumn": 12,
+                    "endColumn": 21,
                     "lineCount": 1
                 }
             },
@@ -21064,42 +21152,10 @@
                 }
             },
             {
-                "code": "reportGeneralTypeIssues",
-                "range": {
-                    "startColumn": 10,
-                    "endColumn": 31,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportGeneralTypeIssues",
-                "range": {
-                    "startColumn": 14,
-                    "endColumn": 35,
-                    "lineCount": 1
-                }
-            },
-            {
                 "code": "reportUnannotatedClassAttribute",
                 "range": {
                     "startColumn": 4,
                     "endColumn": 19,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportGeneralTypeIssues",
-                "range": {
-                    "startColumn": 10,
-                    "endColumn": 31,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportGeneralTypeIssues",
-                "range": {
-                    "startColumn": 14,
-                    "endColumn": 35,
                     "lineCount": 1
                 }
             },
