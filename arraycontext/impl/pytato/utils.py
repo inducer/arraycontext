@@ -57,9 +57,9 @@ from pytato.function import FunctionDefinition
 from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import (
     ArrayOrNames,
+    ArrayOrNamesTc,
     CopyMapper,
     Deduplicator,
-    MappedT,
     TransformMapperCache,
 )
 from pytools import UniqueNameGenerator, memoize_method
@@ -250,7 +250,7 @@ class TransferToNumpyMapper(CopyMapper):
             non_equality_tags=expr.non_equality_tags)
 
 
-def transfer_from_numpy(expr: MappedT, actx: ArrayContext) -> MappedT:
+def transfer_from_numpy(expr: ArrayOrNamesTc, actx: ArrayContext) -> ArrayOrNamesTc:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be device arrays, using
     :meth:`~arraycontext.ArrayContext.from_numpy`.
@@ -258,7 +258,7 @@ def transfer_from_numpy(expr: MappedT, actx: ArrayContext) -> MappedT:
     return TransferFromNumpyMapper(actx)(expr)
 
 
-def transfer_to_numpy(expr: MappedT, actx: ArrayContext) -> MappedT:
+def transfer_to_numpy(expr: ArrayOrNamesTc, actx: ArrayContext) -> ArrayOrNamesTc:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be :class:`numpy.ndarray` instances, using
     :meth:`~arraycontext.ArrayContext.to_numpy`.
