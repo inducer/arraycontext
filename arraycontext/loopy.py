@@ -42,7 +42,19 @@ from arraycontext.fake_numpy import BaseFakeNumpyNamespace
 
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
+    from types import EllipsisType
+
+    import islpy as isl
+
+    from loopy.kernel.data import (
+        ArrayArg,
+        SubstitutionRule,
+        TemporaryVariable,
+        ValueArg,
+    )
+    from loopy.kernel.instruction import InstructionBase
+    from pytools.tag import ToTagSetConvertible
 
 
 # {{{ loopy
@@ -52,8 +64,14 @@ _DEFAULT_LOOPY_OPTIONS = lp.Options(
         return_dict=True)
 
 
-def make_loopy_program(domains, statements, kernel_data=None,
-        name="mm_actx_kernel", tags=None):
+def make_loopy_program(
+        domains: str | Sequence[str | isl.BasicSet],
+        statements: str | Sequence[InstructionBase | SubstitutionRule | str],
+        kernel_data: Sequence[
+                ValueArg | ArrayArg | TemporaryVariable | EllipsisType | str
+            ] | None = None,
+        name: str = "mm_actx_kernel",
+        tags: ToTagSetConvertible = None):
     """Return a :class:`loopy.LoopKernel` suitable for use with
     :meth:`ArrayContext.call_loopy`.
     """
