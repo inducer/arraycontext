@@ -210,6 +210,11 @@ class OutlinedCall:
         arg_id_to_arg = _get_arg_id_to_arg(args, kwargs)
 
         if __debug__:
+            # Function arguments may produce corresponding placeholders that have
+            # the same names as placeholders in the parent context. To avoid potential
+            # ambiguity, forbid capturing non-argument placeholders in the function
+            # body.
+
             # Add a prefix to the names to distinguish them from any existing
             # placeholders
             arg_id_to_prefixed_placeholder = _get_arg_id_to_placeholder(
