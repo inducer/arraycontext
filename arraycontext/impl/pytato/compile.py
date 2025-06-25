@@ -36,7 +36,7 @@ import abc
 import itertools
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, cast
 
 import numpy as np
 from immutabledict import immutabledict
@@ -45,8 +45,13 @@ import pytato as pt
 from pytools import ProcessLogger, to_identifier
 from pytools.tag import Tag
 
-from arraycontext.container import ArrayContainer, is_array_container_type
+from arraycontext.container import (
+    ArrayContainer,
+    SerializationKey,
+    is_array_container_type,
+)
 from arraycontext.container.traversal import rec_keyed_map_array_container
+from arraycontext.context import ArrayOrContainerOrScalar, ArrayOrScalar, is_scalar_like
 from arraycontext.impl.pyopencl.taggable_cl_array import (
     TaggableCLArray,
 )
@@ -61,6 +66,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Hashable, Mapping
 
     import pyopencl.array as cla
+
+AllowedArray: TypeAlias = "pt.Array | TaggableCLArray | cla.Array"
+AllowedArrayTc = TypeVar("AllowedArrayTc", pt.Array, TaggableCLArray, "cla.Array")
 
 
 logger = logging.getLogger(__name__)
@@ -117,7 +125,7 @@ class LeafArrayDescriptor(AbstractInputDescriptor):
 
 # {{{ utilities
 
-def _ary_container_key_stringifier(keys: tuple[object, ...]) -> str:
+def _ary_container_key_stringifier(keys: tuple[SerializationKey, ...]) -> str:
     """
     Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
     array-container's component's key. Goals of this routine:
@@ -182,28 +190,9 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: tuple[Any, ...],
     return immutabledict(arg_id_to_arg), immutabledict(arg_id_to_descr)
 
 
-@overload
 def _to_input_for_compiled(
-        ary: pt.Array, actx: PytatoPyOpenCLArrayContext) -> pt.Array:
-    ...
-
-
-@overload
-def _to_input_for_compiled(
-        ary: TaggableCLArray, actx: PytatoPyOpenCLArrayContext) -> TaggableCLArray:
-    ...
-
-
-@overload
-def _to_input_for_compiled(
-        ary: cla.Array, actx: PytatoPyOpenCLArrayContext
-        ) -> cla.Array:
-    ...
-
-
-def _to_input_for_compiled(
-        ary: pt.Array | TaggableCLArray | cla.Array,
-        actx: PytatoPyOpenCLArrayContext) -> pt.Array | TaggableCLArray | cla.Array:
+        ary: AllowedArrayTc,
+        actx: _BasePytatoArrayContext) -> AllowedArrayTc:
     """
     Preprocess *ary* before turning it into a :class:`pytato.array.Placeholder`
     in :meth:`LazilyCompilingFunctionCaller.__call__`.
@@ -232,13 +221,18 @@ def _to_input_for_compiled(
                                   tags=frozenset())
 
 
-def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
+def _get_f_placeholder_args(
+            arg: ArrayOrContainerOrScalar,
+            kw: SerializationKey,
+            arg_id_to_name: Mapping[tuple[SerializationKey, ...], str],
+            actx: _BasePytatoArrayContext,
+        ):
     """
     Helper for :class:`BaseLazilyCompilingFunctionCaller.__call__`. Returns the
     placeholder version of an argument to
     :attr:`BaseLazilyCompilingFunctionCaller.f`.
     """
-    if np.isscalar(arg):
+    if is_scalar_like(arg):
         from pytato.tags import ForceValueArgTag
         name = arg_id_to_name[kw,]
         return pt.make_placeholder(name, (), np.dtype(type(arg)),
@@ -246,21 +240,24 @@ def _get_f_placeholder_args(arg, kw, arg_id_to_name, actx):
     elif isinstance(arg, pt.Array):
         name = arg_id_to_name[kw,]
         # Transform the DAG to give metadata inference a chance to do its job
-        arg = _to_input_for_compiled(arg, actx)
-        return pt.make_placeholder(name, arg.shape, arg.dtype,
-                                   axes=arg.axes,
-                                   tags=arg.tags)
+        pt_arg = _to_input_for_compiled(arg, actx)
+        return pt.make_placeholder(name, pt_arg.shape, pt_arg.dtype,
+                                   axes=pt_arg.axes,
+                                   tags=pt_arg.tags)
     elif is_array_container_type(arg.__class__):
-        def _rec_to_placeholder(keys, ary: pt.Array):
+        def _rec_to_placeholder(
+                    keys: tuple[SerializationKey, ...],
+                    ary: ArrayOrScalar,
+                ) -> ArrayOrScalar:
             index = (kw, *keys)
             name = arg_id_to_name[index]
             # Transform the DAG to give metadata inference a chance to do its job
-            ary = _to_input_for_compiled(ary, actx)
+            pt_ary = _to_input_for_compiled(cast("pt.Array", ary), actx)
             return pt.make_placeholder(name,
-                                       ary.shape,
-                                       ary.dtype,
-                                       axes=ary.axes,
-                                       tags=ary.tags)
+                                       pt_ary.shape,
+                                       pt_ary.dtype,
+                                       axes=pt_ary.axes,
+                                       tags=pt_ary.tags)
 
         return rec_keyed_map_array_container(_rec_to_placeholder, arg)
     else:

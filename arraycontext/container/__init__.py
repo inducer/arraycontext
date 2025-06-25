@@ -1,9 +1,53 @@
-# mypy: disallow-untyped-defs
-
 """
 .. currentmodule:: arraycontext
 
-.. autoclass:: ArrayContainer
+.. class:: ArrayContainer
+    A protocol for generic containers of the array type supported by the
+    :class:`ArrayContext`.
+
+    The functionality required for the container to operated is supplied via
+    :func:`functools.singledispatch`. Implementations of the following functions need
+    to be registered for a type serving as an :class:`ArrayContainer`:
+
+    * :func:`serialize_container` for serialization, which gives the components
+      of the array.
+    * :func:`deserialize_container` for deserialization, which constructs a
+      container from a set of components.
+    * :func:`get_container_context_opt` retrieves the :class:`ArrayContext` from
+      a container, if it has one.
+
+    This allows enumeration of the component arrays in a container and the
+    construction of modified containers from an iterable of those component arrays.
+
+    Packages may register their own types as array containers. They must not
+    register other types (e.g. :class:`list`) as array containers.
+    The type :class:`numpy.ndarray` is considered an array container, but
+    only arrays with dtype *object* may be used as such. (This is so
+    because object arrays cannot be distinguished from non-object arrays
+    via their type.)
+
+    The container and its serialization interface has goals and uses
+    approaches similar to JAX's
+    `PyTrees <https://jax.readthedocs.io/en/latest/pytrees.html>`__,
+    however its implementation differs a bit.
+
+    .. note::
+
+        This class is used in type annotation and as a marker of array container
+        attributes for :func:`~arraycontext.dataclass_array_container`.
+        As a protocol, it is not intended as a superclass.
+
+    .. note::
+
+        For the benefit of type checkers, array containers are recognized by
+        having the declaration::
+
+            __array_ufunc__: ClassVar[None] = None
+
+        in their body. In addition to its use as a recognition feature, this also
+        prevents unintended arithmetic in conjunction with :mod:`numpy` arrays.
+        This should be considered experimental for now, and it may well change.
+
 .. autoclass:: ArithArrayContainer
 .. class:: ArrayContainerT
 
@@ -51,6 +95,12 @@ Canonical locations for type annotations
 
 from __future__ import annotations
 
+from types import GenericAlias, UnionType
+
+from numpy.typing import NDArray
+
+from arraycontext.context import ArrayOrArithContainer, ArrayOrContainerOrScalar
+
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -78,75 +128,45 @@ THE SOFTWARE.
 
 from collections.abc import Hashable, Sequence
 from functools import singledispatch
-from typing import TYPE_CHECKING, Protocol, TypeAlias, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    get_origin,
+)
 
 # For use in singledispatch type annotations, because sphinx can't figure out
 # what 'np' is.
 import numpy
 import numpy as np
-from typing_extensions import Self
+from typing_extensions import Self, TypeIs
 
 
 if TYPE_CHECKING:
-    from pymbolic.geometric_algebra import MultiVector
+    from pymbolic.geometric_algebra import CoeffT, MultiVector
 
-    from arraycontext import ArrayOrContainer
     from arraycontext.context import ArrayContext, ArrayOrScalar
 
 
 # {{{ ArrayContainer
 
-class ArrayContainer(Protocol):
-    """
-    A protocol for generic containers of the array type supported by the
-    :class:`ArrayContext`.
-
-    The functionality required for the container to operated is supplied via
-    :func:`functools.singledispatch`. Implementations of the following functions need
-    to be registered for a type serving as an :class:`ArrayContainer`:
-
-    * :func:`serialize_container` for serialization, which gives the components
-      of the array.
-    * :func:`deserialize_container` for deserialization, which constructs a
-      container from a set of components.
-    * :func:`get_container_context_opt` retrieves the :class:`ArrayContext` from
-      a container, if it has one.
-
-    This allows enumeration of the component arrays in a container and the
-    construction of modified containers from an iterable of those component arrays.
-
-    Packages may register their own types as array containers. They must not
-    register other types (e.g. :class:`list`) as array containers.
-    The type :class:`numpy.ndarray` is considered an array container, but
-    only arrays with dtype *object* may be used as such. (This is so
-    because object arrays cannot be distinguished from non-object arrays
-    via their type.)
-
-    The container and its serialization interface has goals and uses
-    approaches similar to JAX's
-    `PyTrees <https://jax.readthedocs.io/en/latest/pytrees.html>`__,
-    however its implementation differs a bit.
-
-    .. note::
-
-        This class is used in type annotation and as a marker of array container
-        attributes for :func:`~arraycontext.dataclass_array_container`.
-        As a protocol, it is not intended as a superclass.
-    """
-
-    # Array containers do not need to have any particular features, so this
-    # protocol is deliberately empty.
-
-    # This *is* used as a type annotation in dataclasses that are processed
+class _UserDefinedArrayContainer(Protocol):
+    # This is used as a type annotation in dataclasses that are processed
     # by dataclass_array_container, where it's used to recognize attributes
     # that are container-typed.
 
+    # This method prevents ArrayContainer from matching any object, while
+    # matching numpy object arrays and many array containers.
+    __array_ufunc__: ClassVar[None]
 
-class ArithArrayContainer(ArrayContainer, Protocol):
-    """
-    A sub-protocol of :class:`ArrayContainer` that supports basic arithmetic.
-    """
 
+ArrayContainer: TypeAlias = NDArray[Any] | _UserDefinedArrayContainer
+
+
+class _UserDefinedArithArrayContainer(_UserDefinedArrayContainer, Protocol):
     # This is loose and permissive, assuming that any array can be added
     # to any container. The alternative would be to plaster type-ignores
     # on all those uses. Achieving typing precision on what broadcasting is
@@ -167,6 +187,9 @@ class ArithArrayContainer(ArrayContainer, Protocol):
     def __rpow__(self, other: ArrayOrScalar | Self) -> Self: ...
 
 
+ArithArrayContainer: TypeAlias = NDArray[Any] | _UserDefinedArithArrayContainer
+
+
 ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
 
 
@@ -175,7 +198,8 @@ class NotAnArrayContainerError(TypeError):
 
 
 SerializationKey: TypeAlias = Hashable
-SerializedContainer: TypeAlias = Sequence[tuple[SerializationKey, "ArrayOrContainer"]]
+SerializedContainer: TypeAlias = Sequence[
+    tuple[SerializationKey, ArrayOrContainerOrScalar]]
 
 
 @singledispatch
@@ -221,7 +245,7 @@ def deserialize_container(
             f"'{type(template).__name__}' cannot be deserialized as a container")
 
 
-def is_array_container_type(cls: type) -> bool:
+def is_array_container_type(cls: type | GenericAlias | UnionType) -> bool:
     """
     :returns: *True* if the type *cls* has a registered implementation of
         :func:`serialize_container`, or if it is an :class:`ArrayContainer`.
@@ -233,15 +257,22 @@ def is_array_container_type(cls: type) -> bool:
         function will say that :class:`numpy.ndarray` is an array container
         type, only object arrays *actually are* array containers.
     """
-    assert isinstance(cls, type), f"must pass a {type!r}, not a '{cls!r}'"
+    if cls is ArrayContainer:
+        return True
+
+    while isinstance(cls, GenericAlias):
+        cls = get_origin(cls)
+
+    assert isinstance(cls, type), (
+        f"must pass a {type!r}, not a '{cls!r}'")
 
     return (
-            cls is ArrayContainer
+            cls is ArrayContainer  # pyright: ignore[reportUnnecessaryComparison]
             or (serialize_container.dispatch(cls)
                 is not serialize_container.__wrapped__))  # type:ignore[attr-defined]
 
 
-def is_array_container(ary: object) -> bool:
+def is_array_container(ary: object) -> TypeIs[ArrayContainer]:
     """
     :returns: *True* if the instance *ary* has a registered implementation of
         :func:`serialize_container`.
@@ -317,7 +348,7 @@ def _deserialize_ndarray_container(  # type: ignore[misc]
 # {{{ get_container_context_recursively
 
 def get_container_context_recursively_opt(
-        ary: ArrayContainer) -> ArrayContext | None:
+        ary: ArrayOrContainerOrScalar) -> ArrayContext | None:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 
@@ -351,7 +382,7 @@ def get_container_context_recursively_opt(
         return actx
 
 
-def get_container_context_recursively(ary: ArrayContainer) -> ArrayContext | None:
+def get_container_context_recursively(ary: ArrayContainer) -> ArrayContext:
     """Walks the :class:`ArrayContainer` hierarchy to find an
     :class:`ArrayContext` associated with it.
 
@@ -362,13 +393,7 @@ def get_container_context_recursively(ary: ArrayContainer) -> ArrayContext | Non
     """
     actx = get_container_context_recursively_opt(ary)
     if actx is None:
-        # raise ValueError("no array context was found")
-        from warnings import warn
-        warn("No array context was found. This will be an error starting in "
-                "July of 2022. If you would like the function to return "
-                "None if no array context was found, use "
-                "get_container_context_recursively_opt.",
-                DeprecationWarning, stacklevel=2)
+        raise ValueError("no array context was found")
 
     return actx
 
@@ -380,19 +405,20 @@ def get_container_context_recursively(ary: ArrayContainer) -> ArrayContext | Non
 # FYI: This doesn't, and never should, make arraycontext directly depend on pymbolic.
 # (Though clearly there exists a dependency via loopy.)
 
-def _serialize_multivec_as_container(mv: MultiVector) -> SerializedContainer:
+def _serialize_multivec_as_container(
+            mv: MultiVector[ArrayOrArithContainer]
+        ) -> SerializedContainer:
     return list(mv.data.items())
 
 
-# FIXME: Ignored due to https://github.com/python/mypy/issues/13040
-def _deserialize_multivec_as_container(  # type: ignore[misc]
-        template: MultiVector,
-        serialized: SerializedContainer) -> MultiVector:
+def _deserialize_multivec_as_container(
+        template: MultiVector[CoeffT],
+        serialized: SerializedContainer) -> MultiVector[CoeffT]:
     from pymbolic.geometric_algebra import MultiVector
     return MultiVector(dict(serialized), space=template.space)
 
 
-def _get_container_context_opt_from_multivec(mv: MultiVector) -> None:
+def _get_container_context_opt_from_multivec(mv: MultiVector[CoeffT]) -> None:
     return None
 
 

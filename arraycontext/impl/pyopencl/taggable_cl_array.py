@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
+from typing_extensions import override
 
 import pyopencl as cl
 import pyopencl.array as cla
@@ -19,6 +20,11 @@ from pytools.tag import Tag, Taggable, ToTagSetConvertible
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
+
+    from arraycontext.context import Array
+
+
+_EMPTY_TAG_SET: frozenset[Tag] = frozenset()
 
 
 # {{{ utils
@@ -31,6 +37,7 @@ class Axis(Taggable):
 
     tags: frozenset[Tag]
 
+    @override
     def _with_new_tags(self, tags: frozenset[Tag]) -> Axis:
         from dataclasses import replace
         return replace(self, tags=tags)
@@ -137,7 +144,7 @@ class TaggableCLArray(cla.Array, Taggable):
 
 def to_tagged_cl_array(ary: cla.Array,
                        axes: tuple[Axis, ...] | None = None,
-                       tags: frozenset[Tag] = frozenset()) -> TaggableCLArray:
+                       tags: frozenset[Tag] = _EMPTY_TAG_SET) -> TaggableCLArray:
     """
     Returns a :class:`TaggableCLArray` that is constructed from the data in
     *ary* along with the metadata from *axes* and *tags*. If *ary* is already a
@@ -171,9 +178,6 @@ def to_tagged_cl_array(ary: cla.Array,
         raise TypeError(f"unsupported array type: '{type(ary).__name__}'")
 
 # }}}
-
-
-_EMPTY_TAG_SET: frozenset[Tag] = frozenset()
 
 
 # {{{ creation
@@ -223,5 +227,17 @@ def to_device(
     return to_tagged_cl_array(
         cla.to_device(queue, ary, allocator=allocator),
         axes=axes, tags=tags)
+
+# }}}
+
+
+# {{{ ensure that TaggableCLArray is an actx Array
+
+def _takes_array(x: Array):
+    return x
+
+
+if __name__ == "__main__":
+    _takes_array(TaggableCLArray(None, None, None))
 
 # }}}

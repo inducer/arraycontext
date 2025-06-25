@@ -31,28 +31,40 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 from warnings import warn
 
 import numpy as np
+from typing_extensions import Self, override
 
-from arraycontext.container.traversal import rec_map_array_container, with_array_context
+from arraycontext.container.traversal import (
+    rec_map_array_container,
+    rec_map_container,
+    with_array_context,
+)
 from arraycontext.context import (
     Array,
     ArrayContext,
-    ArrayOrContainer,
+    ArrayOrContainerOrScalar,
+    ArrayOrContainerOrScalarT,
+    ArrayOrContainerT as ArrayOrContainerT,
+    ArrayOrScalar,
     ScalarLike,
     UntransformedCodeWarning,
+    is_scalar_like,
 )
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
     import loopy as lp
     import pyopencl as cl
     import pyopencl.array as cl_array
+    from loopy import TranslationUnit
     from pytools.tag import ToTagSetConvertible
+
+    from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 
 
 # {{{ PyOpenCLArrayContext
@@ -160,21 +172,24 @@ class PyOpenCLArrayContext(ArrayContext):
                         stacklevel=2)
 
         self._loopy_transform_cache: \
-                dict[lp.TranslationUnit, lp.TranslationUnit] = {}
+                dict[lp.TranslationUnit, lp.ExecutorBase] = {}
 
         # TODO: Ideally this should only be `(TaggableCLArray,)`, but
         # that would break the logic in the downstream users.
         self.array_types = (cl_array.Array,)
 
+    @override
     def _get_fake_numpy_namespace(self):
         from arraycontext.impl.pyopencl.fake_numpy import PyOpenCLFakeNumpyNamespace
         return PyOpenCLFakeNumpyNamespace(self)
 
-    def _rec_map_container(
-            self, func: Callable[[Array], Array], array: ArrayOrContainer,
-            allowed_types: tuple[type, ...] | None = None, *,
-            default_scalar: ScalarLike | None = None,
-            strict: bool = False) -> ArrayOrContainer:
+    def _rec_map_container(self,
+                func: Callable[[Array], Array],
+                array: ArrayOrContainerOrScalarT,
+                allowed_types: tuple[type, ...] | None = None, *,
+                default_scalar: ScalarLike | None = None,
+                strict: bool = False
+            ) -> ArrayOrContainerOrScalarT:
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
         if allowed_types is None:
@@ -182,17 +197,17 @@ class PyOpenCLArrayContext(ArrayContext):
             # is completely removed
             allowed_types = (tga.TaggableCLArray,)
 
-        def _wrapper(ary):
+        def _wrapper(ary: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
             if isinstance(ary, allowed_types):
-                return func(ary)
+                return func(cast("Array", ary))
             elif not strict and isinstance(ary, self.array_types):
                 from warnings import warn
                 warn(f"Invoking {type(self).__name__}.{func.__name__[1:]} with "
                     f"{type(ary).__name__} will be unsupported in 2023. Use "
                     "'to_tagged_cl_array' to convert instances to TaggableCLArray.",
                     DeprecationWarning, stacklevel=2)
-                return func(tga.to_tagged_cl_array(ary))
-            elif np.isscalar(ary):
+                return func(tga.to_tagged_cl_array(cast("cl_array.Array", ary)))
+            elif is_scalar_like(ary):
                 if default_scalar is None:
                     return ary
                 else:
@@ -203,7 +218,8 @@ class PyOpenCLArrayContext(ArrayContext):
                     f"an unsupported array type: got '{type(ary).__name__}', "
                     f"but expected one of {allowed_types}")
 
-        return rec_map_array_container(_wrapper, array)
+        return cast("ArrayOrContainerOrScalarT",
+                rec_map_array_container(_wrapper, array))
 
     # {{{ ArrayContext interface
 
@@ -238,19 +254,30 @@ class PyOpenCLArrayContext(ArrayContext):
 
         return with_array_context(self._rec_map_container(_thaw, array), actx=self)
 
-    def tag(self, tags: ToTagSetConvertible, array):
+    @override
+    def tag(self,
+            tags: ToTagSetConvertible,
+            array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         def _tag(ary):
             return ary.tagged(tags)
 
         return self._rec_map_container(_tag, array)
 
-    def tag_axis(self, iaxis: int, tags: ToTagSetConvertible, array):
-        def _tag_axis(ary):
-            return ary.with_tagged_axis(iaxis, tags)
+    @override
+    def tag_axis(self,
+                 iaxis: int, tags: ToTagSetConvertible,
+                 array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
+        def _tag_axis(ary: ArrayOrScalar) -> ArrayOrScalar:
+            return cast("TaggableCLArray", ary).with_tagged_axis(iaxis, tags)
 
-        return self._rec_map_container(_tag_axis, array)
+        return cast("ArrayOrContainerOrScalarT",
+                    rec_map_container(_tag_axis, array))
 
-    def call_loopy(self, t_unit, **kwargs):
+    @override
+    def call_loopy(self,
+                t_unit: TranslationUnit,
+                **kwargs: Any,
+            ) -> Mapping[str, TaggableCLArray]:
         try:
             executor = self._loopy_transform_cache[t_unit]
         except KeyError:
@@ -275,7 +302,8 @@ class PyOpenCLArrayContext(ArrayContext):
         # FIXME: Inherit loopy tags for these arrays
         return {name: tga.to_tagged_cl_array(ary) for name, ary in result.items()}
 
-    def clone(self):
+    @override
+    def clone(self) -> Self:
         if self._passed_force_device_scalars:
             return type(self)(self.queue, self.allocator,
                     wait_event_queue_length=self._wait_event_queue_length,
@@ -301,8 +329,6 @@ class PyOpenCLArrayContext(ArrayContext):
                 "(e.g. meshmode), which may already have subclasses you may want "
                 "to build on.",
                 UntransformedCodeWarning, stacklevel=2)
-
-        # accommodate loopy with and without kernel callables
 
         import loopy as lp
         default_entrypoint = t_unit.default_entrypoint

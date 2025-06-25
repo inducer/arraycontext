@@ -1,3 +1,5 @@
+# pyright: reportUnusedParameter=none
+
 from __future__ import annotations
 
 
@@ -25,23 +27,49 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
 import operator
 from abc import ABC, abstractmethod
-from typing import Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
 
-from arraycontext.container import NotAnArrayContainerError, serialize_container
-from arraycontext.container.traversal import rec_map_array_container
+from arraycontext.container import (
+    NotAnArrayContainerError,
+    is_array_container,
+    serialize_container,
+)
+from arraycontext.container.traversal import rec_map_container
+from arraycontext.context import ArrayOrContainer, ArrayOrContainerT, is_scalar_like
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from numpy.typing import DTypeLike, NDArray
+
+    from pymbolic import Scalar
+
+    from arraycontext.context import (
+        Array,
+        ArrayContext,
+        ArrayOrContainerOrScalar,
+        ArrayOrContainerOrScalarT,
+        ArrayOrScalar,
+        OrderCF,
+    )
 
 
 # {{{ BaseFakeNumpyNamespace
 
+@dataclass(frozen=True)
 class BaseFakeNumpyNamespace(ABC):
-    def __init__(self, array_context):
-        self._array_context = array_context
-        self.linalg = self._get_fake_numpy_linalg_namespace()
+    _array_context: ArrayContext
+    linalg: BaseFakeNumpyLinalgNamespace
+
+    def __init__(self, array_context: ArrayContext):
+        object.__setattr__(self, "_array_context", array_context)
+        object.__setattr__(self, "linalg", self._get_fake_numpy_linalg_namespace())
 
     def _get_fake_numpy_linalg_namespace(self):
         return BaseFakeNumpyLinalgNamespace(self._array_context)
@@ -101,28 +129,82 @@ class BaseFakeNumpyNamespace(ABC):
         })
 
     @abstractmethod
-    def zeros(self, shape, dtype):
+    def zeros(self, shape: int | tuple[int, ...], dtype: DTypeLike) -> Array:
         ...
+
+    def zeros_like(self, ary: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
+        return self.full_like(ary, 0)
 
     @abstractmethod
-    def zeros_like(self, ary):
+    def _full_like_array(self,
+                ary: Array,
+                fill_value: Scalar,
+            ) -> Array:
         ...
 
-    def conjugate(self, x):
+    def full_like(self,
+                ary: ArrayOrContainerOrScalarT,
+                fill_value: Scalar,
+            ) -> ArrayOrContainerOrScalarT:
+        def _zeros_like(array: ArrayOrScalar) -> ArrayOrScalar:
+            if is_scalar_like(array):
+                return fill_value
+            else:
+                return self._full_like_array(array, fill_value)
+
+        return cast("ArrayOrContainerOrScalarT", rec_map_container(_zeros_like, ary))
+
+    def ones_like(self, ary: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
+        return self.full_like(ary, 1)
+
+    def conjugate(self, x: ArrayOrContainerOrScalar):
         # NOTE: conjugate distributes over object arrays, but it looks for a
         # `conjugate` ufunc, while some implementations only have the shorter
         # `conj` (e.g. cl.array.Array), so this should work for everybody.
-        return rec_map_array_container(lambda obj: obj.conj(), x)
+        return rec_map_container(lambda obj: cast("Array", obj).conj(), x)
 
-    conj = conjugate
+    def conj(self, x: ArrayOrContainerOrScalar):
+        # NOTE: conjugate distributes over object arrays, but it looks for a
+        # `conjugate` ufunc, while some implementations only have the shorter
+        # `conj` (e.g. cl.array.Array), so this should work for everybody.
+        return rec_map_container(lambda obj: cast("Array", obj).conj(), x)
 
     # {{{ linspace
 
     # based on
     # https://github.com/numpy/numpy/blob/v1.25.0/numpy/core/function_base.py#L24-L182
 
-    def linspace(self, start, stop, num=50, endpoint=True, retstep=False, dtype=None,
-                axis=0):
+    @overload
+    def linspace(self,
+                start: NDArray[Any] | Scalar,
+                stop: NDArray[Any] | Scalar,
+                num: int = 50,
+                *, endpoint: bool = True,
+                retstep: Literal[False] = False,
+                dtype: DTypeLike = None,
+                axis: int = 0
+            ) -> Array: ...
+
+    @overload
+    def linspace(self,
+                start: NDArray[Any] | Scalar,
+                stop: NDArray[Any] | Scalar,
+                num: int = 50,
+                *, endpoint: bool = True,
+                retstep: Literal[True],
+                dtype: DTypeLike = None,
+                axis: int = 0
+            ) -> tuple[Array, NDArray[Any] | float] | Array: ...
+
+    def linspace(self,
+                start: NDArray[Any] | Scalar,
+                stop: NDArray[Any] | Scalar,
+                num: int = 50,
+                *, endpoint: bool = True,
+                retstep: bool = False,
+                dtype: DTypeLike = None,
+                axis: int = 0
+            ) -> tuple[Array, NDArray[Any] | float] | Array:
         num = operator.index(num)
         if num < 0:
             raise ValueError(f"Number of samples, {num}, must be non-negative.")
@@ -149,7 +231,7 @@ class BaseFakeNumpyNamespace(ABC):
 
         delta = stop - start
 
-        y = self.arange(0, num, dtype=dt).reshape((-1,) + (1,) * delta.ndim)
+        y = self.arange(0, num, dtype=dt).reshape(-1, *((1,) * delta.ndim))
 
         if div > 0:
             step = delta / div
@@ -172,7 +254,7 @@ class BaseFakeNumpyNamespace(ABC):
             # Multiply with delta to allow possible override of output class.
             y = y * delta_actx
 
-        y += start
+        y += self._array_context.from_numpy(start)
 
         # FIXME reenable, without in-place ops
         # if endpoint and num > 1:
@@ -183,28 +265,225 @@ class BaseFakeNumpyNamespace(ABC):
             raise NotImplementedError("axis != 0")
 
         if integer_dtype:
-            y = self.floor(y)  # pylint: disable=no-member
+            y = self.floor(y)
 
-        # FIXME: Use astype
-        # https://github.com/inducer/pytato/issues/456
         if retstep:
-            return y, step
-            # return y.astype(dtype), step
+            return y.astype(dtype), step
         else:
-            return y
-            # return y.astype(dtype)
+            return y.astype(dtype)
 
     # }}}
 
-    def arange(self, *args: Any, **kwargs: Any):
+    def arange(self, *args: Any, **kwargs: Any) -> Array:
         raise NotImplementedError
+
+    def reshape(self,
+                a: ArrayOrContainer,
+                /, shape: tuple[int, ...],
+                order: OrderCF = "C"):
+        def inner(a: ArrayOrScalar) -> Array:
+            if is_scalar_like(a):
+                raise ValueError("reshape not meaningful for scalars")
+
+            return a.reshape(shape, order=order)
+
+        return rec_map_container(inner, a)
+
+    def transpose(self,
+                a: ArrayOrContainer,
+                /, axes: tuple[int, ...],
+                ):
+        def inner(a: ArrayOrScalar) -> ArrayOrScalar:
+            if is_scalar_like(a):
+                return a
+
+            return a.transpose(axes)
+
+        return rec_map_container(inner, a)
+
+    if TYPE_CHECKING:
+        # These at least pin down the type signatures. We cannot use abstract methods
+        # here, because some of these are implemented via __getattr__ hacking in
+        # subclasses. Defining them as abstract methods would define them
+        # as attributes, making __getattr__ fail to retrieve the intended function.
+
+        def broadcast_to(self,
+                array: ArrayOrContainerOrScalar,
+                shape: tuple[int, ...]
+            ) -> ArrayOrContainerOrScalar: ...
+
+        def concatenate(self,
+                    arrays: Sequence[ArrayOrContainerT],
+                    axis: int = 0
+                ) -> ArrayOrContainerT: ...
+
+        def stack(self,
+                    arrays: Sequence[ArrayOrContainerT],
+                    axis: int = 0
+                ) -> ArrayOrContainerT: ...
+
+        def ravel(self,
+                    a: ArrayOrContainerOrScalarT,
+                    order: OrderCF = "C"
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def array_equal(self,
+                    a: ArrayOrContainerOrScalar,
+                    b: ArrayOrContainerOrScalar
+                ) -> Array: ...
+
+        def sqrt(self,
+                    a: ArrayOrContainerOrScalarT,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def abs(self,
+                    a: ArrayOrContainerOrScalarT,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def sin(self,
+                    a: ArrayOrContainerOrScalarT,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def cos(self,
+                    a: ArrayOrContainerOrScalarT,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def floor(self,
+                    a: ArrayOrContainerOrScalarT,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def ceil(self,
+                    a: ArrayOrContainerOrScalarT,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        # {{{ binary/ternary ufuncs
+
+        # FIXME: These are more restrictive than necessary, but they'll do the job
+        # for now.
+
+        def minimum(self,
+                    a: ArrayOrContainerOrScalarT,
+                    b: ArrayOrContainerOrScalarT,
+                    /,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def maximum(self,
+                    a: ArrayOrContainerOrScalarT,
+                    b: ArrayOrContainerOrScalarT,
+                    /,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def atan2(self,
+                    a: ArrayOrContainerOrScalarT,
+                    b: ArrayOrContainerOrScalarT,
+                    /,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        def where(self,
+                    condition: ArrayOrContainerOrScalarT,
+                    x: ArrayOrContainerOrScalar,
+                    y: ArrayOrContainerOrScalar,
+                    /,
+                ) -> ArrayOrContainerOrScalarT: ...
+
+        # }}}
+
+        # {{{ reductions
+
+        def sum(self,
+                    a: ArrayOrContainerOrScalar,
+                    axis: int | tuple[int, ...] | None = None,
+                    dtype: DTypeLike = None,
+                ) -> ArrayOrScalar: ...
+
+        def max(self,
+                    a: ArrayOrContainerOrScalar,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> ArrayOrScalar: ...
+
+        def min(self,
+                    a: ArrayOrContainerOrScalar,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> ArrayOrScalar: ...
+
+        def amax(self,
+                    a: ArrayOrContainerOrScalar,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> ArrayOrScalar: ...
+
+        def amin(self,
+                    a: ArrayOrContainerOrScalar,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> ArrayOrScalar: ...
+
+        def any(self,
+                    a: ArrayOrContainerOrScalar,
+                ) -> ArrayOrScalar: ...
+
+        def all(self,
+                    a: ArrayOrContainerOrScalar,
+                ) -> ArrayOrScalar: ...
+
+        # }}}
+
+        # FIXME: This should be documentation, not a comment.
+        # These are here mainly because some arrays may choose to interpret
+        # equality comparison as a binary predicate of structural identity,
+        # i.e. more like "are you two equal", and not like numpy semantics.
+        # These operations provide access to numpy-style comparisons in that
+        # case.
+
+        def greater(
+                    self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+                ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def greater_equal(
+                          self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+                      ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def less(
+                 self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+             ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def less_equal(
+                       self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+                   ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def equal(
+                  self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+              ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def not_equal(
+                      self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+                  ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def logical_or(
+                       self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+                   ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def logical_and(
+                        self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
+                    ) -> ArrayOrContainerOrScalar:
+            ...
+
+        def logical_not(
+                        self, x: ArrayOrContainerOrScalar
+                    ) -> ArrayOrContainerOrScalar:
+            ...
 
 # }}}
 
 
 # {{{ BaseFakeNumpyLinalgNamespace
 
-def _reduce_norm(actx, arys, ord):
+def _reduce_norm(actx: ArrayContext, arys: Iterable[ArrayOrScalar], ord: float | None):
     from functools import reduce
     from numbers import Number
 
@@ -225,11 +504,16 @@ def _reduce_norm(actx, arys, ord):
 
 
 class BaseFakeNumpyLinalgNamespace:
-    def __init__(self, array_context):
+    _array_context: ArrayContext
+
+    def __init__(self, array_context: ArrayContext):
         self._array_context = array_context
 
-    def norm(self, ary, ord=None):
-        if np.isscalar(ary):
+    def norm(self,
+                 ary: ArrayOrContainerOrScalar,
+                 ord: float | None = None
+             ) -> ArrayOrScalar:
+        if is_scalar_like(ary):
             return abs(ary)
 
         actx = self._array_context
@@ -239,12 +523,18 @@ class BaseFakeNumpyLinalgNamespace:
         except NotAnArrayContainerError:
             pass
         else:
+            if TYPE_CHECKING:
+                assert is_array_container(ary)
+
             return _reduce_norm(actx, [
                 self.norm(subary, ord=ord) for _, subary in iterable
                 ], ord=ord)
 
+        if TYPE_CHECKING:
+            assert not is_array_container(ary)
+
         if ord is None:
-            return self.norm(actx.np.ravel(ary, order="A"), 2)
+            return self.norm(actx.np.ravel(ary, order="C"), 2)
 
         if len(ary.shape) != 1:
             raise NotImplementedError("only vector norms are implemented")

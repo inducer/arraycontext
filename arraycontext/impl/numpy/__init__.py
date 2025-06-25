@@ -8,6 +8,8 @@ A :mod:`numpy`-based array context.
 
 from __future__ import annotations
 
+from typing_extensions import override
+
 
 __copyright__ = """
 Copyright (C) 2021 University of Illinois Board of Trustees
@@ -33,13 +35,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
 import loopy as lp
 
-from arraycontext.container.traversal import rec_map_array_container, with_array_context
+from arraycontext.container.traversal import (
+    rec_map_array_container as rec_map_array_container,
+    rec_map_container,
+    with_array_context,
+)
 from arraycontext.context import (
     Array,
     ArrayContext,
@@ -52,6 +58,7 @@ from arraycontext.context import (
 
 
 if TYPE_CHECKING:
+    from pymbolic import Scalar
     from pytools.tag import ToTagSetConvertible
 
 
@@ -85,20 +92,30 @@ class NumpyArrayContext(ArrayContext):
 
     # {{{ ArrayContext interface
 
+    @override
     def clone(self):
         return type(self)()
 
     @overload
-    def from_numpy(self, array: np.ndarray) -> Array:
+    # FIXME: object arrays are containers, so pyright has a point.
+    # Maybe introduce a separate (type-check-only) NumpyObjectArray type?
+    def from_numpy(self, array: np.ndarray) -> Array:  # pyright: ignore[reportOverlappingOverload]
+        ...
+
+    @overload
+    def from_numpy(self, array: Scalar) -> Array:
         ...
 
     @overload
     def from_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
         ...
 
+    @override
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
+        if np.isscalar(array):
+            return np.array(array)
         return array
 
     @overload
@@ -109,11 +126,13 @@ class NumpyArrayContext(ArrayContext):
     def to_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
         ...
 
+    @override
     def to_numpy(self,
                  array: ArrayOrContainerOrScalar
                  ) -> NumpyOrContainerOrScalar:
-        return array
+        return cast("NumpyOrContainerOrScalar", array)
 
+    @override
     def call_loopy(
                 self,
                 t_unit: lp.TranslationUnit, **kwargs: Any
@@ -129,17 +148,19 @@ class NumpyArrayContext(ArrayContext):
 
         return result
 
-    def freeze(self, array):
+    @override
+    def freeze(self, array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         def _freeze(ary):
             return ary
 
-        return with_array_context(rec_map_array_container(_freeze, array), actx=None)
+        return with_array_context(rec_map_container(_freeze, array), actx=None)
 
-    def thaw(self, array):
+    @override
+    def thaw(self, array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         def _thaw(ary):
             return ary
 
-        return with_array_context(rec_map_array_container(_thaw, array), actx=self)
+        return with_array_context(rec_map_container(_thaw, array), actx=self)
 
     # }}}
 

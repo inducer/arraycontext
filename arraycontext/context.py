@@ -1,5 +1,3 @@
-# mypy: disallow-untyped-defs
-
 """
 .. _freeze-thaw:
 
@@ -102,6 +100,9 @@ Types and Type Variables for Arrays and Containers
 
 See also :class:`ArrayContainer` and :class:`ArrayOrContainerT`.
 
+.. autoclass:: ArrayOrScalar
+.. autodata:: ArrayOrScalarT
+
 .. autodata:: ArrayOrContainer
 
 .. autodata:: ArrayOrContainerT
@@ -179,29 +180,41 @@ from typing import (
     Any,
     Literal,
     Protocol,
+    SupportsInt,
     TypeAlias,
     TypeVar,
+    cast,
     overload,
 )
 from warnings import warn
 
-from typing_extensions import Self
+import numpy as np
+from typing_extensions import Self, TypeIs
 
-from pymbolic.typing import Integer, Scalar as _Scalar
 from pytools import memoize_method
 
 
 if TYPE_CHECKING:
-    import numpy as np
     from numpy.typing import DTypeLike
 
     import loopy
+    from pymbolic.typing import Integer, Scalar as _Scalar
     from pytools.tag import ToTagSetConvertible
 
-    from arraycontext.container import ArithArrayContainer, ArrayContainer
+    from arraycontext.container import (
+        ArithArrayContainer,
+        ArrayContainer,
+        ArrayContainerT,
+    )
+    from arraycontext.fake_numpy import BaseFakeNumpyNamespace
 
 
 # {{{ typing
+
+# We won't support 'A' and 'K', since they depend on in-memory order; that is
+# not intended to be a meaningful concept for actx arrays.
+OrderCF: TypeAlias = Literal["C"] | Literal["F"]
+
 
 class Array(Protocol):
     """A :class:`~typing.Protocol` for the array type supported by
@@ -225,6 +238,8 @@ class Array(Protocol):
     @property
     def size(self) -> Array | Integer:
         ...
+
+    def __len__(self) -> int: ...
 
     @property
     def dtype(self) -> np.dtype[Any]:
@@ -264,36 +279,34 @@ class Array(Protocol):
 
     def astype(self, dtype: DTypeLike) -> Array: ...
 
-    def reshape(self,
-            *shape: int,
-            order: Literal["C"] | Literal["F"]
-        ) -> Array: ...
+    # Annoyingly, numpy 2.3.1 (and likely earlier) treats these differently when
+    # reshaping to the empty shape (), so we need to expose both.
+    @overload
+    def reshape(self, *shape: int, order: OrderCF = "C") -> Array: ...
+
+    @overload
+    def reshape(self, shape: tuple[int, ...], /, *, order: OrderCF = "C") -> Array: ...
+
+    @property
+    def T(self) -> Array: ...  # noqa: N802
+
+    def transpose(self, axes: tuple[int, ...]) -> Array: ...
 
 
 # deprecated, use ScalarLike instead
-Scalar = _Scalar
+Scalar: TypeAlias = "_Scalar"
 ScalarLike = Scalar
 ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
-# NOTE: I'm kind of not sure about the *Tc versions of these type variables.
-# mypy seems better at understanding arithmetic performed on the *Tc versions
-# than the *T, versions, whereas pyright doesn't seem to care.
-#
-# This issue seems to be part of it:
-# https://github.com/python/mypy/issues/18203
-# but there is likely other stuff lurking.
-#
-# For now, they're purposefully not in the main arraycontext.* name space.
 ArrayT = TypeVar("ArrayT", bound=Array)
-ArrayOrScalar: TypeAlias = Array | ScalarLike
+ArrayOrScalar: TypeAlias = "Array | _Scalar"
+ArrayOrScalarT = TypeVar("ArrayOrScalarT", bound=ArrayOrScalar)
 ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
 ArrayOrArithContainer: TypeAlias = "Array | ArithArrayContainer"
-ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
-ArrayOrContainerTc = TypeVar("ArrayOrContainerTc",
-                            Array, "ArrayContainer", "ArithArrayContainer")
-ArrayOrArithContainerT = TypeVar("ArrayOrArithContainerT", bound=ArrayOrArithContainer)
 ArrayOrArithContainerTc = TypeVar("ArrayOrArithContainerTc",
                                  Array, "ArithArrayContainer")
+ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
+ArrayOrArithContainerT = TypeVar("ArrayOrArithContainerT", bound=ArrayOrArithContainer)
 ArrayOrContainerOrScalar: TypeAlias = "Array | ArrayContainer | ScalarLike"
 ArrayOrArithContainerOrScalar: TypeAlias = "Array | ArithArrayContainer | ScalarLike"
 ArrayOrContainerOrScalarT = TypeVar(
@@ -302,18 +315,30 @@ ArrayOrContainerOrScalarT = TypeVar(
 ArrayOrArithContainerOrScalarT = TypeVar(
         "ArrayOrArithContainerOrScalarT",
         bound=ArrayOrArithContainerOrScalar)
-ArrayOrContainerOrScalarTc = TypeVar(
-        "ArrayOrContainerOrScalarTc",
-        ScalarLike, Array, "ArrayContainer", "ArithArrayContainer")
-ArrayOrArithContainerOrScalarTc = TypeVar(
-        "ArrayOrArithContainerOrScalarTc",
-        ScalarLike, Array, "ArithArrayContainer")
 
 
 ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | ScalarLike")
 
 
 NumpyOrContainerOrScalar: TypeAlias = "np.ndarray | ArrayContainer | ScalarLike"
+
+
+def is_scalar_like(x: object, /) -> TypeIs[Scalar]:
+    return np.isscalar(x)
+
+
+def shape_is_int_only(shape: tuple[Array | Integer, ...], /) -> tuple[int, ...]:
+    res: list[int] = []
+    for i, s in enumerate(shape):
+        try:
+            res.append(int(cast("SupportsInt", s)))
+        except TypeError:
+            raise TypeError(
+                    "only non-parametric shapes are allowed in this context, "
+                    f"axis {i+1} is {type(s)}"
+                ) from None
+
+    return tuple(res)
 
 # }}}
 
@@ -369,11 +394,13 @@ class ArrayContext(ABC):
 
     array_types: tuple[type, ...] = ()
 
+    np: BaseFakeNumpyNamespace
+
     def __init__(self) -> None:
         self.np = self._get_fake_numpy_namespace()
 
     @abstractmethod
-    def _get_fake_numpy_namespace(self) -> Any:
+    def _get_fake_numpy_namespace(self) -> BaseFakeNumpyNamespace:
         ...
 
     def __hash__(self) -> int:
@@ -389,11 +416,17 @@ class ArrayContext(ABC):
         return self.np.zeros(shape, dtype)
 
     @overload
-    def from_numpy(self, array: np.ndarray) -> Array:
+    # FIXME: object arrays are containers, so pyright has a point.
+    # Maybe introduce a separate (type-check-only) NumpyObjectArray type?
+    def from_numpy(self, array: np.ndarray) -> Array:  # pyright: ignore[reportOverlappingOverload]
         ...
 
     @overload
-    def from_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+    def from_numpy(self, array: ScalarLike) -> Array:
+        ...
+
+    @overload
+    def from_numpy(self, array: ArrayContainerT) -> ArrayContainerT:
         ...
 
     @abstractmethod
@@ -432,7 +465,7 @@ class ArrayContext(ABC):
     @abstractmethod
     def call_loopy(self,
                    t_unit: loopy.TranslationUnit,
-                   **kwargs: Any) -> dict[str, Array]:
+                   **kwargs: Any) -> Mapping[str, Array]:
         """Execute the :mod:`loopy` program *program* on the arguments
         *kwargs*.
 
@@ -488,7 +521,7 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag(self,
             tags: ToTagSetConvertible,
-            array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
+            array: ArrayOrContainerT) -> ArrayOrContainerT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* with the *tags* applied. *array*
         itself is not modified. When working with array containers, the
@@ -502,7 +535,7 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag_axis(self,
                  iaxis: int, tags: ToTagSetConvertible,
-                 array: ArrayOrContainerT) -> ArrayOrContainerT:
+                 array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* in which axis number *iaxis* has
         the *tags* applied. *array* itself is not modified. When working with
@@ -649,7 +682,7 @@ ArrayContextFactory: TypeAlias = Callable[[], ArrayContext]
 def tag_axes(
         actx: ArrayContext,
         dim_to_tags: Mapping[int, ToTagSetConvertible],
-        ary: ArrayOrContainerT) -> ArrayOrContainerT:
+        ary: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
     """
     Return a copy of *ary* with the axes in *dim_to_tags* tagged with their
     corresponding tags. Equivalent to repeated application of
