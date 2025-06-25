@@ -3,6 +3,8 @@
 """
 .. currentmodule:: arraycontext
 
+.. autofunction:: rec_map_container
+
 .. autofunction:: map_array_container
 .. autofunction:: multimap_array_container
 .. autofunction:: rec_map_array_container
@@ -43,8 +45,6 @@ Algebraic operations
 
 from __future__ import annotations
 
-from arraycontext.container.arithmetic import NumpyObjectArray
-
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -71,21 +71,24 @@ THE SOFTWARE.
 """
 
 from functools import partial, singledispatch, update_wrapper
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, overload
 from warnings import warn
 
 import numpy as np
-
-from pymbolic.typing import Integer
+from typing_extensions import deprecated
 
 from arraycontext.container import (
     ArrayContainer,
+    ArrayContainerT,
     NotAnArrayContainerError,
     SerializationKey,
     deserialize_container,
     get_container_context_recursively_opt,
+    is_array_container,
     serialize_container,
 )
+from arraycontext.container.arithmetic import NumpyObjectArray
+from arraycontext.context import is_scalar_like, shape_is_int_only
 
 
 if TYPE_CHECKING:
@@ -96,18 +99,52 @@ if TYPE_CHECKING:
         ArrayContext,
         ArrayOrContainer,
         ArrayOrContainerOrScalar,
+        ArrayOrContainerOrScalarT,
         ArrayOrContainerT,
+        ArrayOrScalar,
         ScalarLike,
     )
 
 
 # {{{ array container traversal helpers
 
-def _map_array_container_impl(
-        f: Callable[[ArrayOrContainer], ArrayOrContainer],
-        ary: ArrayOrContainer, *,
-        leaf_cls: type | None = None,
-        recursive: bool = False) -> ArrayOrContainer:
+@overload
+def rec_map_container(
+            f: Callable[[ArrayOrScalar], ArrayOrScalar],
+            ary: ArrayContainerT,
+        ) -> ArrayContainerT: ...
+
+@overload
+def rec_map_container(
+            f: Callable[[ArrayOrScalar], ArrayOrScalar],
+            ary: ArrayOrContainerOrScalar,
+        ) -> ArrayOrContainerOrScalar: ...
+
+
+def rec_map_container(
+            f: Callable[[ArrayOrScalar], ArrayOrScalar],
+            ary: ArrayOrContainerOrScalar,
+        ) -> ArrayOrContainerOrScalar:
+    def rec(ary_: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
+        try:
+            iterable = serialize_container(ary_)
+        except NotAnArrayContainerError:
+            if TYPE_CHECKING:
+                assert not is_array_container(ary_)
+
+            return f(ary_)
+        else:
+            return deserialize_container(ary_, [
+                (key, rec(subary)) for key, subary in iterable
+                ])
+    return rec(ary)
+
+
+def _rec_map_array_container_impl_with_leaf_cls(
+            f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+            ary: ArrayOrContainerOrScalar, *,
+            leaf_cls: type | None = None,
+        ) -> ArrayOrContainerOrScalar:
     """Helper for :func:`rec_map_array_container`.
 
     :param leaf_cls: class on which we call *f* directly. This is mostly
@@ -115,7 +152,8 @@ def _map_array_container_impl(
         specific container classes. By default, the recursion is stopped when
         a non-:class:`ArrayContainer` class is encountered.
     """
-    def rec(ary_: ArrayOrContainer) -> ArrayOrContainer:
+
+    def rec(ary_: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
         if type(ary_) is leaf_cls:  # type(ary) is never None
             return f(ary_)
 
@@ -125,10 +163,36 @@ def _map_array_container_impl(
             return f(ary_)
         else:
             return deserialize_container(ary_, [
-                (key, frec(subary)) for key, subary in iterable
+                (key, rec(subary)) for key, subary in iterable
                 ])
+    return rec(ary)
 
-    frec = rec if recursive else f
+
+def _nonrec_map_array_container_impl_with_leaf_cls(
+            f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+            ary: ArrayOrContainerOrScalar, *,
+            leaf_cls: type | None = None,
+        ) -> ArrayOrContainerOrScalar:
+    """Helper for :func:`rec_map_array_container`.
+
+    :param leaf_cls: class on which we call *f* directly. This is mostly
+        useful in the recursive setting, where it can stop the recursion on
+        specific container classes. By default, the recursion is stopped when
+        a non-:class:`ArrayContainer` class is encountered.
+    """
+
+    def rec(ary_: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
+        if type(ary_) is leaf_cls:  # type(ary) is never None
+            return f(ary_)
+
+        try:
+            iterable = serialize_container(ary_)
+        except NotAnArrayContainerError:
+            return f(ary_)
+        else:
+            return deserialize_container(ary_, [
+                (key, f(subary)) for key, subary in iterable
+                ])
     return rec(ary)
 
 
@@ -138,7 +202,7 @@ def _multimap_array_container_impl(
         reduce_func: (
             Callable[[ArrayContainer, Iterable[tuple[Any, Any]]], Any] | None) = None,
         leaf_cls: type | None = None,
-        recursive: bool = False) -> ArrayOrContainer:
+        recursive: bool = False) -> ArrayOrContainerOrScalar:
     """Helper for :func:`rec_multimap_array_container`.
 
     :param leaf_cls: class on which we call *f* directly. This is mostly
@@ -217,16 +281,26 @@ def _multimap_array_container_impl(
     if len(container_indices) == 1 and reduce_func is None:
         # NOTE: if we just have one ArrayContainer in args, passing it through
         # _map_array_container_impl should be faster
-        def wrapper(ary: ArrayOrContainerT) -> ArrayOrContainerT:
+        def wrapper(ary: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
             new_args = list(args)
             new_args[container_indices[0]] = ary
             return f(*new_args)
 
         update_wrapper(wrapper, f)
         template_ary: ArrayContainer = args[container_indices[0]]
-        return _map_array_container_impl(
-                wrapper, template_ary,
-                leaf_cls=leaf_cls, recursive=recursive)
+        if leaf_cls is None:
+            if recursive:
+                return rec_map_container(wrapper, template_ary)
+            else:
+                return _nonrec_map_array_container_impl_with_leaf_cls(
+                        wrapper, template_ary, leaf_cls=leaf_cls)
+        else:
+            if recursive:
+                return _rec_map_array_container_impl_with_leaf_cls(
+                        wrapper, template_ary, leaf_cls=leaf_cls)
+            else:
+                return _nonrec_map_array_container_impl_with_leaf_cls(
+                        wrapper, template_ary, leaf_cls=leaf_cls)
 
     # }}}
 
@@ -249,7 +323,7 @@ def stringify_array_container_tree(ary: ArrayOrContainer) -> str:
     :returns: a string for an ASCII tree representation of the array container,
         similar to `asciitree <https://github.com/mbr/asciitree>`__.
     """
-    def rec(lines: list[str], ary_: ArrayOrContainerT, level: int) -> None:
+    def rec(lines: list[str], ary_: ArrayOrContainerOrScalar, level: int) -> None:
         try:
             iterable = serialize_container(ary_)
         except NotAnArrayContainerError:
@@ -268,9 +342,20 @@ def stringify_array_container_tree(ary: ArrayOrContainer) -> str:
     return "\n".join(lines)
 
 
+@overload
 def map_array_container(
-        f: Callable[[Any], Any],
-        ary: ArrayOrContainer) -> ArrayOrContainer:
+        f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+        ary: ArrayContainerT) -> ArrayContainerT: ...
+
+@overload
+def map_array_container(
+        f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+        ary: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar: ...
+
+
+def map_array_container(
+        f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+        ary: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
 
     Works similarly to :func:`~pytools.obj_array.obj_array_vectorize`, but
@@ -306,10 +391,41 @@ def multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
     return _multimap_array_container_impl(f, *args, recursive=False)
 
 
+@overload
+# container, no leaf_class
 def rec_map_array_container(
-        f: Callable[[Any], Any],
-        ary: ArrayOrContainer,
-        leaf_class: type | None = None) -> ArrayOrContainer:
+        f: Callable[[ArrayOrScalar], ArrayOrScalar],
+        ary: ArrayContainerT,
+        leaf_class: None = None) -> ArrayContainerT: ...
+
+@overload
+# no leaf_class
+@deprecated("Use rec_map_container instead.")
+def rec_map_array_container(
+        f: Callable[[ArrayOrScalar], ArrayOrScalar],
+        ary: ArrayOrContainerOrScalar,
+        leaf_class: None = None) -> ArrayOrContainerOrScalar: ...
+
+@overload
+# container, with leaf_class
+def rec_map_array_container(
+        f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+        ary: ArrayContainerT,
+        leaf_class: type | None = None) -> ArrayContainerT: ...
+
+@overload
+# with leaf_class
+def rec_map_array_container(
+        f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+        ary: ArrayOrContainerOrScalar,
+        leaf_class: type | None = None) -> ArrayOrContainerOrScalar: ...
+
+
+def rec_map_array_container(
+        f: (Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]
+            | Callable[[ArrayOrScalar], ArrayOrScalar]),
+        ary: ArrayOrContainerOrScalar,
+        leaf_class: type | None = None) -> ArrayOrContainerOrScalar:
     r"""Applies *f* recursively to an :class:`ArrayContainer`.
 
     For a non-recursive version see :func:`map_array_container`.
@@ -317,19 +433,45 @@ def rec_map_array_container(
     :param ary: a (potentially nested) structure of :class:`ArrayContainer`\ s,
         or an instance of a base array type.
     """
-    return _map_array_container_impl(f, ary, leaf_cls=leaf_class, recursive=True)
+    if leaf_class is None:
+        # Rely on the type checker deprecation for now. This causes a flood
+        # of warnings in user packages that makes CI logs unusable.
+        #
+        # warn("Calling rec_map_array_container without leaf_class "
+        #      "is deprecated. Prefer the simpler rec_map_container.",
+        #      DeprecationWarning, stacklevel=2)
+        return rec_map_container(
+                    cast("Callable[[ArrayOrScalar], ArrayOrScalar]", f), ary)
+    return _rec_map_array_container_impl_with_leaf_cls(
+            cast("Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]", f),
+            ary, leaf_cls=leaf_class)
+
+
+@overload
+def mapped_over_array_containers(
+        f: None = None,
+        leaf_class: type | None = None) -> Callable[
+                [Callable[[Any], Any]],
+                Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]]: ...
+
+@overload
+def mapped_over_array_containers(
+        f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar],
+        leaf_class: type | None = None
+    ) -> Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]: ...
 
 
 def mapped_over_array_containers(
-        f: Callable[[ArrayOrContainer], ArrayOrContainer] | None = None,
+        f: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar] | None = None,
         leaf_class: type | None = None) -> (
-            Callable[[ArrayOrContainer], ArrayOrContainer]
+            Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]
             | Callable[
                 [Callable[[Any], Any]],
-                Callable[[ArrayOrContainer], ArrayOrContainer]]):
+                Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]]):
     """Decorator around :func:`rec_map_array_container`."""
-    def decorator(g: Callable[[ArrayOrContainer], ArrayOrContainer]) -> Callable[
-            [ArrayOrContainer], ArrayOrContainer]:
+    def decorator(
+                g: Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]
+            ) -> Callable[[ArrayOrContainerOrScalar], ArrayOrContainerOrScalar]:
         wrapper = partial(rec_map_array_container, g, leaf_class=leaf_class)
         update_wrapper(wrapper, g)
         return wrapper
@@ -380,9 +522,9 @@ def multimapped_over_array_containers(
 
 def keyed_map_array_container(
         f: Callable[
-            [SerializationKey, ArrayOrContainer],
+            [SerializationKey, ArrayOrContainerOrScalar],
             ArrayOrContainer],
-        ary: ArrayOrContainer) -> ArrayOrContainer:
+        ary: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
 
     Works similarly to :func:`map_array_container`, but *f* also takes an
@@ -404,9 +546,20 @@ def keyed_map_array_container(
             ])
 
 
+@overload
 def rec_keyed_map_array_container(
-        f: Callable[[tuple[SerializationKey, ...], Array], Array],
-        ary: ArrayOrContainer) -> ArrayOrContainer:
+        f: Callable[[tuple[SerializationKey, ...], ArrayOrScalar], ArrayOrScalar],
+        ary: ArrayContainerT) -> ArrayContainerT: ...
+
+@overload
+def rec_keyed_map_array_container(
+        f: Callable[[tuple[SerializationKey, ...], ArrayOrScalar], ArrayOrScalar],
+        ary: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar: ...
+
+
+def rec_keyed_map_array_container(
+        f: Callable[[tuple[SerializationKey, ...], ArrayOrScalar], ArrayOrScalar],
+        ary: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
     """
     Works similarly to :func:`rec_map_array_container`, except that *f* also
     takes in a traversal path to the leaf array. The traversal path argument is
@@ -414,11 +567,11 @@ def rec_keyed_map_array_container(
     the current array.
     """
     def rec(keys: tuple[SerializationKey, ...],
-            ary_: ArrayOrContainer) -> ArrayOrContainer:
+            ary_: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
         try:
             iterable = serialize_container(ary_)
         except NotAnArrayContainerError:
-            return cast("ArrayOrContainer", f(keys, cast("Array", ary_)))
+            return cast("ArrayOrContainer", f(keys, cast("ArrayOrScalar", ary_)))
         else:
             return deserialize_container(ary_, [
                 (key, rec((*keys, key), subary)) for key, subary in iterable
@@ -457,7 +610,7 @@ def map_reduce_array_container(
 def multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[..., Any],
-        *args: Any) -> ArrayOrContainer:
+        *args: Any) -> ArrayOrContainerOrScalar:
     r"""Perform a map-reduce over multiple array containers.
 
     :param reduce_func: callable used to reduce over the components of any
@@ -479,11 +632,26 @@ def multimap_reduce_array_container(
         reduce_func=_reduce_wrapper, leaf_cls=None, recursive=False)
 
 
+@overload
+def rec_map_reduce_array_container(
+        reduce_func: Callable[[Iterable[Any]], Any],
+        map_func: Callable[[Any], Any],
+        ary: ArrayOrContainerOrScalar,
+        leaf_class: None = None) -> ArrayOrScalar: ...
+
+@overload
 def rec_map_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[[Any], Any],
         ary: ArrayOrContainer,
-        leaf_class: type | None = None) -> ArrayOrContainer:
+        leaf_class: type | None = None) -> ArrayOrContainerOrScalar: ...
+
+
+def rec_map_reduce_array_container(
+        reduce_func: Callable[[Iterable[Any]], Any],
+        map_func: Callable[[Any], Any],
+        ary: ArrayOrContainerOrScalar,
+        leaf_class: type | None = None) -> ArrayOrContainerOrScalar:
     """Perform a map-reduce over array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of *ary*
@@ -521,7 +689,7 @@ def rec_map_reduce_array_container(
 
         or any other such traversal.
     """
-    def rec(ary_: ArrayOrContainerT) -> ArrayOrContainerT:
+    def rec(ary_: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
         if type(ary_) is leaf_class:
             return map_func(ary_)
         else:
@@ -541,7 +709,7 @@ def rec_multimap_reduce_array_container(
         reduce_func: Callable[[Iterable[Any]], Any],
         map_func: Callable[..., Any],
         *args: Any,
-        leaf_class: type | None = None) -> ArrayOrContainer:
+        leaf_class: type | None = None) -> ArrayOrContainerOrScalar:
     r"""Perform a map-reduce over multiple array containers recursively.
 
     :param reduce_func: callable used to reduce over the components of any
@@ -697,7 +865,7 @@ def flatten(
     """
     common_dtype = None
 
-    def _flatten(subary: ArrayOrContainer) -> list[Array]:
+    def _flatten(subary: ArrayOrContainerOrScalar) -> list[Array]:
         nonlocal common_dtype
 
         try:
@@ -728,7 +896,7 @@ def flatten(
                         "This functionality needs to be implemented by the "
                         "array context.") from exc
 
-            result = [flat_subary]
+            result: list[Array] = [flat_subary]
         else:
             result = []
             for _, isubary in iterable:
@@ -736,7 +904,7 @@ def flatten(
 
         return result
 
-    def _flatten_without_leaf_class(subary: ArrayOrContainer) -> Any:
+    def _flatten_without_leaf_class(subary: ArrayOrContainerOrScalar) -> Any:
         result = _flatten(subary)
 
         if len(result) == 1:
@@ -744,7 +912,7 @@ def flatten(
         else:
             return actx.np.concatenate(result)
 
-    def _flatten_with_leaf_class(subary: ArrayOrContainer) -> Any:
+    def _flatten_with_leaf_class(subary: ArrayOrContainerOrScalar) -> Any:
         if type(subary) is leaf_class:
             return _flatten_without_leaf_class(subary)
 
@@ -784,7 +952,9 @@ def unflatten(
     offset: int = 0
     common_dtype = None
 
-    def _unflatten(template_subary: ArrayOrContainer) -> ArrayOrContainer:
+    def _unflatten(
+                template_subary: ArrayOrContainerOrScalar
+            ) -> ArrayOrContainerOrScalar:
         nonlocal offset, common_dtype
 
         try:
@@ -795,9 +965,9 @@ def unflatten(
             # {{{ validate subary
 
             if (
-                    isinstance(offset, Integer)
-                    and isinstance(template_subary_c.size, Integer)
-                    and isinstance(ary.size, Integer)
+                    isinstance(offset, (int, np.integer))
+                    and isinstance(template_subary_c.size, (int, np.integer))
+                    and isinstance(ary.size, (int, np.integer))
                     and (offset + template_subary_c.size) > ary.size):
                 raise ValueError("'template' and 'ary' sizes do not match: "
                     "'template' is too large") from None
@@ -821,7 +991,7 @@ def unflatten(
 
             # {{{ reshape
 
-            if not isinstance(template_subary_c.size, Integer):
+            if not isinstance(template_subary_c.size, (int, np.integer)):
                 raise NotImplementedError(
                     "unflatten is not implemented for arrays with array-valued "
                     "size.") from None
@@ -830,7 +1000,7 @@ def unflatten(
             flat_subary = ary[offset:offset + template_subary_c.size]
             try:
                 subary = actx.np.reshape(flat_subary,
-                        template_subary_c.shape, order="C")
+                        shape_is_int_only(template_subary_c.shape), order="C")
             except ValueError as exc:
                 # NOTE: we can't do much if the array context fails to reshape,
                 # since it is the one responsible for the actual memory layout
@@ -849,12 +1019,12 @@ def unflatten(
                 # since they cannot be indexed
                 if (
                     # Mypy has a point: nobody promised a .strides attribute.
-                    template_subary_c.strides != subary.strides
+                    template_subary_c.strides != subary.strides  # pyright: ignore[reportAttributeAccessIssue]
                     and template_subary_c.size != 0
                 ):
                     raise ValueError(
                             # Mypy has a point: nobody promised a .strides attribute.
-                            f"strides do not match template: got {subary.strides}, "
+                            f"strides do not match template: got {subary.strides}, "  # pyright: ignore[reportAttributeAccessIssue]
                             f"expected {template_subary_c.strides}") from None
 
             # }}}
@@ -885,7 +1055,8 @@ def unflatten(
 
 
 def flat_size_and_dtype(
-        ary: ArrayOrContainer) -> tuple[Array | Integer, np.dtype[Any] | None]:
+            ary: ArrayOrContainerOrScalar
+        ) -> tuple[Array | int | np.integer, np.dtype[Any] | None]:
     """
     :returns: a tuple ``(size, dtype)`` that would be the length and
         :class:`numpy.dtype` of the one-dimensional array returned by
@@ -893,22 +1064,23 @@ def flat_size_and_dtype(
     """
     common_dtype = None
 
-    def _flat_size(subary: ArrayOrContainer) -> Array | Integer:
+    def _flat_size(subary: ArrayOrContainerOrScalar) -> Array | int | np.integer:
         nonlocal common_dtype
 
         try:
             iterable = serialize_container(subary)
         except NotAnArrayContainerError:
-            subary_c = cast("Array", subary)
+            assert not is_array_container(subary)
+            assert not is_scalar_like(subary)
 
             if common_dtype is None:
-                common_dtype = subary_c.dtype
+                common_dtype = subary.dtype
 
-            if subary_c.dtype != common_dtype:
+            if subary.dtype != common_dtype:
                 raise ValueError("arrays in container have different dtypes: "
-                        f"got {subary_c.dtype}, expected {common_dtype}") from None
+                        f"got {subary.dtype}, expected {common_dtype}") from None
 
-            return subary_c.size
+            return subary.size
         else:
             return sum(_flat_size(isubary) for _, isubary in iterable)
 

@@ -50,6 +50,8 @@ test = [
     "basedpyright",
     "pytest",
     "ruff",
+    # for type checking
+    "pymbolic",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -130,7 +132,7 @@ reportImplicitStringConcatenation = "none"
 reportUnnecessaryIsInstance = "none"
 reportUnusedCallResult = "none"
 reportExplicitAny = "none"
-reportPrivateUsage = "hint"
+reportPrivateUsage = "none"
 reportUnusedFunction = "none"
 
 # This reports even cycles that are qualified by 'if TYPE_CHECKING'. Not what
@@ -139,6 +141,8 @@ reportUnusedFunction = "none"
 reportImportCycles = "none"
 pythonVersion = "3.10"
 pythonPlatform = "All"
+
+reportImplicitOverride = "hint"
 
 [[tool.basedpyright.executionEnvironments]]
 root = "test"
@@ -150,6 +154,10 @@ reportMissingTypeArgument = "hint"
 reportPrivateUsage = "none"
 reportMissingTypeStubs = "hint"
 reportAny = "hint"
+
+reportIndexIssue = "hint"
+reportOperatorIssue = "hint"
+reportAttributeAccessIssue = "hint"
 
 [[tool.basedpyright.executionEnvironments]]
 root = "examples"
