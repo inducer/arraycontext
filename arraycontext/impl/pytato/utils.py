@@ -10,6 +10,14 @@ Profiling-related functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: tabulate_profiling_data
+
+References
+^^^^^^^^^^
+
+.. autoclass:: ArrayOrNamesTc
+
+    A constrained type variable binding to either
+    :class:`pytato.Array` or :class:`pytato.AbstractResultWithNames`.
 """
 
 

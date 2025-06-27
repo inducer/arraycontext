@@ -1,6 +1,33 @@
 """
 .. currentmodule:: arraycontext
 .. autofunction:: make_loopy_program
+
+References
+----------
+
+.. class:: InstructionBase
+
+    See :class:`loopy.InstructionBase`.
+
+.. class:: SubstitutionRule
+
+    See :class:`loopy.SubstitutionRule`.
+
+.. class:: ValueArg
+
+    See :class:`loopy.ValueArg`.
+
+.. class:: ArrayArg
+
+    See :class:`loopy.ArrayArg`.
+
+.. class:: TemporaryVariable
+
+    See :class:`loopy.TemporaryVariable`.
+
+.. class:: EllipsisType
+
+    See :data:`types.EllipsisType`.
 """
 from __future__ import annotations
 
