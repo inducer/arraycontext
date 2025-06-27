@@ -23,6 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from dataclasses import dataclass
+from typing import ClassVar
 
 import numpy as np
 
@@ -62,7 +63,7 @@ class DOFArray:
         self.data = data
 
     # prevent numpy broadcasting
-    __array_ufunc__ = None
+    __array_ufunc__: ClassVar[None] = None
 
     def __bool__(self):
         if len(self) == 1 and self.data[0].size == 1:
@@ -107,7 +108,7 @@ class DOFArray:
 
 @serialize_container.register(DOFArray)
 def _serialize_dof_container(ary: DOFArray):
-    return list(enumerate(ary.data))
+    return tuple(enumerate(ary.data))
 
 
 @deserialize_container.register(DOFArray)

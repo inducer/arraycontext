@@ -46,6 +46,7 @@ from arraycontext import (
     tag_axes,
     with_container_arithmetic,
 )
+from arraycontext.container.traversal import rec_map_container
 from arraycontext.pytest import (
     _PytestEagerJaxArrayContextFactory,
     _PytestNumpyArrayContextFactory,
@@ -705,7 +706,7 @@ def test_container_map(actx_factory: ArrayContextFactory):
         return x + 1
 
     from arraycontext import rec_map_array_container
-    result = rec_map_array_container(func, 1)
+    result = rec_map_container(func, 1)
     assert result == 2
 
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
@@ -1048,7 +1049,7 @@ def test_numpy_conversion(actx_factory: ArrayContextFactory):
             actx.from_numpy(ac_with_cl)
 
         with pytest.raises(TypeError):
-            actx.from_numpy(ac_actx)
+            actx.from_numpy(ac_actx)  # pyright: ignore[reportArgumentType,reportCallIssue]
 
         with pytest.raises(TypeError):
             actx.to_numpy(ac)
@@ -1093,9 +1094,8 @@ def test_norm_ord_none(actx_factory: ArrayContextFactory, ndim):
 # {{{ test_actx_compile helpers
 
 def scale_and_orthogonalize(alpha, vel):
-    from arraycontext import rec_map_array_container
     actx = vel.array_context
-    scaled_vel = rec_map_array_container(lambda x: alpha * x,
+    scaled_vel = rec_map_container(lambda x: alpha * x,
                                          vel)
     return Velocity2D(-scaled_vel.v, scaled_vel.u, actx)
 
@@ -1393,8 +1393,7 @@ def test_array_container_with_numpy(actx_factory: ArrayContextFactory):
             v=DOFArray(actx, (actx.from_numpy(np.zeros(42)),)),
             )
 
-    from arraycontext import rec_map_array_container
-    rec_map_array_container(lambda x: x, mystate)
+    rec_map_container(lambda x: x, mystate)
 
 
 # }}}
@@ -1527,6 +1526,10 @@ def test_compile_anonymous_function(actx_factory: ArrayContextFactory):
 def test_linspace(actx_factory: ArrayContextFactory, args, kwargs):
     if "Jax" in actx_factory.__class__.__name__:
         pytest.xfail("jax actx does not have arange")
+    if ("PytatoPyOpenCL" in actx_factory.__class__.__name__
+            and kwargs.get("dtype")
+            and np.dtype(kwargs["dtype"]).kind == "i"):
+        pytest.xfail("jax pyopencl actx can't cast float to int")
 
     actx = actx_factory()
 

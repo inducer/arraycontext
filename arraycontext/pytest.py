@@ -35,6 +35,8 @@ THE SOFTWARE.
 
 from typing import TYPE_CHECKING, Any
 
+from typing_extensions import override
+
 from arraycontext import NumpyArrayContext
 
 
@@ -156,6 +158,7 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
         actx_cls = PytatoPyOpenCLArrayContext
         return actx_cls
 
+    @override
     def __call__(self):
         # The ostensibly pointless assignment to *ctx* keeps the CL context alive
         # long enough to create the array context, which will then start
@@ -178,6 +181,7 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
 
         return self.actx_class(queue, allocator=alloc)
 
+    @override
     def __str__(self):
         return ("<PytatoPyOpenCLArrayContext for "
                 f"<pyopencl.Device '{self.device.name.strip()}' "
@@ -189,6 +193,7 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
         pass
 
     @classmethod
+    @override
     def is_available(cls) -> bool:
         try:
             import jax  # noqa: F401
@@ -196,6 +201,7 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
         except ImportError:
             return False
 
+    @override
     def __call__(self):
         from jax import config
 
@@ -203,6 +209,7 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
         config.update("jax_enable_x64", True)
         return EagerJAXArrayContext()
 
+    @override
     def __str__(self):
         return "<EagerJAXArrayContext>"
 
@@ -227,24 +234,22 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
         config.update("jax_enable_x64", True)
         return PytatoJAXArrayContext()
 
+    @override
     def __str__(self):
         return "<PytatoJAXArrayContext>"
 
 
 # {{{ _PytestArrayContextFactory
 
-class _NumpyArrayContextForTests(NumpyArrayContext):
-    def transform_loopy_program(self, t_unit):
-        return t_unit
-
-
 class _PytestNumpyArrayContextFactory(PytestArrayContextFactory):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-    def __call__(self):
-        return _NumpyArrayContextForTests()
+    @override
+    def __call__(self) -> NumpyArrayContext:
+        return NumpyArrayContext()
 
+    @override
     def __str__(self):
         return "<NumpyArrayContext>"
 

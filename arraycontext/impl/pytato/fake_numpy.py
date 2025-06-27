@@ -28,21 +28,31 @@ from functools import partial, reduce
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+from typing_extensions import override
 
 import pytato as pt
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
     rec_map_array_container,
+    rec_map_container,
     rec_map_reduce_array_container,
     rec_multimap_array_container,
 )
+from arraycontext.context import ArrayOrScalar, OrderCF, is_scalar_like
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 
 if TYPE_CHECKING:
-    from arraycontext.context import Array, ArrayOrContainer
+    from collections.abc import Callable, Collection
+
+    from numpy.typing import DTypeLike
+
+    from pymbolic import Scalar
+
+    from arraycontext.context import Array, ArrayOrContainerOrScalar
+    from arraycontext.impl.pytato import _BasePytatoArrayContext
 
 
 class PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -59,23 +69,25 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         :mod:`pytato` does not define any memory layout for its arrays. See
         :ref:`Pytato docs <pytato:memory-layout>` for more on this.
     """
+    _array_context: _BasePytatoArrayContext
 
-    _pt_unary_funcs = frozenset({
+    _pt_unary_funcs: Collection[str] = frozenset({
         "sin", "cos", "tan", "arcsin", "arccos", "arctan",
         "sinh", "cosh", "tanh", "exp", "log", "log10",
         "sqrt", "abs", "isnan", "real", "imag", "conj",
         "logical_not",
         })
 
-    _pt_multi_ary_funcs = frozenset({
+    _pt_multi_ary_funcs: Collection[str] = frozenset({
         "arctan2", "equal", "greater", "greater_equal", "less", "less_equal",
         "not_equal", "minimum", "maximum", "where", "logical_and", "logical_or",
     })
 
+    @override
     def _get_fake_numpy_linalg_namespace(self):
         return PytatoFakeNumpyLinalgNamespace(self._array_context)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str):
         if name in self._pt_unary_funcs:
             from functools import partial
             return partial(rec_map_array_container, getattr(pt, name))
@@ -91,44 +103,29 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ array creation routines
 
-    def zeros(self, shape, dtype):
+    @override
+    def zeros(self, shape: int | tuple[int, ...], dtype: DTypeLike) -> Array:
         return pt.zeros(shape, dtype)
 
-    def zeros_like(self, ary):
-        def _zeros_like(array):
-            return self._array_context.np.zeros(
-                array.shape, array.dtype).copy(axes=array.axes, tags=array.tags)
-
-        return self._array_context._rec_map_container(
-            _zeros_like, ary, default_scalar=0)
-
-    def ones_like(self, ary):
-        return self.full_like(ary, 1)
-
-    def full_like(self, ary, fill_value):
-        def _full_like(subary):
-            return pt.full(subary.shape, fill_value, subary.dtype).copy(
-                axes=subary.axes, tags=subary.tags)
-
-        return self._array_context._rec_map_container(
-            _full_like, ary, default_scalar=fill_value)
+    @override
+    def _full_like_array(self,
+                ary: Array,
+                fill_value: Scalar,
+            ) -> Array:
+        ...
+        ary = cast("pt.Array", ary)
+        return pt.full(ary.shape, fill_value, ary.dtype).copy(
+                axes=ary.axes, tags=ary.tags)
 
     def arange(self, *args: Any, **kwargs: Any):
         return pt.arange(*args, **kwargs)
-
-    def full(self, shape, fill_value, dtype=None):
-        return pt.full(shape, fill_value, dtype)
 
     # }}}
 
     # {{{ array manipulation routines
 
-    def reshape(self, a, newshape, order="C"):
-        return rec_map_array_container(
-                lambda ary: pt.reshape(a, newshape, order=order),
-                a)
-
-    def ravel(self, a, order="C"):
+    @override
+    def ravel(self, a: ArrayOrContainerOrScalar, order: OrderCF = "C"):
         """
         :arg order: A :class:`str` describing the order in which the elements
             must be traversed while flattening. Can be one of 'F', 'C', 'A' or
@@ -137,7 +134,11 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             undefined.
         """
 
-        def _rec_ravel(a):
+        def _rec_ravel(a: ArrayOrScalar):
+            if is_scalar_like(a):
+                raise ValueError("cannot ravel scalars")
+
+            a = cast("pt.Array", a)
             if order in "FC":
                 return pt.reshape(a, (-1,), order=order)
             elif order in "AK":
@@ -148,13 +149,17 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
                                  f"(got {order})")
 
-        return rec_map_array_container(_rec_ravel, a)
+        return rec_map_container(_rec_ravel, a)
 
-    def transpose(self, a, axes=None):
-        return rec_multimap_array_container(pt.transpose, a, axes)
+    def broadcast_to(self, array: ArrayOrContainerOrScalar, shape: tuple[int, ...]):
+        def inner_bcast(ary: ArrayOrScalar) -> ArrayOrScalar:
+            if is_scalar_like(ary):
+                return ary
+            else:
+                assert isinstance(ary, pt.Array)
+                return pt.broadcast_to(ary, shape)
 
-    def broadcast_to(self, array, shape):
-        return rec_map_array_container(partial(pt.broadcast_to, shape=shape), array)
+        return rec_map_container(inner_bcast, array)
 
     def concatenate(self, arrays, axis=0):
         return rec_multimap_array_container(pt.concatenate, arrays, axis)
@@ -178,14 +183,21 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 partial(reduce, pt.logical_or),
                 lambda subary: pt.any(subary), a)
 
-    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
+    @override
+    def array_equal(self,
+                a: ArrayOrContainerOrScalar,
+                b: ArrayOrContainerOrScalar
+            ) -> Array:
         actx = self._array_context
 
         # NOTE: not all backends support `bool` properly, so use `int8` instead
         true_ary = actx.from_numpy(np.int8(True))
         false_ary = actx.from_numpy(np.int8(False))
 
-        def rec_equal(x: ArrayOrContainer, y: ArrayOrContainer) -> pt.Array:
+        def rec_equal(
+                    x: ArrayOrContainerOrScalar,
+                    y: ArrayOrContainerOrScalar
+                ) -> Array:
             if type(x) is not type(y):
                 return false_ary
 
@@ -205,20 +217,25 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                     return false_ary
 
                 return reduce(
-                        pt.logical_and,
+                        cast("Callable[[Array, Array], Array]", pt.logical_and),
                         [(true_ary if kx_i == ky_i else false_ary)
                             and rec_equal(x_i, y_i)
                             for (kx_i, x_i), (ky_i, y_i)
                             in zip(serialized_x, serialized_y, strict=True)],
                         true_ary)
 
-        return cast("Array", rec_equal(a, b))
+        return rec_equal(a, b)
 
     # }}}
 
     # {{{ mathematical functions
 
-    def sum(self, a, axis=None, dtype=None):
+    @override
+    def sum(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> ArrayOrScalar:
         def _pt_sum(ary):
             if dtype not in [ary.dtype, None]:
                 raise NotImplementedError
@@ -227,17 +244,25 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
 
-    def amax(self, a, axis=None):
+    @override
+    def max(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(
                 partial(reduce, pt.maximum), partial(pt.amax, axis=axis), a)
 
-    max = amax
+    amax = max
 
-    def amin(self, a, axis=None):
+    @override
+    def min(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(
                 partial(reduce, pt.minimum), partial(pt.amin, axis=axis), a)
 
-    min = amin
+    amin = min
 
     def absolute(self, a):
         return self.abs(a)

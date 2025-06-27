@@ -1,4 +1,3 @@
-# mypy: disallow-untyped-defs
 from __future__ import annotations
 
 
@@ -62,7 +61,11 @@ from arraycontext.container import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from arraycontext.context import ArrayContext, ArrayOrContainer
+    from arraycontext.context import (
+        ArrayContext,
+        ArrayOrContainer,
+        ArrayOrContainerOrScalar,
+    )
 
 
 # {{{ with_container_arithmetic
@@ -772,11 +775,11 @@ class BcastUntilActxArray:
 
     def _binary_op(self,
                    op: Callable[
-                       [ArrayOrContainer, ArrayOrContainer],
-                       ArrayOrContainer
+                       [ArrayOrContainerOrScalar, ArrayOrContainerOrScalar],
+                       ArrayOrContainerOrScalar
                    ],
-                   right: ArrayOrContainer
-               ) -> ArrayOrContainer:
+                   right: ArrayOrContainerOrScalar
+               ) -> ArrayOrContainerOrScalar:
         try:
             serialized = serialize_container(right)
         except NotAnArrayContainerError:
@@ -791,11 +794,11 @@ class BcastUntilActxArray:
 
     def _rev_binary_op(self,
                    op: Callable[
-                       [ArrayOrContainer, ArrayOrContainer],
-                       ArrayOrContainer
+                       [ArrayOrContainerOrScalar, ArrayOrContainerOrScalar],
+                       ArrayOrContainerOrScalar
                    ],
-                   left: ArrayOrContainer
-               ) -> ArrayOrContainer:
+                   left: ArrayOrContainerOrScalar
+               ) -> ArrayOrContainerOrScalar:
         try:
             serialized = serialize_container(left)
         except NotAnArrayContainerError:

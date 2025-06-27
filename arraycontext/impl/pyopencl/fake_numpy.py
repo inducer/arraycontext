@@ -32,28 +32,46 @@ THE SOFTWARE.
 import operator
 from functools import partial, reduce
 from typing import TYPE_CHECKING
+from warnings import warn
 
 import numpy as np
+from typing_extensions import override
+
+import pyopencl.array as cl_array
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-    rec_map_array_container,
+    rec_map_container,
     rec_map_reduce_array_container,
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
+from arraycontext.context import OrderCF, is_scalar_like
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
+from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
 
 
 if TYPE_CHECKING:
-    from arraycontext.context import Array as actx_Array, ArrayOrContainer
-    from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
+    from numpy.typing import DTypeLike
+
+    from pymbolic import Scalar
+    from pytools.tag import Tag
+
+    from arraycontext.context import (
+        Array,
+        ArrayOrContainerOrScalar,
+        ArrayOrScalar,
+    )
+    from arraycontext.impl.pyopencl import PyOpenCLArrayContext
 
 
 # {{{ fake numpy
 
 class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
+    _array_context: PyOpenCLArrayContext
+
+    @override
     def _get_fake_numpy_linalg_namespace(self):
         return _PyOpenCLFakeNumpyLinalgNamespace(self._array_context)
 
@@ -62,7 +80,8 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ array creation routines
 
-    def zeros(self, shape, dtype) -> TaggableCLArray:
+    @override
+    def zeros(self, shape: int | tuple[int, ...], dtype: DTypeLike) -> Array:
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         return tga.zeros(self._array_context.queue, shape, dtype,
                          allocator=self._array_context.allocator)
@@ -83,33 +102,34 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return actx._rec_map_container(_empty_like, ary)
 
-    def zeros_like(self, ary):
+    @override
+    def _full_like_array(self,
+                ary: Array,
+                fill_value: Scalar,
+            ) -> Array:
+        assert isinstance(ary, cl_array.Array)
+
+        if isinstance(ary, TaggableCLArray):
+            axes = ary.axes
+            tags: frozenset[Tag] = ary.tags
+        else:
+            warn(f"{self._array_context.__class__.__name__} received a "
+                 f"{ary.__class__.__qualname__}, "
+                 "not a TaggableCLArray. This is deprecated and will stop working "
+                 "in 2026.", DeprecationWarning, stacklevel=3)
+
+            axes = None
+            tags = frozenset()
+
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         actx = self._array_context
 
-        def _zeros_like(array):
-            return tga.zeros(
-                actx.queue, array.shape, array.dtype,
-                allocator=actx.allocator, axes=array.axes, tags=array.tags)
+        filled = tga.empty(
+            actx.queue, ary.shape, ary.dtype,
+            allocator=actx.allocator, axes=axes, tags=tags)
+        filled.fill(fill_value)
 
-        return actx._rec_map_container(_zeros_like, ary, default_scalar=0)
-
-    def ones_like(self, ary):
-        return self.full_like(ary, 1)
-
-    def full_like(self, ary, fill_value):
-        import arraycontext.impl.pyopencl.taggable_cl_array as tga
-        actx = self._array_context
-
-        def _full_like(subary):
-            filled = tga.empty(
-                actx.queue, subary.shape, subary.dtype,
-                allocator=actx.allocator, axes=subary.axes, tags=subary.tags)
-            filled.fill(fill_value)
-
-            return filled
-
-        return actx._rec_map_container(_full_like, ary, default_scalar=fill_value)
+        return filled
 
     def copy(self, ary):
         def _copy(subary):
@@ -118,24 +138,26 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return self._array_context._rec_map_container(_copy, ary)
 
     def arange(self, *args, **kwargs):
-        import pyopencl.array as cl_array
         return cl_array.arange(self._array_context.queue, *args, **kwargs)
 
     # }}}
 
     # {{{ array manipulation routines
 
-    def reshape(self, a, newshape, order="C"):
-        return rec_map_array_container(
-                lambda ary: ary.reshape(newshape, order=order),
-                a)
-
-    def ravel(self, a, order="C"):
-        def _rec_ravel(a):
+    @override
+    def ravel(self,
+                a: ArrayOrContainerOrScalar,
+                order: OrderCF = "C"
+            ) -> ArrayOrContainerOrScalar:
+        def _rec_ravel(a: ArrayOrScalar) -> Array:
+            if is_scalar_like(a):
+                raise ValueError("cannot ravel scalars")
             if order in "FC":
                 return a.reshape(-1, order=order)
             elif order == "A":
-                # TODO: upstream this to pyopencl.array
+                from warnings import warn
+                warn('order=="A" is deprecated, use one of "C", "F" instead',
+                     DeprecationWarning, stacklevel=2)
                 if a.flags.f_contiguous:
                     return a.reshape(-1, order="F")
                 elif a.flags.c_contiguous:
@@ -143,17 +165,12 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 else:
                     raise ValueError("For `order='A'`, array should be either"
                                      " F-contiguous or C-contiguous.")
-            elif order == "K":
-                raise NotImplementedError("PyOpenCLArrayContext.np.ravel not "
-                                          "implemented for 'order=K'")
             else:
-                raise ValueError("`order` can be one of 'F', 'C', 'A' or 'K'. "
-                                 f"(got {order})")
+                raise ValueError(f"`order` can be one of 'F', 'C'. (got {order})")
 
-        return rec_map_array_container(_rec_ravel, a)
+        return rec_map_container(_rec_ravel, a)
 
     def concatenate(self, arrays, axis=0):
-        import pyopencl.array as cl_array
         return cl_array.concatenate(
             arrays, axis,
             self._array_context.queue,
@@ -161,7 +178,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         )
 
     def stack(self, arrays, axis=0):
-        import pyopencl.array as cl_array
         return rec_multimap_array_container(
                 lambda *args: cl_array.stack(arrays=args, axis=axis,
                     queue=self._array_context.queue),
@@ -172,7 +188,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # {{{ linear algebra
 
     def vdot(self, x, y, dtype=None):
-        import pyopencl.array as cl_array
         return rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
@@ -190,7 +205,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(all([ary]))
             return ary.all(queue=queue)
 
-        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _all,
@@ -204,13 +218,15 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 return np.int8(any([ary]))
             return ary.any(queue=queue)
 
-        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _any,
                 a)
 
-    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> actx_Array:
+    def array_equal(self,
+                a: ArrayOrContainerOrScalar,
+                b: ArrayOrContainerOrScalar
+            ) -> Array:
         actx = self._array_context
         queue = actx.queue
 
@@ -218,9 +234,10 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         true_ary = actx.from_numpy(np.int8(True))
         false_ary = actx.from_numpy(np.int8(False))
 
-        import pyopencl.array as cl_array
-
-        def rec_equal(x: ArrayOrContainer, y: ArrayOrContainer) -> cl_array.Array:
+        def rec_equal(
+                    x: ArrayOrContainerOrScalar,
+                    y: ArrayOrContainerOrScalar,
+                ) -> cl_array.Array:
             if type(x) is not type(y):
                 return false_ary
 
@@ -249,42 +266,75 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return rec_equal(a, b)
 
-    # FIXME: This should be documentation, not a comment.
-    # These are here mainly because some arrays may choose to interpret
-    # equality comparison as a binary predicate of structural identity,
-    # i.e. more like "are you two equal", and not like numpy semantics.
-    # These operations provide access to numpy-style comparisons in that
-    # case.
-
-    def greater(self, x, y):
+    @override
+    def greater(self,
+            x: ArrayOrContainerOrScalar,
+            y: ArrayOrContainerOrScalar
+        ) -> Array:
         return rec_multimap_array_container(operator.gt, x, y)
 
-    def greater_equal(self, x, y):
+    @override
+    def greater_equal(self,
+                    x: ArrayOrContainerOrScalar,
+                    y: ArrayOrContainerOrScalar
+                ) -> Array:
         return rec_multimap_array_container(operator.ge, x, y)
 
-    def less(self, x, y):
+    @override
+    def less(self,
+            x: ArrayOrContainerOrScalar,
+            y: ArrayOrContainerOrScalar
+        ) -> Array:
         return rec_multimap_array_container(operator.lt, x, y)
 
-    def less_equal(self, x, y):
+    @override
+    def less_equal(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar
+            ) -> Array:
         return rec_multimap_array_container(operator.le, x, y)
 
-    def equal(self, x, y):
+    @override
+    def equal(self,
+            x: ArrayOrContainerOrScalar,
+            y: ArrayOrContainerOrScalar
+        ) -> Array:
         return rec_multimap_array_container(operator.eq, x, y)
 
-    def not_equal(self, x, y):
+    @override
+    def not_equal(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar
+            ) -> Array:
         return rec_multimap_array_container(operator.ne, x, y)
 
-    def logical_or(self, x, y):
-        import pyopencl.array as cl_array
+    @override
+    def logical_or(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar
+            ) -> Array:
         return rec_multimap_array_container(cl_array.logical_or, x, y)
 
-    def logical_and(self, x, y):
-        import pyopencl.array as cl_array
+    @override
+    def logical_and(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar
+            ) -> Array:
         return rec_multimap_array_container(cl_array.logical_and, x, y)
 
-    def logical_not(self, x):
-        import pyopencl.array as cl_array
-        return rec_map_array_container(cl_array.logical_not, x)
+    @override
+    def logical_not(self,
+                x: ArrayOrContainerOrScalar
+            ) -> ArrayOrContainerOrScalar:
+
+        def inner(ary: ArrayOrScalar) -> ArrayOrScalar:
+            if is_scalar_like(ary):
+                return ary
+            else:
+                assert isinstance(ary, cl_array.Array)
+                return cl_array.logical_not(ary)
+
+        return rec_map_container(inner, x)
 
     # }}}
 
@@ -298,18 +348,21 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
             if axis not in [None, tuple(range(ary.ndim))]:
                 raise NotImplementedError(f"Sum over '{axis}' axes not supported.")
 
-            import pyopencl.array as cl_array
             return cl_array.sum(ary, dtype=dtype, queue=self._array_context.queue)
 
         return rec_map_reduce_array_container(sum, _rec_sum, a)
 
     def maximum(self, x, y):
-        import pyopencl.array as cl_array
         return rec_multimap_array_container(
                 partial(cl_array.maximum, queue=self._array_context.queue),
                 x, y)
 
-    def amax(self, a, axis=None):
+    @override
+    def max(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ArrayOrScalar:
+
         queue = self._array_context.queue
 
         if isinstance(axis, int):
@@ -318,24 +371,25 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def _rec_max(ary):
             if axis not in [None, tuple(range(ary.ndim))]:
                 raise NotImplementedError(f"Max. over '{axis}' axes not supported.")
-            import pyopencl.array as cl_array
             return cl_array.max(ary, queue=queue)
 
-        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.maximum, queue=queue)),
                 _rec_max,
                 a)
 
-    max = amax
+    amax = max
 
     def minimum(self, x, y):
-        import pyopencl.array as cl_array
         return rec_multimap_array_container(
                 partial(cl_array.minimum, queue=self._array_context.queue),
                 x, y)
 
-    def amin(self, a, axis=None):
+    @override
+    def min(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ArrayOrScalar:
         queue = self._array_context.queue
 
         if isinstance(axis, int):
@@ -344,16 +398,14 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def _rec_min(ary):
             if axis not in [None, tuple(range(ary.ndim))]:
                 raise NotImplementedError(f"Min. over '{axis}' axes not supported.")
-            import pyopencl.array as cl_array
             return cl_array.min(ary, queue=queue)
 
-        import pyopencl.array as cl_array
         return rec_map_reduce_array_container(
                 partial(reduce, partial(cl_array.minimum, queue=queue)),
                 _rec_min,
                 a)
 
-    min = amin
+    amin = min
 
     def absolute(self, a):
         return self.abs(a)
@@ -366,7 +418,6 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def where_inner(inner_crit, inner_then, inner_else):
             if isinstance(inner_crit, bool | np.bool_):
                 return inner_then if inner_crit else inner_else
-            import pyopencl.array as cl_array
             return cl_array.if_positive(inner_crit != 0, inner_then, inner_else,
                     queue=self._array_context.queue)
 

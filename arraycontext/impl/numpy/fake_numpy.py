@@ -24,19 +24,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 from functools import partial, reduce
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+from typing_extensions import override
 
 from arraycontext.container import NotAnArrayContainerError, serialize_container
 from arraycontext.container.traversal import (
-    rec_map_array_container,
+    rec_map_container,
     rec_map_reduce_array_container,
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
+from arraycontext.context import OrderCF, is_scalar_like
 from arraycontext.fake_numpy import (
     BaseFakeNumpyLinalgNamespace,
     BaseFakeNumpyNamespace,
@@ -44,7 +45,17 @@ from arraycontext.fake_numpy import (
 
 
 if TYPE_CHECKING:
-    from arraycontext.context import Array, ArrayOrContainer
+    from collections.abc import Callable
+
+    from numpy.typing import DTypeLike
+
+    from pymbolic import Scalar
+
+    from arraycontext.context import (
+        Array,
+        ArrayOrContainerOrScalar,
+        ArrayOrScalar,
+    )
 
 
 class NumpyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
@@ -52,7 +63,7 @@ class NumpyFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
     pass
 
 
-_NUMPY_UFUNCS = frozenset({"concatenate", "reshape", "transpose",
+_NUMPY_UFUNCS = frozenset({"concatenate", "reshape",
                  "ones_like", "where",
                  *BaseFakeNumpyNamespace._numpy_math_functions
                  })
@@ -65,11 +76,18 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def _get_fake_numpy_linalg_namespace(self):
         return NumpyFakeNumpyLinalgNamespace(self._array_context)
 
-    def zeros(self, shape, dtype):
-        return np.zeros(shape, dtype)
+    @override
+    def zeros(self, shape: int | tuple[int, ...], dtype: DTypeLike) -> Array:
+        return cast("Array", cast("object", np.zeros(shape, dtype)))
 
-    def __getattr__(self, name):
+    @override
+    def _full_like_array(self,
+                ary: Array,
+                fill_value: Scalar,
+            ) -> Array:
+        return cast("Array", cast("object", np.full_like(ary, fill_value)))
 
+    def __getattr__(self, name: str):
         if name in _NUMPY_UFUNCS:
             from functools import partial
             return partial(rec_multimap_array_container,
@@ -83,11 +101,19 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                                                            dtype=dtype),
                                               a)
 
-    def min(self, a, axis=None):
+    @override
+    def min(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(
                 partial(reduce, np.minimum), partial(np.amin, axis=axis), a)
 
-    def max(self, a, axis=None):
+    @override
+    def max(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(
                 partial(reduce, np.maximum), partial(np.amax, axis=axis), a)
 
@@ -96,33 +122,75 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                 lambda *args: np.stack(arrays=args, axis=axis),
                 *arrays)
 
-    def broadcast_to(self, array, shape):
-        return rec_map_array_container(partial(np.broadcast_to, shape=shape), array)
+    def broadcast_to(self, array: ArrayOrContainerOrScalar, shape: tuple[int, ...]):
+        def inner_bcast(ary: ArrayOrScalar) -> ArrayOrScalar:
+            if is_scalar_like(ary):
+                return ary
+            else:
+                assert isinstance(ary, np.ndarray)
+                return cast("Array", cast("object", np.broadcast_to(ary, shape)))
+
+        return rec_map_container(inner_bcast, array)
 
     # {{{ relational operators
 
+    @override
     def equal(self, x, y):
         return rec_multimap_array_container(np.equal, x, y)
 
+    @override
     def not_equal(self, x, y):
         return rec_multimap_array_container(np.not_equal, x, y)
 
+    @override
     def greater(self, x, y):
         return rec_multimap_array_container(np.greater, x, y)
 
+    @override
     def greater_equal(self, x, y):
         return rec_multimap_array_container(np.greater_equal, x, y)
 
+    @override
     def less(self, x, y):
         return rec_multimap_array_container(np.less, x, y)
 
+    @override
     def less_equal(self, x, y):
         return rec_multimap_array_container(np.less_equal, x, y)
 
+    @override
+    def logical_or(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar
+            ) -> Array:
+        return rec_multimap_array_container(np.logical_or, x, y)
+
+    @override
+    def logical_and(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar
+            ) -> Array:
+        return rec_multimap_array_container(np.logical_and, x, y)
+
+    @override
+    def logical_not(self,
+                x: ArrayOrContainerOrScalar
+            ) -> ArrayOrContainerOrScalar:
+        return rec_map_container(
+                cast("Callable[[ArrayOrScalar], ArrayOrScalar]", np.logical_not), x)
+
     # }}}
 
-    def ravel(self, a, order="C"):
-        return rec_map_array_container(partial(np.ravel, order=order), a)
+    @override
+    def ravel(self, a: ArrayOrContainerOrScalar, order: OrderCF = "C"):
+        def inner_ravel(ary: ArrayOrScalar) -> ArrayOrScalar:
+            if is_scalar_like(ary):
+                return ary
+            else:
+                assert isinstance(ary, np.ndarray)
+                return cast("Array", cast("object", np.ravel(ary, order)))
+
+        return rec_map_container(inner_ravel, a)
 
     def vdot(self, x, y):
         return rec_multimap_reduce_array_container(sum, np.vdot, x, y)
@@ -135,7 +203,11 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_reduce_array_container(partial(reduce, np.logical_and),
                                               lambda subary: np.all(subary), a)
 
-    def array_equal(self, a: ArrayOrContainer, b: ArrayOrContainer) -> Array:
+    @override
+    def array_equal(self,
+                a: ArrayOrContainerOrScalar,
+                b: ArrayOrContainerOrScalar
+            ) -> Array:
         false_ary = np.array(False)
         true_ary = np.array(True)
         if type(a) is not type(b):
@@ -158,19 +230,13 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
                         in zip(serialized_x, serialized_y, strict=True)],
                     initial=true_ary)
 
+    @override
     def arange(self, *args, **kwargs):
         return np.arange(*args, **kwargs)
 
+    @override
     def linspace(self, *args, **kwargs):
         return np.linspace(*args, **kwargs)
-
-    def zeros_like(self, ary):
-        return rec_map_array_container(np.zeros_like, ary)
-
-    def reshape(self, a, newshape, order="C"):
-        return rec_map_array_container(
-                lambda ary: ary.reshape(newshape, order=order),
-                a)
 
 
 # vim: fdm=marker
