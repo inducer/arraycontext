@@ -61,6 +61,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Hashable, Mapping
 
     import pyopencl.array as cla
+    from pytato.array import AxesT
 
 
 logger = logging.getLogger(__name__)
@@ -116,28 +117,6 @@ class LeafArrayDescriptor(AbstractInputDescriptor):
 
 
 # {{{ utilities
-
-def _ary_container_key_stringifier(keys: tuple[object, ...]) -> str:
-    """
-    Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
-    array-container's component's key. Goals of this routine:
-
-    * No two different keys should have the same stringification
-    * Stringified key must a valid identifier according to :meth:`str.isidentifier`
-    * (informal) Shorter identifiers are preferred
-    """
-    def _rec_str(key: object) -> str:
-        if isinstance(key, str | int):
-            return str(key)
-        elif isinstance(key, tuple):
-            # t in '_actx_t': stands for tuple
-            return "_actx_t" + "_".join(_rec_str(k) for k in key) + "_actx_endt"  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
-        else:
-            raise NotImplementedError("Key-stringication unimplemented for "
-                                      f"'{type(key).__name__}'.")
-
-    return "_".join(_rec_str(key) for key in keys)
-
 
 def _get_arg_id_to_arg_and_arg_id_to_descr(args: tuple[Any, ...],
                                            kwargs: Mapping[str, Any]
@@ -215,7 +194,8 @@ def _to_input_for_compiled(
     """
     from arraycontext.impl.pyopencl.taggable_cl_array import to_tagged_cl_array
     if isinstance(ary, pt.Array):
-        dag = pt.make_dict_of_named_arrays({"_actx_out": ary})
+        dag = pt.transform.deduplicate(
+            pt.make_dict_of_named_arrays({"_actx_out": ary}))
         # Transform the DAG to give metadata inference a chance to do its job
         return actx.transform_dag(dag)["_actx_out"].expr
     elif isinstance(ary, TaggableCLArray):
@@ -345,6 +325,7 @@ class BaseLazilyCompilingFunctionCaller:
         :attr:`~BaseLazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
         The intermediary pytato DAG for *args* is memoized in *self*.
         """
+        from arraycontext.impl.pytato.utils import _ary_container_key_stringifier
         arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
             args, kwargs)
 
@@ -431,12 +412,16 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         self.actx._compile_trace_callback(
                 prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
-        name_in_program_to_tags = {
-            name: out.tags
-            for name, out in pt_dict_of_named_arrays._data.items()}
-        name_in_program_to_axes = {
-            name: out.axes
-            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_tags: dict[str, frozenset[Tag]] = {}
+        name_in_program_to_axes: dict[str, AxesT] = {}
+        if isinstance(pt_dict_of_named_arrays, pt.DictOfNamedArrays):
+            name_in_program_to_tags.update({
+                name: out.tags
+                for name, out in pt_dict_of_named_arrays._data.items()})
+
+            name_in_program_to_axes.update({
+                name: out.axes
+                for name, out in pt_dict_of_named_arrays._data.items()})
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_generate_loopy", pt_dict_of_named_arrays)
@@ -528,12 +513,16 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         self.actx._compile_trace_callback(
                 prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
-        name_in_program_to_tags = {
-            name: out.tags
-            for name, out in pt_dict_of_named_arrays._data.items()}
-        name_in_program_to_axes = {
-            name: out.axes
-            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_tags: dict[str, frozenset[Tag]] = {}
+        name_in_program_to_axes: dict[str, AxesT] = {}
+        if isinstance(pt_dict_of_named_arrays, pt.DictOfNamedArrays):
+            name_in_program_to_tags.update({
+                name: out.tags
+                for name, out in pt_dict_of_named_arrays._data.items()})
+
+            name_in_program_to_axes.update({
+                name: out.axes
+                for name, out in pt_dict_of_named_arrays._data.items()})
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_generate_jax", pt_dict_of_named_arrays)

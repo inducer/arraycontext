@@ -10,6 +10,14 @@ Profiling-related functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: tabulate_profiling_data
+
+References
+^^^^^^^^^^
+
+.. autoclass:: ArrayOrNamesTc
+
+    A constrained type variable binding to either
+    :class:`pytato.Array` or :class:`pytato.AbstractResultWithNames`.
 """
 
 
@@ -40,19 +48,26 @@ THE SOFTWARE.
 
 from typing import TYPE_CHECKING, Any, cast
 
+from typing_extensions import override
+
 import pytools
+from pytato.analysis import get_num_call_sites
 from pytato.array import (
-    AbstractResultWithNamedArrays,
     Array,
     Axis as PtAxis,
     DataWrapper,
-    DictOfNamedArrays,
     Placeholder,
     SizeParam,
     make_placeholder,
 )
 from pytato.target.loopy import LoopyPyOpenCLTarget
-from pytato.transform import ArrayOrNames, CopyMapper
+from pytato.transform import (
+    ArrayOrNames,
+    ArrayOrNamesTc,
+    CopyMapper,
+    TransformMapperCache,
+    deduplicate,
+)
 from pytools import UniqueNameGenerator, memoize_method
 
 from arraycontext.impl.pyopencl.taggable_cl_array import Axis as ClAxis
@@ -62,6 +77,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     import loopy as lp
+    from pytato import AbstractResultWithNamedArrays
+    from pytato.function import FunctionDefinition
 
     from arraycontext import ArrayContext
     from arraycontext.impl.pytato import PytatoPyOpenCLArrayContext
@@ -73,12 +90,24 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
     :class:`pytato.DataWrapper` is replaced with a deterministic copy of
     :class:`Placeholder`.
     """
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(
+            self,
+            err_on_collision: bool = True,
+            err_on_created_duplicate: bool = True,
+            _cache: TransformMapperCache[ArrayOrNames, []] | None = None,
+            _function_cache: TransformMapperCache[FunctionDefinition, []] | None = None
+            ) -> None:
+        super().__init__(
+            err_on_collision=err_on_collision,
+            err_on_created_duplicate=err_on_created_duplicate,
+            _cache=_cache,
+            _function_cache=_function_cache)
+
         self.bound_arguments: dict[str, Any] = {}
         self.vng = UniqueNameGenerator()
         self.seen_inputs: set[str] = set()
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         if expr.name is not None:
             if expr.name in self.seen_inputs:
@@ -100,17 +129,27 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                     axes=expr.axes,
                     tags=expr.tags)
 
+    @override
     def map_size_param(self, expr: SizeParam) -> Array:
         raise NotImplementedError
 
+    @override
     def map_placeholder(self, expr: Placeholder) -> Array:
         raise ValueError("Placeholders cannot appear in"
                          " DatawrapperToBoundPlaceholderMapper.")
 
+    @override
+    def map_function_definition(
+            self, expr: FunctionDefinition) -> FunctionDefinition:
+        raise ValueError("Function definitions cannot appear in"
+                         " DatawrapperToBoundPlaceholderMapper.")
 
+
+# FIXME: This strategy doesn't work if the DAG has functions, since function
+# definitions can't contain non-argument placeholders
 def _normalize_pt_expr(
-        expr: DictOfNamedArrays
-        ) -> tuple[Array | AbstractResultWithNamedArrays, Mapping[str, Any]]:
+        expr: AbstractResultWithNamedArrays
+        ) -> tuple[AbstractResultWithNamedArrays, Mapping[str, Any]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
     normalized form of *expr*, with all instances of
@@ -120,9 +159,15 @@ def _normalize_pt_expr(
     Deterministic naming of placeholders permits more effective caching of
     equivalent graphs.
     """
+    expr = deduplicate(expr)
+
+    if get_num_call_sites(expr):
+        raise NotImplementedError(
+            "_normalize_pt_expr is not compatible with expressions that "
+            "contain function calls.")
+
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
     normalized_expr = normalize_mapper(expr)
-    assert isinstance(normalized_expr, AbstractResultWithNamedArrays)
     return normalized_expr, normalize_mapper.bound_arguments
 
 
@@ -160,6 +205,7 @@ class TransferFromNumpyMapper(CopyMapper):
         super().__init__()
         self.actx = actx
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import numpy as np
 
@@ -192,6 +238,7 @@ class TransferToNumpyMapper(CopyMapper):
         super().__init__()
         self.actx = actx
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import numpy as np
 
@@ -211,7 +258,7 @@ class TransferToNumpyMapper(CopyMapper):
             non_equality_tags=expr.non_equality_tags)
 
 
-def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+def transfer_from_numpy(expr: ArrayOrNamesTc, actx: ArrayContext) -> ArrayOrNamesTc:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be device arrays, using
     :meth:`~arraycontext.ArrayContext.from_numpy`.
@@ -219,7 +266,7 @@ def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
     return TransferFromNumpyMapper(actx)(expr)
 
 
-def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+def transfer_to_numpy(expr: ArrayOrNamesTc, actx: ArrayContext) -> ArrayOrNamesTc:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be :class:`numpy.ndarray` instances, using
     :meth:`~arraycontext.ArrayContext.to_numpy`.
@@ -263,6 +310,32 @@ def tabulate_profiling_data(actx: PytatoPyOpenCLArrayContext) -> pytools.Table:
     actx._reset_profiling_data()
 
     return tbl
+
+# }}}
+
+
+# {{{ compile/outline helpers
+
+def _ary_container_key_stringifier(keys: tuple[object, ...]) -> str:
+    """
+    Helper for :meth:`BaseLazilyCompilingFunctionCaller.__call__`. Stringifies an
+    array-container's component's key. Goals of this routine:
+
+    * No two different keys should have the same stringification
+    * Stringified key must a valid identifier according to :meth:`str.isidentifier`
+    * (informal) Shorter identifiers are preferred
+    """
+    def _rec_str(key: object) -> str:
+        if isinstance(key, str | int):
+            return str(key)
+        elif isinstance(key, tuple):
+            # t in '_actx_t': stands for tuple
+            return "_actx_t" + "_".join(_rec_str(k) for k in key) + "_actx_endt"  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+        else:
+            raise NotImplementedError("Key-stringication unimplemented for "
+                                      f"'{type(key).__name__}'.")
+
+    return "_".join(_rec_str(key) for key in keys)
 
 # }}}
 
