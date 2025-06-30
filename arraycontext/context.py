@@ -191,6 +191,7 @@ from warnings import warn
 import numpy as np
 from typing_extensions import Self, TypeIs
 
+from pymbolic.typing import Scalar as _Scalar
 from pytools import memoize_method
 
 
@@ -198,7 +199,7 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike
 
     import loopy
-    from pymbolic.typing import Integer, Scalar as _Scalar
+    from pymbolic.typing import Integer
     from pytools.tag import ToTagSetConvertible
 
     from arraycontext.container import (
@@ -294,12 +295,12 @@ class Array(Protocol):
 
 
 # deprecated, use ScalarLike instead
-Scalar: TypeAlias = "_Scalar"
+Scalar: TypeAlias = _Scalar
 ScalarLike = Scalar
 ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
 ArrayT = TypeVar("ArrayT", bound=Array)
-ArrayOrScalar: TypeAlias = "Array | _Scalar"
+ArrayOrScalar: TypeAlias = Array | _Scalar
 ArrayOrScalarT = TypeVar("ArrayOrScalarT", bound=ArrayOrScalar)
 ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
 ArrayOrArithContainer: TypeAlias = "Array | ArithArrayContainer"
