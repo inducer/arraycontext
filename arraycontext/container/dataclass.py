@@ -1,6 +1,14 @@
 """
 .. currentmodule:: arraycontext
 .. autofunction:: dataclass_array_container
+
+References
+----------
+
+.. currentmodule:: arraycontext.container.dataclass
+.. class:: T
+
+    A type variable. Represents the dataclass being turned into an array container.
 """
 from __future__ import annotations
 
@@ -29,14 +37,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+# The import of 'Union' is type-ignored below because we're specifically importing
+# Union to pick apart type annotations.
+
 from dataclasses import fields, is_dataclass
-from typing import TYPE_CHECKING, NamedTuple, Union, get_args, get_origin
+from typing import (
+    TYPE_CHECKING,
+    NamedTuple,
+    TypeVar,
+    Union,  # pyright: ignore[reportDeprecated]
+    cast,
+    get_args,
+    get_origin,
+)
+
+import numpy as np
 
 from arraycontext.container import ArrayContainer, is_array_container_type
 
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+
+
+T = TypeVar("T")
 
 
 # {{{ dataclass containers
@@ -49,12 +73,21 @@ class _Field(NamedTuple):
     type: type
 
 
-def is_array_type(tp: type) -> bool:
+def is_array_type(tp: type, /) -> bool:
     from arraycontext import Array
     return tp is Array or is_array_container_type(tp)
 
 
-def dataclass_array_container(cls: type) -> type:
+def is_scalar_type(tp: object, /) -> bool:
+    if not isinstance(tp, type):
+        tp = get_origin(tp)
+    if not isinstance(tp, type):
+        return False
+
+    return issubclass(tp, (np.generic, int, float, complex))
+
+
+def dataclass_array_container(cls: type[T]) -> type[T]:
     """A class decorator that makes the class to which it is applied an
     :class:`ArrayContainer` by registering appropriate implementations of
     :func:`serialize_container` and :func:`deserialize_container`.
@@ -104,13 +137,18 @@ def dataclass_array_container(cls: type) -> type:
         origin = get_origin(field_type)
 
         # NOTE: `UnionType` is returned when using `Type1 | Type2`
-        if origin in (Union, UnionType):
-            if all(is_array_type(arg) for arg in get_args(field_type)):
-                return True
-            else:
-                raise TypeError(
-                        f"Field '{f.name}' union contains non-array container "
-                        "arguments. All arguments must be array containers.")
+        if origin in (Union, UnionType):  # pyright: ignore[reportDeprecated]
+            for arg in get_args(field_type):  # pyright: ignore[reportAny]
+                if not (
+                        is_array_type(cast("type", arg))
+                        or is_scalar_type(cast("type", arg))):
+                    raise TypeError(
+                            f"Field '{f.name}' union contains non-array container "
+                            f"type '{arg}'. All types must be array containers "
+                            "or arrays or scalars."
+                        )
+
+            return True
 
         # NOTE: this should never happen due to using `inspect.get_annotations`
         assert not isinstance(field_type, str)

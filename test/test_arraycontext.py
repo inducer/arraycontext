@@ -26,6 +26,7 @@ THE SOFTWARE.
 import logging
 from dataclasses import dataclass
 from functools import partial
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pytest
@@ -55,6 +56,10 @@ from arraycontext.pytest import (
     _PytestPytatoPyOpenCLArrayContextFactory,
 )
 from testlib import DOFArray, MyContainer, MyContainerDOFBcast, Velocity2D
+
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 logger = logging.getLogger(__name__)
@@ -1039,7 +1044,8 @@ def test_numpy_conversion(actx_factory: ArrayContextFactory):
     ac_actx = actx.from_numpy(ac)
     ac_roundtrip = actx.to_numpy(ac_actx)
 
-    assert np.allclose(ac.mass, ac_roundtrip.mass)
+    assert np.allclose(cast("NDArray[np.floating]", ac.mass),
+                       cast("NDArray[np.floating]", ac_roundtrip.mass))
     assert np.allclose(ac.momentum[0], ac_roundtrip.momentum[0])
 
     if not isinstance(actx, NumpyArrayContext):
@@ -1049,7 +1055,7 @@ def test_numpy_conversion(actx_factory: ArrayContextFactory):
             actx.from_numpy(ac_with_cl)
 
         with pytest.raises(TypeError):
-            actx.from_numpy(ac_actx)  # pyright: ignore[reportArgumentType,reportCallIssue]
+            actx.from_numpy(ac_actx)
 
         with pytest.raises(TypeError):
             actx.to_numpy(ac)
@@ -1193,8 +1199,9 @@ def test_container_equality(actx_factory: ArrayContextFactory):
 
     # MyContainer sets eq_comparison to False, so equality comparison should
     # not succeed.
-    dc = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
-    dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
+    # type-ignore because pyright is right and I'm sorry.
+    dc = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)  # pyright: ignore[reportArgumentType]
+    dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)  # pyright: ignore[reportArgumentType]
     assert dc != dc2
 
     assert isinstance(actx.np.equal(bcast_dc_of_dofs, bcast_dc_of_dofs_2),
@@ -1393,7 +1400,9 @@ def test_array_container_with_numpy(actx_factory: ArrayContextFactory):
             v=DOFArray(actx, (actx.from_numpy(np.zeros(42)),)),
             )
 
-    rec_map_container(lambda x: x, mystate)
+    # FIXME: Possibly, rec_map_container's types could be taught that numpy
+    # arrays can happen, but life's too short.
+    rec_map_container(lambda x: x, mystate)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
 
 # }}}

@@ -36,6 +36,7 @@ from arraycontext import (
     with_array_context,
     with_container_arithmetic,
 )
+from arraycontext.context import ScalarLike  # noqa: TC001
 
 
 # Containers live here, because in order for get_annotations to work, they must
@@ -145,11 +146,11 @@ def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type:
 @dataclass(frozen=True)
 class MyContainer:
     name: str
-    mass: DOFArray | np.ndarray
+    mass: DOFArray | np.ndarray | ScalarLike
     momentum: np.ndarray
-    enthalpy: DOFArray | np.ndarray
+    enthalpy: DOFArray | np.ndarray | ScalarLike
 
-    __array_ufunc__ = None
+    __array_ufunc__: ClassVar[None] = None
 
     @property
     def array_context(self):
@@ -174,7 +175,7 @@ class MyContainerDOFBcast:
     momentum: np.ndarray
     enthalpy: DOFArray | np.ndarray
 
-    __array_ufunc__ = None
+    __array_ufunc__: ClassVar[None] = None
 
     @property
     def array_context(self):
@@ -212,7 +213,7 @@ class Velocity2D:
     v: ArrayContainer
     array_context: ArrayContext
 
-    __array_ufunc__ = None
+    __array_ufunc__: ClassVar[None] = None
 
 
 @with_array_context.register(Velocity2D)
