@@ -954,7 +954,9 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
                     rec_keyed_map_array_container(_to_frozen, array),
                     actx=None)
 
-        pt_dict_of_named_arrays = pt.make_dict_of_named_arrays(key_to_pt_arrays)
+        pt_dict_of_named_arrays = pt.transform.deduplicate(
+            pt.make_dict_of_named_arrays(key_to_pt_arrays))
+
         transformed_dag = self.transform_dag(pt_dict_of_named_arrays)
         pt_prg = pt.generate_jax(transformed_dag, jit=True)
         out_dict = pt_prg()
