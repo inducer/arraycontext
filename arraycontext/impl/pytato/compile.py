@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Hashable, Mapping
 
     import pyopencl.array as cla
+    from pytato.array import AxesT
 
 AllowedArray: TypeAlias = "pt.Array | TaggableCLArray | cla.Array"
 AllowedArrayTc = TypeVar("AllowedArrayTc", pt.Array, TaggableCLArray, "cla.Array")
@@ -408,12 +409,16 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         self.actx._compile_trace_callback(
                 prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
-        name_in_program_to_tags = {
-            name: out.tags
-            for name, out in pt_dict_of_named_arrays._data.items()}
-        name_in_program_to_axes = {
-            name: out.axes
-            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_tags: dict[str, frozenset[Tag]] = {}
+        name_in_program_to_axes: dict[str, AxesT] = {}
+        if isinstance(pt_dict_of_named_arrays, pt.DictOfNamedArrays):
+            name_in_program_to_tags.update({
+                name: out.tags
+                for name, out in pt_dict_of_named_arrays._data.items()})
+
+            name_in_program_to_axes.update({
+                name: out.axes
+                for name, out in pt_dict_of_named_arrays._data.items()})
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_generate_loopy", pt_dict_of_named_arrays)
@@ -505,12 +510,16 @@ class LazilyJAXCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
         self.actx._compile_trace_callback(
                 prg_id, "post_transform_dag", pt_dict_of_named_arrays)
 
-        name_in_program_to_tags = {
-            name: out.tags
-            for name, out in pt_dict_of_named_arrays._data.items()}
-        name_in_program_to_axes = {
-            name: out.axes
-            for name, out in pt_dict_of_named_arrays._data.items()}
+        name_in_program_to_tags: dict[str, frozenset[Tag]] = {}
+        name_in_program_to_axes: dict[str, AxesT] = {}
+        if isinstance(pt_dict_of_named_arrays, pt.DictOfNamedArrays):
+            name_in_program_to_tags.update({
+                name: out.tags
+                for name, out in pt_dict_of_named_arrays._data.items()})
+
+            name_in_program_to_axes.update({
+                name: out.axes
+                for name, out in pt_dict_of_named_arrays._data.items()})
 
         self.actx._compile_trace_callback(
                 prg_id, "pre_generate_jax", pt_dict_of_named_arrays)

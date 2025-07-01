@@ -166,10 +166,11 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
         """
         super().__init__()
 
-        self._freeze_prg_cache: dict[pt.DictOfNamedArrays, lp.TranslationUnit] = {}
+        self._freeze_prg_cache: dict[
+            pt.AbstractResultWithNamedArrays, lp.TranslationUnit] = {}
         self._dag_transform_cache: dict[
-                pt.DictOfNamedArrays,
-                tuple[pt.DictOfNamedArrays, str]] = {}
+                pt.AbstractResultWithNamedArrays,
+                tuple[pt.AbstractResultWithNamedArrays, str]] = {}
 
         if compile_trace_callback is None:
             def _compile_trace_callback(what, stage, ir):
@@ -229,8 +230,8 @@ class _BasePytatoArrayContext(ArrayContext, abc.ABC):
 
     # {{{ compilation
 
-    def transform_dag(self, dag: pytato.DictOfNamedArrays
-                      ) -> pytato.DictOfNamedArrays:
+    def transform_dag(self, dag: pytato.AbstractResultWithNamedArrays
+                      ) -> pytato.AbstractResultWithNamedArrays:
         """
         Returns a transformed version of *dag*. Sub-classes are supposed to
         override this method to implement context-specific transformations on
@@ -635,12 +636,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             pt.make_dict_of_named_arrays(key_to_pt_arrays))
 
         # FIXME: Remove this if/when _normalize_pt_expr gets support for functions
-        pt_dict_of_named_arrays = pt.tag_all_calls_to_be_inlined(
-            pt_dict_of_named_arrays)
-        pt_dict_of_named_arrays = pt.inline_calls(pt_dict_of_named_arrays)
+        dag = pt.tag_all_calls_to_be_inlined(dag)
+        dag = pt.inline_calls(dag)
 
-        normalized_expr, bound_arguments = _normalize_pt_expr(
-                pt_dict_of_named_arrays)
+        normalized_expr, bound_arguments = _normalize_pt_expr(dag)
 
         try:
             pt_prg = self._freeze_prg_cache[normalized_expr]
@@ -786,8 +785,8 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         from .compile import LazilyPyOpenCLCompilingFunctionCaller
         return LazilyPyOpenCLCompilingFunctionCaller(self, f)
 
-    def transform_dag(self, dag: pytato.DictOfNamedArrays
-                      ) -> pytato.DictOfNamedArrays:
+    def transform_dag(self, dag: pytato.AbstractResultWithNamedArrays
+                      ) -> pytato.AbstractResultWithNamedArrays:
         import pytato as pt
         dag = pt.tag_all_calls_to_be_inlined(dag)
         dag = pt.inline_calls(dag)
@@ -986,8 +985,9 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
         from .compile import LazilyJAXCompilingFunctionCaller
         return LazilyJAXCompilingFunctionCaller(self, f)
 
-    def transform_dag(self, dag: pytato.DictOfNamedArrays
-                      ) -> pytato.DictOfNamedArrays:
+    @override
+    def transform_dag(self, dag: pytato.AbstractResultWithNamedArrays
+                      ) -> pytato.AbstractResultWithNamedArrays:
         import pytato as pt
         dag = pt.tag_all_calls_to_be_inlined(dag)
         dag = pt.inline_calls(dag)

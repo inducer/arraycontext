@@ -10,6 +10,14 @@ Profiling-related functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: tabulate_profiling_data
+
+References
+^^^^^^^^^^
+
+.. autoclass:: ArrayOrNamesTc
+
+    A constrained type variable binding to either
+    :class:`pytato.Array` or :class:`pytato.AbstractResultWithNames`.
 """
 
 
@@ -38,24 +46,25 @@ THE SOFTWARE.
 """
 
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
+
+from typing_extensions import override
 
 import pytools
 from pytato.analysis import get_num_call_sites
 from pytato.array import (
-    AbstractResultWithNamedArrays,
     Array,
     Axis as PtAxis,
+    DataInterface,
     DataWrapper,
-    DictOfNamedArrays,
     Placeholder,
     SizeParam,
     make_placeholder,
 )
-from pytato.function import FunctionDefinition
 from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import (
     ArrayOrNames,
+    ArrayOrNamesTc,
     CopyMapper,
     TransformMapperCache,
     deduplicate,
@@ -69,6 +78,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     import loopy as lp
+    from pytato import AbstractResultWithNamedArrays
+    from pytato.function import FunctionDefinition
 
     from arraycontext import ArrayContext
     from arraycontext.container import SerializationKey
@@ -94,10 +105,11 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
             _cache=_cache,
             _function_cache=_function_cache)
 
-        self.bound_arguments: dict[str, Any] = {}
-        self.vng = UniqueNameGenerator()
+        self.bound_arguments: dict[str, DataInterface] = {}
+        self.vng: UniqueNameGenerator = UniqueNameGenerator()
         self.seen_inputs: set[str] = set()
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         if expr.name is not None:
             if expr.name in self.seen_inputs:
@@ -119,13 +131,16 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
                     axes=expr.axes,
                     tags=expr.tags)
 
+    @override
     def map_size_param(self, expr: SizeParam) -> Array:
         raise NotImplementedError
 
+    @override
     def map_placeholder(self, expr: Placeholder) -> Array:
         raise ValueError("Placeholders cannot appear in"
                          " DatawrapperToBoundPlaceholderMapper.")
 
+    @override
     def map_function_definition(
             self, expr: FunctionDefinition) -> FunctionDefinition:
         raise ValueError("Function definitions cannot appear in"
@@ -135,8 +150,9 @@ class _DatawrapperToBoundPlaceholderMapper(CopyMapper):
 # FIXME: This strategy doesn't work if the DAG has functions, since function
 # definitions can't contain non-argument placeholders
 def _normalize_pt_expr(
-        expr: DictOfNamedArrays
-        ) -> tuple[Array | AbstractResultWithNamedArrays, Mapping[str, Any]]:
+        expr: AbstractResultWithNamedArrays
+        ) -> tuple[AbstractResultWithNamedArrays,
+                    Mapping[str, DataInterface]]:
     """
     Returns ``(normalized_expr, bound_arguments)``.  *normalized_expr* is a
     normalized form of *expr*, with all instances of
@@ -155,7 +171,6 @@ def _normalize_pt_expr(
 
     normalize_mapper = _DatawrapperToBoundPlaceholderMapper()
     normalized_expr = normalize_mapper(expr)
-    assert isinstance(normalized_expr, AbstractResultWithNamedArrays)
     return normalized_expr, normalize_mapper.bound_arguments
 
 
@@ -172,7 +187,7 @@ def get_cl_axes_from_pt_axes(axes: tuple[PtAxis, ...]) -> tuple[ClAxis, ...]:
 class ArgSizeLimitingPytatoLoopyPyOpenCLTarget(LoopyPyOpenCLTarget):
     def __init__(self, limit_arg_size_nbytes: int) -> None:
         super().__init__()
-        self.limit_arg_size_nbytes = limit_arg_size_nbytes
+        self.limit_arg_size_nbytes: int = limit_arg_size_nbytes
 
     @memoize_method
     def get_loopy_target(self) -> lp.PyOpenCLTarget:
@@ -191,8 +206,9 @@ class TransferFromNumpyMapper(CopyMapper):
     """
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
-        self.actx = actx
+        self.actx: ArrayContext = actx
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import numpy as np
 
@@ -223,8 +239,9 @@ class TransferToNumpyMapper(CopyMapper):
     """
     def __init__(self, actx: ArrayContext) -> None:
         super().__init__()
-        self.actx = actx
+        self.actx: ArrayContext = actx
 
+    @override
     def map_data_wrapper(self, expr: DataWrapper) -> Array:
         import numpy as np
 
@@ -244,7 +261,7 @@ class TransferToNumpyMapper(CopyMapper):
             non_equality_tags=expr.non_equality_tags)
 
 
-def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+def transfer_from_numpy(expr: ArrayOrNamesTc, actx: ArrayContext) -> ArrayOrNamesTc:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be device arrays, using
     :meth:`~arraycontext.ArrayContext.from_numpy`.
@@ -252,7 +269,7 @@ def transfer_from_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
     return TransferFromNumpyMapper(actx)(expr)
 
 
-def transfer_to_numpy(expr: ArrayOrNames, actx: ArrayContext) -> ArrayOrNames:
+def transfer_to_numpy(expr: ArrayOrNamesTc, actx: ArrayContext) -> ArrayOrNamesTc:
     """Transfer arrays contained in :class:`~pytato.array.DataWrapper`
     instances to be :class:`numpy.ndarray` instances, using
     :meth:`~arraycontext.ArrayContext.to_numpy`.
@@ -285,8 +302,7 @@ def tabulate_profiling_data(actx: PytatoPyOpenCLArrayContext) -> pytools.Table:
 
         t_sum = sum(times)
         t_avg = t_sum / num_calls
-        if t_sum is not None:
-            total_time += t_sum
+        total_time += t_sum
 
         tbl.add_row((kernel_name, num_calls, f"{t_sum:{g}}", f"{t_avg:{g}}"))
 
