@@ -627,7 +627,8 @@ class ArrayContext(ABC):
             "setup-only" array context "leaks" into the application.
         """
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def compile(self, f: Callable[..., Any],
+                single_version_only: bool = False) -> Callable[..., Any]:
         """Compiles *f* for repeated use on this array context. *f* is expected
         to be a `pure function <https://en.wikipedia.org/wiki/Pure_function>`__
         performing an array computation.
@@ -643,6 +644,8 @@ class ArrayContext(ABC):
         it may be called only once (or a few times).
 
         :arg f: the function executing the computation.
+        :arg single_version_only: If *True*, raise an error if *f* is compiled
+            more than once (due to different input argument types).
         :return: a function with the same signature as *f*.
         """
         return f

@@ -283,6 +283,7 @@ class BaseLazilyCompilingFunctionCaller:
 
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
+    single_version_only: bool
     program_cache: dict[Mapping[tuple[Hashable, ...], AbstractInputDescriptor],
                         CompiledFunction] = field(default_factory=lambda: {})
 
@@ -342,15 +343,32 @@ class BaseLazilyCompilingFunctionCaller:
         :attr:`~BaseLazilyCompilingFunctionCaller.f` with *args* in a lazy-sense.
         The intermediary pytato DAG for *args* is memoized in *self*.
         """
-        arg_id_to_arg, arg_id_to_descr = _get_arg_id_to_arg_and_arg_id_to_descr(
-            args, kwargs)
+        if not self.single_version_only:
+            arg_id_to_arg, arg_id_to_descr = \
+                _get_arg_id_to_arg_and_arg_id_to_descr(args, kwargs)
 
-        try:
-            compiled_f = self.program_cache[arg_id_to_descr]
-        except KeyError:
-            pass
+            try:
+                compiled_f = self.program_cache[arg_id_to_descr]
+            except KeyError:
+                pass
+            else:
+                return compiled_f(arg_id_to_arg)
         else:
-            return compiled_f(arg_id_to_arg)
+            assert len(self.program_cache) <= 1
+
+            try:
+                arg_id_to_descr, compiled_f = next(iter(self.program_cache.items()))
+            except StopIteration:
+                arg_id_to_arg, arg_id_to_descr = \
+                    _get_arg_id_to_arg_and_arg_id_to_descr(args, kwargs)
+            else:
+                if __debug__:
+                    current_arg_id_to_arg, current_arg_id_to_descr = \
+                        _get_arg_id_to_arg_and_arg_id_to_descr(args, kwargs)
+                    assert arg_id_to_descr == current_arg_id_to_descr
+                    assert self.arg_id_to_arg == current_arg_id_to_arg  # pylint: disable=access-member-before-definition
+
+                return compiled_f(self.arg_id_to_arg)  # pylint: disable=access-member-before-definition
 
         dict_of_named_arrays = {}
         output_id_to_name_in_program = {}
@@ -392,6 +410,9 @@ class BaseLazilyCompilingFunctionCaller:
                 input_id_to_name_in_program=input_id_to_name_in_program,
                 output_id_to_name_in_program=output_id_to_name_in_program,
                 output_template=output_template)
+
+        if self.single_version_only:
+            self.arg_id_to_arg: Mapping[tuple[Hashable, ...], Any] = arg_id_to_arg
 
         self.program_cache[arg_id_to_descr] = compiled_func
         return compiled_func(arg_id_to_arg)

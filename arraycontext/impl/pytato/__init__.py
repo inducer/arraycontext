@@ -746,9 +746,11 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         return call_loopy(program, processed_kwargs, entrypoint)
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def compile(self, f: Callable[..., Any],
+                single_version_only: bool = False) -> Callable[..., Any]:
         from .compile import LazilyPyOpenCLCompilingFunctionCaller
-        return LazilyPyOpenCLCompilingFunctionCaller(self, f)
+        return LazilyPyOpenCLCompilingFunctionCaller(self,
+                                                     f, single_version_only)
 
     def transform_dag(self, dag: pytato.DictOfNamedArrays
                       ) -> pytato.DictOfNamedArrays:
@@ -942,9 +944,10 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             self._rec_map_container(_thaw, array, self._frozen_array_types),
             actx=self)
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def compile(self, f: Callable[..., Any],
+                single_version_only: bool = False) -> Callable[..., Any]:
         from .compile import LazilyJAXCompilingFunctionCaller
-        return LazilyJAXCompilingFunctionCaller(self, f)
+        return LazilyJAXCompilingFunctionCaller(self, f, single_version_only)
 
     @override
     def tag(self,
