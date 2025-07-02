@@ -1106,39 +1106,9 @@ def flat_size_and_dtype(
     size = _flat_size(ary)
     return size, common_dtype
 
-# }}}
 
 class _HasOuterBcastTypes(Protocol):
     _outer_bcast_types: ClassVar[Collection[type]]
-
-# {{{ numpy conversion
-
-def from_numpy(
-        ary: np.ndarray | ScalarLike,
-        actx: ArrayContext) -> ArrayOrContainerOrScalar:
-    """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
-    to the base array type of :class:`~arraycontext.ArrayContext`.
-
-    The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
-    """
-    warn("Calling from_numpy(ary, actx) is deprecated, call actx.from_numpy(ary)"
-         " instead. This will stop working in 2023.",
-         DeprecationWarning, stacklevel=2)
-
-    return actx.from_numpy(ary)
-
-
-def to_numpy(ary: ArrayOrContainer, actx: ArrayContext) -> ArrayOrContainer:
-    """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
-    :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
-
-    The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
-    """
-    warn("Calling to_numpy(ary, actx) is deprecated, call actx.to_numpy(ary)"
-         " instead. This will stop working in 2023.",
-         DeprecationWarning, stacklevel=2)
-
-    return actx.to_numpy(ary)
 
 # }}}
 
