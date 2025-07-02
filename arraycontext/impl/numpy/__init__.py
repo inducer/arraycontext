@@ -65,7 +65,8 @@ if TYPE_CHECKING:
 
 
 class NumpyNonObjectArrayMetaclass(type):
-    def __instancecheck__(cls, instance: Any) -> bool:
+    @override
+    def __instancecheck__(cls, instance: object) -> bool:
         return isinstance(instance, np.ndarray) and instance.dtype != object
 
 
