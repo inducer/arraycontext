@@ -88,7 +88,7 @@ def test_dataclass_array_container() -> None:
         # Deliberately left as Tuple to test compatibility.
         y: Tuple[Array, Array]  # noqa: UP006
 
-    with pytest.raises(TypeError, match="Typing annotation not supported on field 'y'"):
+    with pytest.raises(TypeError, match="Type annotation not supported on field 'y'"):
         dataclass_array_container(ArrayContainerWithTuple)
 
     @dataclass
@@ -96,7 +96,7 @@ def test_dataclass_array_container() -> None:
         x: Array
         y: tuple[Array, Array]
 
-    with pytest.raises(TypeError, match="Typing annotation not supported on field 'y'"):
+    with pytest.raises(TypeError, match="Type annotation not supported on field 'y'"):
         dataclass_array_container(ArrayContainerWithTupleAlt)
 
     # }}}

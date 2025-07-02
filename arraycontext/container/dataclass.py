@@ -180,7 +180,7 @@ def dataclass_array_container(cls: type[T]) -> type[T]:
             if isinstance(field_type, GenericAlias | _BaseGenericAlias | _SpecialForm):
                 # NOTE: anything except a Union is not allowed
                 raise TypeError(
-                        f"Typing annotation not supported on field '{f.name}': "
+                        f"Type annotation not supported on field '{f.name}': "
                         f"'{field_type!r}'")
 
             if not isinstance(field_type, type):
