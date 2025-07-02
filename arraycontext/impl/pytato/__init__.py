@@ -69,6 +69,7 @@ from arraycontext.container.traversal import (
 from arraycontext.context import (
     Array,
     ArrayContext,
+    ArrayOrArithContainerOrScalarT,
     ArrayOrContainerOrScalarT,
     ArrayOrContainerT,
     ArrayOrScalar,
@@ -781,9 +782,24 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
 
         return call_loopy(program, processed_kwargs, entrypoint)
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    @override
+    def compile(self,
+                f: Callable[P, ArrayOrArithContainerOrScalarT]
+            ) -> Callable[P, ArrayOrArithContainerOrScalarT]:
+        # FIXME Ideally, the ParamSpec P should be bounded by ArrayOrContainerOrScalar,
+        # but this is not currently possible:
+        # https://github.com/python/typing/issues/1027
+
+        # FIXME An aspect of this that's a bit of a lie is that the types
+        # coming out of the outlined function are not guaranteed to be the same
+        # as the ones that the un-outlined function would return. That said,
+        # if f is written only in terms of the array context types (Array, ScalarLike,
+        # containers), this is close enough to being true that I'm willing
+        # to take responsibility. -AK, 2025-06-30
+
         from .compile import LazilyPyOpenCLCompilingFunctionCaller
-        return LazilyPyOpenCLCompilingFunctionCaller(self, f)
+        return cast("Callable[P, ArrayOrArithContainerOrScalarT]",
+            LazilyPyOpenCLCompilingFunctionCaller(self, f))
 
     def transform_dag(self, dag: pytato.AbstractResultWithNamedArrays
                       ) -> pytato.AbstractResultWithNamedArrays:
@@ -983,9 +999,24 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             self._rec_map_container(_thaw, array, self._frozen_array_types),
             actx=self)
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    @override
+    def compile(self,
+                f: Callable[P, ArrayOrArithContainerOrScalarT]
+            ) -> Callable[P, ArrayOrArithContainerOrScalarT]:
+        # FIXME Ideally, the ParamSpec P should be bounded by ArrayOrContainerOrScalar,
+        # but this is not currently possible:
+        # https://github.com/python/typing/issues/1027
+
+        # FIXME An aspect of this that's a bit of a lie is that the types
+        # coming out of the outlined function are not guaranteed to be the same
+        # as the ones that the un-outlined function would return. That said,
+        # if f is written only in terms of the array context types (Array, ScalarLike,
+        # containers), this is close enough to being true that I'm willing
+        # to take responsibility. -AK, 2025-06-30
+
         from .compile import LazilyJAXCompilingFunctionCaller
-        return LazilyJAXCompilingFunctionCaller(self, f)
+        return cast("Callable[P, ArrayOrArithContainerOrScalarT]",
+            LazilyJAXCompilingFunctionCaller(self, f))
 
     @override
     def transform_dag(self, dag: pytato.AbstractResultWithNamedArrays
