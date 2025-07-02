@@ -31,7 +31,7 @@ THE SOFTWARE.
 
 import operator
 from functools import partial, reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from warnings import warn
 
 import numpy as np
@@ -223,6 +223,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 _any,
                 a)
 
+    @override
     def array_equal(self,
                 a: ArrayOrContainerOrScalar,
                 b: ArrayOrContainerOrScalar
@@ -237,7 +238,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         def rec_equal(
                     x: ArrayOrContainerOrScalar,
                     y: ArrayOrContainerOrScalar,
-                ) -> cl_array.Array:
+                ) -> Array:
             if type(x) is not type(y):
                 return false_ary
 
@@ -256,13 +257,13 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 if len(serialized_x) != len(serialized_y):
                     return false_ary
 
-                return reduce(
+                return cast("Array", reduce(
                         partial(cl_array.minimum, queue=queue),
                         [(true_ary if kx_i == ky_i else false_ary)
                             and rec_equal(x_i, y_i)
                             for (kx_i, x_i), (ky_i, y_i)
                             in zip(serialized_x, serialized_y, strict=True)],
-                        true_ary)
+                        true_ary))
 
         return rec_equal(a, b)
 
