@@ -12,10 +12,6 @@ References
 """
 from __future__ import annotations
 
-from pytools.obj_array import ObjectArray
-
-from arraycontext.context import ArrayOrContainer, ArrayOrContainerOrScalar
-
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -54,10 +50,14 @@ from typing import (
     get_args,
     get_origin,
 )
+from warnings import warn
 
 import numpy as np
 
+from pytools.obj_array import ObjectArray
+
 from arraycontext.container import ArrayContainer, is_array_container_type
+from arraycontext.context import ArrayOrContainer, ArrayOrContainerOrScalar
 
 
 if TYPE_CHECKING:
@@ -77,7 +77,15 @@ class _Field(NamedTuple):
     type: type
 
 
-def is_array_type(tp: type, /) -> bool:
+def _is_array_or_container_type(tp: type, /) -> bool:
+    if tp is np.ndarray:
+        warn("Encountered 'numpy.ndarray' in a dataclass_array_container. "
+             "This is deprecated and will stop working in 2026. "
+             "If you meant an object array, use pytools.obj_array.ObjectArray. "
+             "For other uses, file an issue to discuss.",
+             DeprecationWarning, stacklevel=3)
+        return True
+
     from arraycontext import Array
     return tp is Array or is_array_container_type(tp)
 
@@ -151,7 +159,7 @@ def dataclass_array_container(cls: type[T]) -> type[T]:
         if origin in (Union, UnionType):  # pyright: ignore[reportDeprecated]
             for arg in get_args(field_type):  # pyright: ignore[reportAny]
                 if not (
-                        is_array_type(cast("type", arg))
+                        _is_array_or_container_type(cast("type", arg))
                         or is_scalar_type(cast("type", arg))):
                     raise TypeError(
                             f"Field '{f.name}' union contains non-array container "
@@ -188,7 +196,7 @@ def dataclass_array_container(cls: type[T]) -> type[T]:
                         f"Field '{f.name}' not an instance of 'type': "
                         f"'{field_type!r}'")
 
-        return is_array_type(field_type)
+        return _is_array_or_container_type(field_type)
 
     from pytools import partition
 
