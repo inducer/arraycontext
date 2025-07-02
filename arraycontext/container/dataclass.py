@@ -12,6 +12,10 @@ References
 """
 from __future__ import annotations
 
+from pytools.obj_array import ObjectArray
+
+from arraycontext.context import ArrayOrContainer, ArrayOrContainerOrScalar
+
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -133,8 +137,15 @@ def dataclass_array_container(cls: type[T]) -> type[T]:
         # pyright has no idea what we're up to. :)
         if field_type is ArrayContainer:  # pyright: ignore[reportUnnecessaryComparison]
             return True
+        if field_type is ArrayOrContainer:  # pyright: ignore[reportUnnecessaryComparison]
+            return True
+        if field_type is ArrayOrContainerOrScalar:  # pyright: ignore[reportUnnecessaryComparison]
+            return True
 
         origin = get_origin(field_type)
+
+        if origin is ObjectArray:
+            return True
 
         # NOTE: `UnionType` is returned when using `Type1 | Type2`
         if origin in (Union, UnionType):  # pyright: ignore[reportDeprecated]

@@ -95,12 +95,6 @@ Canonical locations for type annotations
 
 from __future__ import annotations
 
-from types import GenericAlias, UnionType
-
-from numpy.typing import NDArray
-
-from arraycontext.context import ArrayOrArithContainer, ArrayOrContainerOrScalar
-
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -128,9 +122,9 @@ THE SOFTWARE.
 
 from collections.abc import Hashable, Sequence
 from functools import singledispatch
+from types import GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
-    Any,
     ClassVar,
     Protocol,
     TypeAlias,
@@ -143,6 +137,14 @@ from typing import (
 import numpy
 import numpy as np
 from typing_extensions import Self, TypeIs
+
+from pytools.obj_array import ObjectArrayND
+
+from arraycontext.context import (
+    ArrayOrArithContainer,
+    ArrayOrArithContainerOrScalar,
+    ArrayOrContainerOrScalar,
+)
 
 
 if TYPE_CHECKING:
@@ -163,7 +165,10 @@ class _UserDefinedArrayContainer(Protocol):
     __array_ufunc__: ClassVar[None]
 
 
-ArrayContainer: TypeAlias = NDArray[Any] | _UserDefinedArrayContainer
+ArrayContainer: TypeAlias = (
+    ObjectArrayND[ArrayOrContainerOrScalar]
+    | _UserDefinedArrayContainer
+    )
 
 
 class _UserDefinedArithArrayContainer(_UserDefinedArrayContainer, Protocol):
@@ -187,7 +192,9 @@ class _UserDefinedArithArrayContainer(_UserDefinedArrayContainer, Protocol):
     def __rpow__(self, other: ArrayOrScalar | Self) -> Self: ...
 
 
-ArithArrayContainer: TypeAlias = NDArray[Any] | _UserDefinedArithArrayContainer
+ArithArrayContainer: TypeAlias = (
+    ObjectArrayND[ArrayOrArithContainerOrScalar]
+    | _UserDefinedArithArrayContainer)
 
 
 ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
@@ -307,9 +314,9 @@ def get_container_context_opt(ary: ArrayContainer) -> ArrayContext | None:
 
 # {{{ object arrays as array containers
 
+# Sadly, ObjectArray is not usable here.
 @serialize_container.register(np.ndarray)
-def _serialize_ndarray_container(
-        ary: numpy.ndarray) -> SerializedContainer:
+def _serialize_ndarray_container(ary: numpy.ndarray) -> SerializedContainer:
     if ary.dtype.char != "O":
         raise NotAnArrayContainerError(
                 f"cannot serialize '{type(ary).__name__}' with dtype '{ary.dtype}'")

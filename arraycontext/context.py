@@ -427,9 +427,7 @@ class ArrayContext(ABC):
         return self.np.zeros(shape, dtype)
 
     @overload
-    # FIXME: object arrays are containers, so pyright has a point.
-    # Maybe introduce a separate (type-check-only) NumpyObjectArray type?
-    def from_numpy(self, array: np.ndarray) -> Array:  # pyright: ignore[reportOverlappingOverload]
+    def from_numpy(self, array: np.ndarray) -> Array:
         ...
 
     @overload
