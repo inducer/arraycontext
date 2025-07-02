@@ -49,9 +49,7 @@
         This should be considered experimental for now, and it may well change.
 
 .. autoclass:: ArithArrayContainer
-.. class:: ArrayContainerT
-
-    A type variable with a lower bound of :class:`ArrayContainer`.
+.. autoclass:: ArrayContainerT
 
 .. autoexception:: NotAnArrayContainerError
 
@@ -125,10 +123,7 @@ from functools import singledispatch
 from types import GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
-    ClassVar,
-    Protocol,
     TypeAlias,
-    TypeVar,
     get_origin,
 )
 
@@ -136,13 +131,15 @@ from typing import (
 # what 'np' is.
 import numpy
 import numpy as np
-from typing_extensions import Self, TypeIs
+from typing_extensions import TypeIs
 
-from pytools.obj_array import ObjectArrayND
+from pytools.obj_array import ObjectArrayND as ObjectArrayND
 
-from arraycontext.context import (
+from arraycontext.typing import (
+    ArrayContainer,
+    ArrayContainerT,
     ArrayOrArithContainer,
-    ArrayOrArithContainerOrScalar,
+    ArrayOrArithContainerOrScalar as ArrayOrArithContainerOrScalar,
     ArrayOrContainerOrScalar,
 )
 
@@ -150,55 +147,11 @@ from arraycontext.context import (
 if TYPE_CHECKING:
     from pymbolic.geometric_algebra import CoeffT, MultiVector
 
-    from arraycontext.context import ArrayContext, ArrayOrScalar
+    from arraycontext.context import ArrayContext
+    from arraycontext.typing import ArrayOrScalar as ArrayOrScalar
 
 
-# {{{ ArrayContainer
-
-class _UserDefinedArrayContainer(Protocol):
-    # This is used as a type annotation in dataclasses that are processed
-    # by dataclass_array_container, where it's used to recognize attributes
-    # that are container-typed.
-
-    # This method prevents ArrayContainer from matching any object, while
-    # matching numpy object arrays and many array containers.
-    __array_ufunc__: ClassVar[None]
-
-
-ArrayContainer: TypeAlias = (
-    ObjectArrayND[ArrayOrContainerOrScalar]
-    | _UserDefinedArrayContainer
-    )
-
-
-class _UserDefinedArithArrayContainer(_UserDefinedArrayContainer, Protocol):
-    # This is loose and permissive, assuming that any array can be added
-    # to any container. The alternative would be to plaster type-ignores
-    # on all those uses. Achieving typing precision on what broadcasting is
-    # allowable seems like a huge endeavor and is likely not feasible without
-    # a mypy plugin. Maybe some day? -AK, November 2024
-
-    def __neg__(self) -> Self: ...
-    def __abs__(self) -> Self: ...
-    def __add__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __radd__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __sub__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rsub__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __mul__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rmul__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __truediv__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rtruediv__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __pow__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rpow__(self, other: ArrayOrScalar | Self) -> Self: ...
-
-
-ArithArrayContainer: TypeAlias = (
-    ObjectArrayND[ArrayOrArithContainerOrScalar]
-    | _UserDefinedArithArrayContainer)
-
-
-ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
-
+# {{{ ArrayContainer traversals
 
 class NotAnArrayContainerError(TypeError):
     """:class:`TypeError` subclass raised when an array container is expected."""

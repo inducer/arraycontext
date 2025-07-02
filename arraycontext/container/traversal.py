@@ -33,14 +33,26 @@ Flattening and unflattening
 .. autofunction:: unflatten
 .. autofunction:: flat_size_and_dtype
 
-Numpy conversion
-~~~~~~~~~~~~~~~~
-.. autofunction:: from_numpy
-.. autofunction:: to_numpy
-
 Algebraic operations
 ~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: outer
+
+.. currentmodule:: arraycontext.traversal
+
+References
+----------
+
+.. class:: ArrayOrScalar
+
+    See :class:`arraycontext.ArrayOrScalar`.
+
+.. class:: ArrayOrContainer
+
+    See :class:`arraycontext.ArrayOrContainer`.
+
+.. class:: ArrayContainerT
+
+    See :class:`arraycontext.ArrayContainerT`.
 """
 
 from __future__ import annotations
@@ -84,8 +96,6 @@ from pytools.obj_array import (
 )
 
 from arraycontext.container import (
-    ArrayContainer,
-    ArrayContainerT,
     NotAnArrayContainerError,
     SerializationKey,
     deserialize_container,
@@ -93,15 +103,20 @@ from arraycontext.container import (
     is_array_container,
     serialize_container,
 )
-from arraycontext.context import is_scalar_like, shape_is_int_only
+from arraycontext.typing import (
+    ArrayContainer,
+    ArrayContainerT,
+    is_scalar_like,
+    shape_is_int_only,
+)
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable
 
-    from arraycontext.context import (
+    from arraycontext.context import ArrayContext
+    from arraycontext.typing import (
         Array,
-        ArrayContext,
         ArrayOrContainer,
         ArrayOrContainerOrScalar,
         ArrayOrContainerOrScalarT,

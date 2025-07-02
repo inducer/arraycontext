@@ -37,11 +37,11 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
-from arraycontext.context import OrderCF, is_scalar_like
 from arraycontext.fake_numpy import (
     BaseFakeNumpyLinalgNamespace,
     BaseFakeNumpyNamespace,
 )
+from arraycontext.typing import OrderCF, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 
     from pymbolic import Scalar
 
-    from arraycontext.context import (
+    from arraycontext.typing import (
         Array,
         ArrayOrContainerOrScalar,
         ArrayOrScalar,

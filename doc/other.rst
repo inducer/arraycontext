@@ -1,6 +1,8 @@
 Other functionality
 ===================
 
+.. automodule:: arraycontext.typing
+
 .. _metadata:
 
 Metadata ("tags") for Arrays and Array Axes

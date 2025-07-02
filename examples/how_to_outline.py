@@ -18,7 +18,7 @@ from arraycontext import (
 
 
 if TYPE_CHECKING:
-    from arraycontext.context import (
+    from arraycontext import (
         ArrayOrArithContainer,
     )
 

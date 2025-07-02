@@ -46,10 +46,10 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
     rec_multimap_reduce_array_container,
 )
-from arraycontext.context import OrderCF, is_scalar_like
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
+from arraycontext.typing import OrderCF, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -58,12 +58,12 @@ if TYPE_CHECKING:
     from pymbolic import Scalar
     from pytools.tag import Tag
 
-    from arraycontext.context import (
+    from arraycontext.impl.pyopencl import PyOpenCLArrayContext
+    from arraycontext.typing import (
         Array,
         ArrayOrContainerOrScalar,
         ArrayOrScalar,
     )
-    from arraycontext.impl.pyopencl import PyOpenCLArrayContext
 
 
 # {{{ fake numpy

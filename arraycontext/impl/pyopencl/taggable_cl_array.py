@@ -21,7 +21,7 @@ from pytools.tag import Tag, Taggable, ToTagSetConvertible
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
 
-    from arraycontext.context import Array
+    from arraycontext.typing import Array
 
 
 _EMPTY_TAG_SET: frozenset[Tag] = frozenset()

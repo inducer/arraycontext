@@ -43,8 +43,11 @@ from arraycontext.container.traversal import (
     with_array_context,
 )
 from arraycontext.context import (
-    Array,
     ArrayContext,
+    UntransformedCodeWarning,
+)
+from arraycontext.typing import (
+    Array,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
     ArrayOrContainerT as ArrayOrContainerT,
@@ -52,7 +55,6 @@ from arraycontext.context import (
     ContainerOrScalarT,
     NumpyOrContainerOrScalar,
     ScalarLike,
-    UntransformedCodeWarning,
     is_scalar_like,
 )
 
@@ -68,8 +70,8 @@ if TYPE_CHECKING:
     from loopy import TranslationUnit
     from pytools.tag import ToTagSetConvertible
 
-    from arraycontext.container import ArrayContainerT
     from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
+    from arraycontext.typing import ArrayContainerT
 
 
 # {{{ PyOpenCLArrayContext

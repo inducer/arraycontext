@@ -46,13 +46,15 @@ from arraycontext.container.traversal import (
     with_array_context,
 )
 from arraycontext.context import (
-    Array,
     ArrayContext,
+    UntransformedCodeWarning,
+)
+from arraycontext.typing import (
+    Array,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
     ContainerOrScalarT,
     NumpyOrContainerOrScalar,
-    UntransformedCodeWarning,
     is_scalar_like,
 )
 
@@ -61,7 +63,7 @@ if TYPE_CHECKING:
     from pymbolic import Scalar
     from pytools.tag import ToTagSetConvertible
 
-    from arraycontext.container import ArrayContainerT
+    from arraycontext.typing import ArrayContainerT
 
 
 class NumpyNonObjectArrayMetaclass(type):

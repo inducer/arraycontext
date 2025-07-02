@@ -41,9 +41,8 @@ sys._BUILDING_SPHINX_DOCS = True
 
 
 nitpick_ignore_regex = [
-    ["py:class", r"arraycontext\.context\.ContainerOrScalarT"],
-    ["py:class", r"ArrayOrContainer"],
-    ["py:class", r"ArrayOrScalar"],
-    ["py:class", r"arraycontext.container._UserDefinedArithArrayContainer"],
+    ["py:class", r"arraycontext.typing._UserDefinedArrayContainer"],
+    ["py:class", r"arraycontext.typing._UserDefinedArithArrayContainer"],
     ["py:class", r"np.integer"],
+    ["py:class", r".*\|.*"],
     ]

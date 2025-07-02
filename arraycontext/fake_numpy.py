@@ -40,7 +40,7 @@ from arraycontext.container import (
     serialize_container,
 )
 from arraycontext.container.traversal import rec_map_container
-from arraycontext.context import ArrayOrContainer, ArrayOrContainerT, is_scalar_like
+from arraycontext.typing import ArrayOrContainer, ArrayOrContainerT, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -50,9 +50,9 @@ if TYPE_CHECKING:
 
     from pymbolic import Scalar
 
-    from arraycontext.context import (
+    from arraycontext.context import ArrayContext
+    from arraycontext.typing import (
         Array,
-        ArrayContext,
         ArrayOrContainerOrScalar,
         ArrayOrContainerOrScalarT,
         ArrayOrScalar,

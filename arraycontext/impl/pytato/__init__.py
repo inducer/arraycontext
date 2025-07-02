@@ -67,18 +67,20 @@ from arraycontext.container.traversal import (
     with_array_context,
 )
 from arraycontext.context import (
-    Array,
     ArrayContext,
+    P,
+    UntransformedCodeWarning,
+)
+from arraycontext.metadata import NameHint
+from arraycontext.typing import (
+    Array,
     ArrayOrArithContainerOrScalarT,
     ArrayOrContainerOrScalarT,
     ArrayOrContainerT,
     ArrayOrScalar,
-    P,
     ScalarLike,
-    UntransformedCodeWarning,
     is_scalar_like,
 )
-from arraycontext.metadata import NameHint
 
 
 if TYPE_CHECKING:

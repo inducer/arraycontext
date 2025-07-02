@@ -56,8 +56,12 @@ import numpy as np
 
 from pytools.obj_array import ObjectArray
 
-from arraycontext.container import ArrayContainer, is_array_container_type
-from arraycontext.context import ArrayOrContainer, ArrayOrContainerOrScalar
+from arraycontext.container import is_array_container_type
+from arraycontext.typing import (
+    ArrayContainer,
+    ArrayOrContainer,
+    ArrayOrContainerOrScalar,
+)
 
 
 if TYPE_CHECKING:

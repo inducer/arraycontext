@@ -37,7 +37,7 @@ from arraycontext import (
     with_array_context,
     with_container_arithmetic,
 )
-from arraycontext.context import ArrayOrContainer, ScalarLike  # noqa: TC001
+from arraycontext.typing import ArrayOrContainer, ScalarLike  # noqa: TC001
 
 
 # Containers live here, because in order for get_annotations to work, they must
