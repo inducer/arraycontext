@@ -315,7 +315,10 @@ class BaseLazilyCompilingFunctionCaller:
         else:
             raise NotImplementedError(type(ary_or_dict_of_named_arrays))
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self,
+                *args: ArrayOrContainerOrScalar,
+                **kwargs: ArrayOrContainerOrScalar
+            ) -> ArrayOrContainerOrScalar:
         """
         Returns the result of :attr:`~BaseLazilyCompilingFunctionCaller.f`'s
         function application on *args*.
