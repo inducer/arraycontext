@@ -68,8 +68,8 @@ from arraycontext.container import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from arraycontext.context import (
-        ArrayContext,
+    from arraycontext.context import ArrayContext
+    from arraycontext.typing import (
         ArrayOrContainer,
         ArrayOrContainerOrScalar,
     )

@@ -46,12 +46,10 @@ from pytools import ProcessLogger, to_identifier
 from pytools.tag import Tag
 
 from arraycontext.container import (
-    ArrayContainer,
     SerializationKey,
     is_array_container_type,
 )
 from arraycontext.container.traversal import rec_keyed_map_array_container
-from arraycontext.context import ArrayOrContainerOrScalar, ArrayOrScalar, is_scalar_like
 from arraycontext.impl.pyopencl.taggable_cl_array import (
     TaggableCLArray,
 )
@@ -60,6 +58,7 @@ from arraycontext.impl.pytato import (
     PytatoPyOpenCLArrayContext,
     _BasePytatoArrayContext,
 )
+from arraycontext.typing import ArrayOrContainerOrScalar, ArrayOrScalar, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -67,6 +66,8 @@ if TYPE_CHECKING:
 
     import pyopencl.array as cla
     from pytato.array import AxesT
+
+    from arraycontext.typing import ArrayContainer
 
 AllowedArray: TypeAlias = "pt.Array | TaggableCLArray | cla.Array"
 AllowedArrayTc = TypeVar("AllowedArrayTc", pt.Array, TaggableCLArray, "cla.Array")

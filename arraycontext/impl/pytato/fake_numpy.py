@@ -39,9 +39,9 @@ from arraycontext.container.traversal import (
     rec_map_reduce_array_container,
     rec_multimap_array_container,
 )
-from arraycontext.context import ArrayOrScalar, OrderCF, is_scalar_like
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
+from arraycontext.typing import ArrayOrScalar, OrderCF, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -51,8 +51,8 @@ if TYPE_CHECKING:
 
     from pymbolic import Scalar
 
-    from arraycontext.context import Array, ArrayOrContainerOrScalar
     from arraycontext.impl.pytato import _BasePytatoArrayContext
+    from arraycontext.typing import Array, ArrayOrContainerOrScalar
 
 
 class PytatoFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):
