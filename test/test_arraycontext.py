@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import pytest
 
+from pytools import ndindex
 from pytools.obj_array import ObjectArray1D, make_obj_array
 from pytools.tag import Tag
 
@@ -148,7 +149,7 @@ def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     ary_dof = x
     ary_of_dofs = make_obj_array([x] * ambient_dim)
     mat_of_dofs = np.empty((ambient_dim, ambient_dim), dtype=object)
-    for i in np.ndindex(mat_of_dofs.shape):
+    for i in ndindex(mat_of_dofs.shape):
         mat_of_dofs[i] = x
 
     return (ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs,
