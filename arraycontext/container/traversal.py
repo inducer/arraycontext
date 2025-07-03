@@ -106,6 +106,8 @@ from arraycontext.container import (
 from arraycontext.typing import (
     ArrayContainer,
     ArrayContainerT,
+    NumpyOrContainerOrScalar,
+    ScalarLike,
     is_scalar_like,
     shape_is_int_only,
 )
@@ -1108,11 +1110,14 @@ def flat_size_and_dtype(
 
 # }}}
 
+
 class _HasOuterBcastTypes(Protocol):
     _outer_bcast_types: ClassVar[Collection[type]]
 
+
 # {{{ numpy conversion
 
+@deprecated("use ArrayContext.from_numpy")
 def from_numpy(
         ary: np.ndarray | ScalarLike,
         actx: ArrayContext) -> ArrayOrContainerOrScalar:
@@ -1128,7 +1133,10 @@ def from_numpy(
     return actx.from_numpy(ary)
 
 
-def to_numpy(ary: ArrayOrContainer, actx: ArrayContext) -> ArrayOrContainer:
+@deprecated("use ArrayContext.to_numpy")
+def to_numpy(
+            ary: ArrayOrContainerOrScalar, actx: ArrayContext
+        ) -> NumpyOrContainerOrScalar:
     """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
     :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
 

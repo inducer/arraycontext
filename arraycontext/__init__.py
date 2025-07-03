@@ -51,7 +51,7 @@ from .container.traversal import (
     flat_size_and_dtype,
     flatten,
     freeze,
-    from_numpy,
+    from_numpy,  # pyright: ignore[reportDeprecated]
     map_array_container,
     map_reduce_array_container,
     mapped_over_array_containers,
@@ -66,7 +66,7 @@ from .container.traversal import (
     rec_multimap_reduce_array_container,
     stringify_array_container_tree,
     thaw,
-    to_numpy,
+    to_numpy,  # pyright: ignore[reportDeprecated]
     unflatten,
     with_array_context,
 )
