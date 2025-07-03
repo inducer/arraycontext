@@ -7,7 +7,7 @@ import numpy as np
 from typing_extensions import override
 
 import pytato as pt
-from pytools.obj_array import make_obj_array
+from pytools.obj_array import ObjectArray1D, make_obj_array
 
 from arraycontext import (
     Array,
@@ -18,7 +18,7 @@ from arraycontext import (
 
 
 if TYPE_CHECKING:
-    from arraycontext.context import (
+    from arraycontext import (
         ArrayOrArithContainer,
     )
 
@@ -67,7 +67,7 @@ actx = PytatoJAXArrayContext()
 @dc.dataclass(frozen=True)
 class State:
     mass: Array | np.ndarray
-    vel: np.ndarray  # np array of Arrays or numpy arrays
+    vel: ObjectArray1D[Array]
 
 
 @actx.outline

@@ -8,8 +8,6 @@ A :mod:`numpy`-based array context.
 
 from __future__ import annotations
 
-from typing_extensions import override
-
 
 __copyright__ = """
 Copyright (C) 2021 University of Illinois Board of Trustees
@@ -38,6 +36,7 @@ THE SOFTWARE.
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
+from typing_extensions import override
 
 import loopy as lp
 
@@ -47,13 +46,16 @@ from arraycontext.container.traversal import (
     with_array_context,
 )
 from arraycontext.context import (
-    Array,
     ArrayContext,
+    UntransformedCodeWarning,
+)
+from arraycontext.typing import (
+    Array,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
     ContainerOrScalarT,
     NumpyOrContainerOrScalar,
-    UntransformedCodeWarning,
+    is_scalar_like,
 )
 
 
@@ -61,9 +63,12 @@ if TYPE_CHECKING:
     from pymbolic import Scalar
     from pytools.tag import ToTagSetConvertible
 
+    from arraycontext.typing import ArrayContainerT
+
 
 class NumpyNonObjectArrayMetaclass(type):
-    def __instancecheck__(cls, instance: Any) -> bool:
+    @override
+    def __instancecheck__(cls, instance: object) -> bool:
         return isinstance(instance, np.ndarray) and instance.dtype != object
 
 
@@ -97,9 +102,7 @@ class NumpyArrayContext(ArrayContext):
         return type(self)()
 
     @overload
-    # FIXME: object arrays are containers, so pyright has a point.
-    # Maybe introduce a separate (type-check-only) NumpyObjectArray type?
-    def from_numpy(self, array: np.ndarray) -> Array:  # pyright: ignore[reportOverlappingOverload]
+    def from_numpy(self, array: np.ndarray) -> Array:
         ...
 
     @overload
@@ -107,15 +110,15 @@ class NumpyArrayContext(ArrayContext):
         ...
 
     @overload
-    def from_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+    def from_numpy(self, array: ArrayContainerT) -> ArrayContainerT:
         ...
 
     @override
     def from_numpy(self,
                    array: NumpyOrContainerOrScalar
                    ) -> ArrayOrContainerOrScalar:
-        if np.isscalar(array):
-            return np.array(array)
+        if isinstance(array, np.ndarray) or is_scalar_like(array):
+            return cast("Array", cast("object", np.array(array)))
         return array
 
     @overload

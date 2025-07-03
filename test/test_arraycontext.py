@@ -31,7 +31,8 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import pytest
 
-from pytools.obj_array import make_obj_array
+from pytools import ndindex
+from pytools.obj_array import ObjectArray1D, make_obj_array
 from pytools.tag import Tag
 
 from arraycontext import (
@@ -148,7 +149,7 @@ def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     ary_dof = x
     ary_of_dofs = make_obj_array([x] * ambient_dim)
     mat_of_dofs = np.empty((ambient_dim, ambient_dim), dtype=object)
-    for i in np.ndindex(mat_of_dofs.shape):
+    for i in ndindex(mat_of_dofs.shape):
         mat_of_dofs[i] = x
 
     return (ary_dof, ary_of_dofs, mat_of_dofs, dataclass_of_dofs,
@@ -1194,7 +1195,10 @@ def test_actx_compile_with_outlined_function(actx_factory: ArrayContextFactory):
         return scale_and_orthogonalize(alpha, vel)
 
     def multi_scale_and_orthogonalize(
-            alpha: float, vel1: Velocity2D, vel2: Velocity2D) -> np.ndarray:
+                alpha: float,
+                vel1: Velocity2D,
+                vel2: Velocity2D
+            ) -> ObjectArray1D[Velocity2D]:
         return make_obj_array([
             outlined_scale_and_orthogonalize(alpha, vel1),
             outlined_scale_and_orthogonalize(alpha, vel2)])
@@ -1206,8 +1210,13 @@ def test_actx_compile_with_outlined_function(actx_factory: ArrayContextFactory):
     v2_x = rng.uniform(size=10)
     v2_y = rng.uniform(size=10)
 
-    vel1 = actx.from_numpy(Velocity2D(v1_x, v1_y, actx))
-    vel2 = actx.from_numpy(Velocity2D(v2_x, v2_y, actx))
+    v1_x_actx = actx.from_numpy(v1_x)
+    v1_y_actx = actx.from_numpy(v1_y)
+    v2_x_actx = actx.from_numpy(v2_x)
+    v2_y_actx = actx.from_numpy(v2_y)
+
+    vel1 = Velocity2D(v1_x_actx, v1_y_actx, actx)
+    vel2 = Velocity2D(v2_x_actx, v2_y_actx, actx)
 
     scaled_speed1, scaled_speed2 = compiled_rhs(np.float64(3.14), vel1, vel2)
 
@@ -1233,9 +1242,9 @@ def test_container_equality(actx_factory: ArrayContextFactory):
 
     # MyContainer sets eq_comparison to False, so equality comparison should
     # not succeed.
-    # type-ignore because pyright is right and I'm sorry.
-    dc = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)  # pyright: ignore[reportArgumentType]
-    dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)  # pyright: ignore[reportArgumentType]
+    # (formerly) type-ignored because pyright is right and I'm sorry.
+    dc = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
+    dc2 = MyContainer(name="yoink", mass=ary_dof, momentum=None, enthalpy=None)
     assert dc != dc2
 
     assert isinstance(actx.np.equal(bcast_dc_of_dofs, bcast_dc_of_dofs_2),
@@ -1436,7 +1445,7 @@ def test_array_container_with_numpy(actx_factory: ArrayContextFactory):
 
     # FIXME: Possibly, rec_map_container's types could be taught that numpy
     # arrays can happen, but life's too short.
-    rec_map_container(lambda x: x, mystate)  # pyright: ignore[reportCallIssue, reportArgumentType]
+    rec_map_container(lambda x: x, mystate)
 
 
 # }}}

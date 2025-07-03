@@ -49,9 +49,7 @@
         This should be considered experimental for now, and it may well change.
 
 .. autoclass:: ArithArrayContainer
-.. class:: ArrayContainerT
-
-    A type variable with a lower bound of :class:`ArrayContainer`.
+.. autoclass:: ArrayContainerT
 
 .. autoexception:: NotAnArrayContainerError
 
@@ -95,12 +93,6 @@ Canonical locations for type annotations
 
 from __future__ import annotations
 
-from types import GenericAlias, UnionType
-
-from numpy.typing import NDArray
-
-from arraycontext.context import ArrayOrArithContainer, ArrayOrContainerOrScalar
-
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees
@@ -128,13 +120,10 @@ THE SOFTWARE.
 
 from collections.abc import Hashable, Sequence
 from functools import singledispatch
+from types import GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Protocol,
     TypeAlias,
-    TypeVar,
     get_origin,
 )
 
@@ -142,56 +131,27 @@ from typing import (
 # what 'np' is.
 import numpy
 import numpy as np
-from typing_extensions import Self, TypeIs
+from typing_extensions import TypeIs
+
+from pytools.obj_array import ObjectArrayND as ObjectArrayND
+
+from arraycontext.typing import (
+    ArrayContainer,
+    ArrayContainerT,
+    ArrayOrArithContainer,
+    ArrayOrArithContainerOrScalar as ArrayOrArithContainerOrScalar,
+    ArrayOrContainerOrScalar,
+)
 
 
 if TYPE_CHECKING:
     from pymbolic.geometric_algebra import CoeffT, MultiVector
 
-    from arraycontext.context import ArrayContext, ArrayOrScalar
+    from arraycontext.context import ArrayContext
+    from arraycontext.typing import ArrayOrScalar as ArrayOrScalar
 
 
-# {{{ ArrayContainer
-
-class _UserDefinedArrayContainer(Protocol):
-    # This is used as a type annotation in dataclasses that are processed
-    # by dataclass_array_container, where it's used to recognize attributes
-    # that are container-typed.
-
-    # This method prevents ArrayContainer from matching any object, while
-    # matching numpy object arrays and many array containers.
-    __array_ufunc__: ClassVar[None]
-
-
-ArrayContainer: TypeAlias = NDArray[Any] | _UserDefinedArrayContainer
-
-
-class _UserDefinedArithArrayContainer(_UserDefinedArrayContainer, Protocol):
-    # This is loose and permissive, assuming that any array can be added
-    # to any container. The alternative would be to plaster type-ignores
-    # on all those uses. Achieving typing precision on what broadcasting is
-    # allowable seems like a huge endeavor and is likely not feasible without
-    # a mypy plugin. Maybe some day? -AK, November 2024
-
-    def __neg__(self) -> Self: ...
-    def __abs__(self) -> Self: ...
-    def __add__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __radd__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __sub__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rsub__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __mul__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rmul__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __truediv__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rtruediv__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __pow__(self, other: ArrayOrScalar | Self) -> Self: ...
-    def __rpow__(self, other: ArrayOrScalar | Self) -> Self: ...
-
-
-ArithArrayContainer: TypeAlias = NDArray[Any] | _UserDefinedArithArrayContainer
-
-
-ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
-
+# {{{ ArrayContainer traversals
 
 class NotAnArrayContainerError(TypeError):
     """:class:`TypeError` subclass raised when an array container is expected."""
@@ -307,9 +267,9 @@ def get_container_context_opt(ary: ArrayContainer) -> ArrayContext | None:
 
 # {{{ object arrays as array containers
 
+# Sadly, ObjectArray is not usable here.
 @serialize_container.register(np.ndarray)
-def _serialize_ndarray_container(
-        ary: numpy.ndarray) -> SerializedContainer:
+def _serialize_ndarray_container(ary: numpy.ndarray) -> SerializedContainer:
     if ary.dtype.char != "O":
         raise NotAnArrayContainerError(
                 f"cannot serialize '{type(ary).__name__}' with dtype '{ary.dtype}'")

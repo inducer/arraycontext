@@ -85,69 +85,9 @@ The :class:`ArrayContext` Interface
     A :class:`typing.ParamSpec` representing the arguments of a function
     being :meth:`ArrayContext.outline`\ d.
 
-Types and Type Variables for Arrays and Containers
---------------------------------------------------
+References
+----------
 
-.. autodata:: ScalarLike
-    :noindex:
-
-    A type alias of :data:`pymbolic.Scalar`.
-
-.. autoclass:: Array
-
-.. autodata:: ArrayT
-
-    A type variable with a lower bound of :class:`Array`.
-
-.. autodata:: ScalarLike
-
-    A type annotation for scalar types commonly usable with arrays.
-
-See also :class:`ArrayContainer` and :class:`ArrayOrContainerT`.
-
-.. autoclass:: ArrayOrScalar
-.. autodata:: ArrayOrScalarT
-
-.. autodata:: ArrayOrContainer
-
-.. autodata:: ArrayOrContainerT
-
-    A type variable with a bound of :class:`ArrayOrContainer`.
-
-.. autodata:: ArrayOrArithContainer
-
-.. autodata:: ArrayOrArithContainerT
-
-    A type variable with a bound of :class:`ArrayOrArithContainer`.
-
-.. autodata:: ArrayOrArithContainerOrScalar
-
-.. autodata:: ArrayOrArithContainerOrScalarT
-
-    A type variable with a bound of :class:`ArrayOrContainerOrScalar`.
-
-.. autodata:: ArrayOrContainerOrScalar
-
-.. autodata:: ArrayOrContainerOrScalarT
-
-    A type variable with a bound of :class:`ArrayOrContainerOrScalar`.
-
-.. currentmodule:: arraycontext.context
-
-Canonical locations for type annotations
-----------------------------------------
-
-.. class:: ArrayT
-
-    :canonical: arraycontext.ArrayT
-
-.. class:: ArrayOrContainerT
-
-    :canonical: arraycontext.ArrayOrContainerT
-
-.. class:: ArrayOrContainerOrScalarT
-
-    :canonical: arraycontext.ArrayOrContainerOrScalarT
 """
 
 from __future__ import annotations
@@ -183,174 +123,41 @@ from collections.abc import Callable, Hashable, Mapping
 from typing import (
     TYPE_CHECKING,
     Any,
-    Literal,
     ParamSpec,
-    Protocol,
-    SupportsInt,
     TypeAlias,
-    TypeVar,
-    cast,
     overload,
 )
 from warnings import warn
 
-import numpy as np
-from typing_extensions import Self, TypeIs
+from typing_extensions import Self
 
-from pymbolic.typing import Scalar as _Scalar
 from pytools import memoize_method
+
+# FIXME: remove sometime, this import was used in grudge in July 2025.
+from .typing import ArrayOrArithContainerTc as ArrayOrArithContainerTc
 
 
 if TYPE_CHECKING:
-    from numpy.typing import DTypeLike
+    import numpy as np
 
     import loopy
-    from pymbolic.typing import Integer
     from pytools.tag import ToTagSetConvertible
 
-    from arraycontext.container import (
-        ArithArrayContainer,
-        ArrayContainer,
+    from .fake_numpy import BaseFakeNumpyNamespace
+    from .typing import (
+        Array,
         ArrayContainerT,
+        ArrayOrArithContainerOrScalarT,
+        ArrayOrContainerOrScalar,
+        ArrayOrContainerOrScalarT,
+        ArrayOrContainerT,
+        ContainerOrScalarT,
+        NumpyOrContainerOrScalar,
+        ScalarLike,
     )
-    from arraycontext.fake_numpy import BaseFakeNumpyNamespace
 
-
-# {{{ typing
 
 P = ParamSpec("P")
-
-
-# We won't support 'A' and 'K', since they depend on in-memory order; that is
-# not intended to be a meaningful concept for actx arrays.
-OrderCF: TypeAlias = Literal["C"] | Literal["F"]
-
-
-class Array(Protocol):
-    """A :class:`~typing.Protocol` for the array type supported by
-    :class:`ArrayContext`.
-
-    This is meant to aid in typing annotations. For a explicit list of
-    supported types see :attr:`ArrayContext.array_types`.
-
-    .. attribute:: shape
-    .. attribute:: size
-    .. attribute:: dtype
-    .. attribute:: __getitem__
-
-    In addition, arrays are expected to support basic arithmetic.
-    """
-
-    @property
-    def shape(self) -> tuple[Array | Integer, ...]:
-        ...
-
-    @property
-    def size(self) -> Array | Integer:
-        ...
-
-    def __len__(self) -> int: ...
-
-    @property
-    def dtype(self) -> np.dtype[Any]:
-        ...
-
-    # Covering all the possible index variations is hard and (kind of) futile.
-    # If you'd  like to see how, try changing the Any to
-    # AxisIndex = slice | int | "Array"
-    # Index = AxisIndex |tuple[AxisIndex]
-    def __getitem__(self, index: Any) -> Array:
-        ...
-
-    # Some basic arithmetic that's supposed to work
-    # Need to return Array instead of Self because for some array types, arithmetic
-    # operations on one subtype may result in a different subtype.
-    # For example, pytato arrays: <Placeholder> + 1 -> <IndexLambda>
-    def __neg__(self) -> Array: ...
-    def __abs__(self) -> Array: ...
-    def __add__(self, other: Self | ScalarLike) -> Array: ...
-    def __radd__(self, other: Self | ScalarLike) -> Array: ...
-    def __sub__(self, other: Self | ScalarLike) -> Array: ...
-    def __rsub__(self, other: Self | ScalarLike) -> Array: ...
-    def __mul__(self, other: Self | ScalarLike) -> Array: ...
-    def __rmul__(self, other: Self | ScalarLike) -> Array: ...
-    def __pow__(self, other: Self | ScalarLike) -> Array: ...
-    def __rpow__(self, other: Self | ScalarLike) -> Array: ...
-    def __truediv__(self, other: Self | ScalarLike) -> Array: ...
-    def __rtruediv__(self, other: Self | ScalarLike) -> Array: ...
-
-    def copy(self) -> Self: ...
-
-    @property
-    def real(self) -> Array: ...
-    @property
-    def imag(self) -> Array: ...
-    def conj(self) -> Array: ...
-
-    def astype(self, dtype: DTypeLike) -> Array: ...
-
-    # Annoyingly, numpy 2.3.1 (and likely earlier) treats these differently when
-    # reshaping to the empty shape (), so we need to expose both.
-    @overload
-    def reshape(self, *shape: int, order: OrderCF = "C") -> Array: ...
-
-    @overload
-    def reshape(self, shape: tuple[int, ...], /, *, order: OrderCF = "C") -> Array: ...
-
-    @property
-    def T(self) -> Array: ...  # noqa: N802
-
-    def transpose(self, axes: tuple[int, ...]) -> Array: ...
-
-
-# deprecated, use ScalarLike instead
-Scalar: TypeAlias = _Scalar
-ScalarLike = Scalar
-ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
-
-ArrayT = TypeVar("ArrayT", bound=Array)
-ArrayOrScalar: TypeAlias = Array | _Scalar
-ArrayOrScalarT = TypeVar("ArrayOrScalarT", bound=ArrayOrScalar)
-ArrayOrContainer: TypeAlias = "Array | ArrayContainer"
-ArrayOrArithContainer: TypeAlias = "Array | ArithArrayContainer"
-ArrayOrArithContainerTc = TypeVar("ArrayOrArithContainerTc",
-                                 Array, "ArithArrayContainer")
-ArrayOrContainerT = TypeVar("ArrayOrContainerT", bound=ArrayOrContainer)
-ArrayOrArithContainerT = TypeVar("ArrayOrArithContainerT", bound=ArrayOrArithContainer)
-ArrayOrContainerOrScalar: TypeAlias = "Array | ArrayContainer | ScalarLike"
-ArrayOrArithContainerOrScalar: TypeAlias = "Array | ArithArrayContainer | ScalarLike"
-ArrayOrContainerOrScalarT = TypeVar(
-        "ArrayOrContainerOrScalarT",
-        bound=ArrayOrContainerOrScalar)
-ArrayOrArithContainerOrScalarT = TypeVar(
-        "ArrayOrArithContainerOrScalarT",
-        bound=ArrayOrArithContainerOrScalar)
-
-
-ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | ScalarLike")
-
-
-NumpyOrContainerOrScalar: TypeAlias = "np.ndarray | ArrayContainer | ScalarLike"
-
-
-def is_scalar_like(x: object, /) -> TypeIs[Scalar]:
-    return np.isscalar(x)
-
-
-def shape_is_int_only(shape: tuple[Array | Integer, ...], /) -> tuple[int, ...]:
-    res: list[int] = []
-    for i, s in enumerate(shape):
-        try:
-            res.append(int(cast("SupportsInt", s)))
-        except TypeError:
-            raise TypeError(
-                    "only non-parametric shapes are allowed in this context, "
-                    f"axis {i+1} is {type(s)}"
-                ) from None
-
-    return tuple(res)
-
-# }}}
 
 
 # {{{ ArrayContext
@@ -427,9 +234,7 @@ class ArrayContext(ABC):
         return self.np.zeros(shape, dtype)
 
     @overload
-    # FIXME: object arrays are containers, so pyright has a point.
-    # Maybe introduce a separate (type-check-only) NumpyObjectArray type?
-    def from_numpy(self, array: np.ndarray) -> Array:  # pyright: ignore[reportOverlappingOverload]
+    def from_numpy(self, array: np.ndarray) -> Array:
         ...
 
     @overload
@@ -638,7 +443,9 @@ class ArrayContext(ABC):
             "setup-only" array context "leaks" into the application.
         """
 
-    def compile(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def compile(self,
+                f: Callable[P, ArrayOrArithContainerOrScalarT]
+            ) -> Callable[P, ArrayOrArithContainerOrScalarT]:
         """Compiles *f* for repeated use on this array context. *f* is expected
         to be a `pure function <https://en.wikipedia.org/wiki/Pure_function>`__
         performing an array computation.

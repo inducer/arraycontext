@@ -31,7 +31,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 from warnings import warn
 
 import numpy as np
@@ -43,20 +43,26 @@ from arraycontext.container.traversal import (
     with_array_context,
 )
 from arraycontext.context import (
-    Array,
     ArrayContext,
+    UntransformedCodeWarning,
+)
+from arraycontext.typing import (
+    Array,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
     ArrayOrContainerT as ArrayOrContainerT,
     ArrayOrScalar,
+    ContainerOrScalarT,
+    NumpyOrContainerOrScalar,
     ScalarLike,
-    UntransformedCodeWarning,
     is_scalar_like,
 )
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
+
+    from numpy.typing import NDArray
 
     import loopy as lp
     import pyopencl as cl
@@ -65,6 +71,7 @@ if TYPE_CHECKING:
     from pytools.tag import ToTagSetConvertible
 
     from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
+    from arraycontext.typing import ArrayContainerT
 
 
 # {{{ PyOpenCLArrayContext
@@ -223,17 +230,43 @@ class PyOpenCLArrayContext(ArrayContext):
 
     # {{{ ArrayContext interface
 
-    def from_numpy(self, array):
+    @overload
+    def from_numpy(self, array: NDArray[Any]) -> Array:
+        ...
+
+    @overload
+    def from_numpy(self, array: ScalarLike) -> Array:
+        ...
+
+    @overload
+    def from_numpy(self, array: ArrayContainerT) -> ArrayContainerT:
+        ...
+
+    @override
+    def from_numpy(self,
+                   array: NumpyOrContainerOrScalar
+                   ) -> ArrayOrContainerOrScalar:
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
 
-        def _from_numpy(ary):
+        def _from_numpy(ary: NDArray[Any]):
             return tga.to_device(self.queue, ary, allocator=self.allocator)
 
         return with_array_context(
-            self._rec_map_container(_from_numpy, array, (np.ndarray,), strict=True),
+            self._rec_map_container(_from_numpy, array, (np.ndarray,), strict=True),  # pyright: ignore[reportArgumentType]
             actx=self)
 
-    def to_numpy(self, array):
+    @overload
+    def to_numpy(self, array: Array) -> np.ndarray:
+        ...
+
+    @overload
+    def to_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
+        ...
+
+    @override
+    def to_numpy(self,
+                 array: ArrayOrContainerOrScalar
+                 ) -> NumpyOrContainerOrScalar:
         def _to_numpy(ary):
             return ary.get(queue=self.queue)
 
@@ -241,14 +274,16 @@ class PyOpenCLArrayContext(ArrayContext):
             self._rec_map_container(_to_numpy, array),
             actx=None)
 
-    def freeze(self, array):
+    @override
+    def freeze(self, array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         def _freeze(ary):
             ary.finish()
             return ary.with_queue(None)
 
         return with_array_context(self._rec_map_container(_freeze, array), actx=None)
 
-    def thaw(self, array):
+    @override
+    def thaw(self, array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         def _thaw(ary):
             return ary.with_queue(self.queue)
 

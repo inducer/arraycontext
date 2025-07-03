@@ -38,9 +38,9 @@ from arraycontext.container.traversal import (
     rec_map_container,
     with_array_context,
 )
-from arraycontext.context import (
+from arraycontext.context import ArrayContext
+from arraycontext.typing import (
     Array,
-    ArrayContext,
     ArrayOrContainerOrScalar,
     ArrayOrScalar,
     ScalarLike,

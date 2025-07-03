@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from arraycontext.context import is_scalar_like
-
 
 __copyright__ = """
 Copyright (C) 2021 University of Illinois Board of Trustees
@@ -44,6 +42,7 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
 )
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace
+from arraycontext.typing import is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -51,12 +50,12 @@ if TYPE_CHECKING:
 
     from pymbolic import Scalar
 
-    from arraycontext.context import (
+    from arraycontext.impl.jax import EagerJAXArrayContext
+    from arraycontext.typing import (
         Array,
         ArrayOrContainerOrScalar,
         ArrayOrScalar,
     )
-    from arraycontext.impl.jax import EagerJAXArrayContext
 
 
 class EagerJAXFakeNumpyLinalgNamespace(BaseFakeNumpyLinalgNamespace):

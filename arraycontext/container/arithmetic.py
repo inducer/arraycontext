@@ -50,6 +50,13 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from warnings import warn
 
 import numpy as np
+from typing_extensions import override
+
+from pytools.obj_array import (
+    ObjectArray,
+    # for backward compatibility
+    ObjectArray as NumpyObjectArray,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+)
 
 from arraycontext.container import (
     NotAnArrayContainerError,
@@ -61,8 +68,8 @@ from arraycontext.container import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from arraycontext.context import (
-        ArrayContext,
+    from arraycontext.context import ArrayContext
+    from arraycontext.typing import (
         ArrayOrContainer,
         ArrayOrContainerOrScalar,
     )
@@ -152,17 +159,9 @@ def _format_binary_op_str(op_str: str,
         return op_str.format(arg1, arg2)
 
 
-class NumpyObjectArrayMetaclass(type):
-    def __instancecheck__(cls, instance: Any) -> bool:
-        return isinstance(instance, np.ndarray) and instance.dtype == object
-
-
-class NumpyObjectArray(metaclass=NumpyObjectArrayMetaclass):
-    pass
-
-
 class ComplainingNumpyNonObjectArrayMetaclass(type):
-    def __instancecheck__(cls, instance: Any) -> bool:
+    @override
+    def __instancecheck__(cls, instance: object) -> bool:
         if isinstance(instance, np.ndarray) and instance.dtype != object:
             # Example usage site:
             # https://github.com/illinois-ceesd/mirgecom/blob/f5d0d97c41e8c8a05546b1d1a6a2979ec8ea3554/mirgecom/inviscid.py#L148-L149
@@ -272,7 +271,7 @@ def with_container_arithmetic(
     # - Anything that special-cases np.ndarray by type is broken by design because:
     #   - np.ndarray is an array context array.
     #   - numpy object arrays can be array containers.
-    #   Using NumpyObjectArray and NumpyNonObjectArray *may* be better?
+    #   Using ObjectArray and NumpyNonObjectArray *may* be better?
     #   They're new, so there is no operational experience with them.
     #
     # - Broadcast rules are hard to change once established, particularly
@@ -374,7 +373,7 @@ def with_container_arithmetic(
         raise ValueError("If numpy.ndarray is part of bcast_container_types, "
                 "bcast_obj_array must be False.")
 
-    numpy_check_types: list[type] = [NumpyObjectArray, ComplainingNumpyNonObjectArray]
+    numpy_check_types: list[type] = [ObjectArray, ComplainingNumpyNonObjectArray]
     container_types_bcast_across = tuple(
         new_ct
         for old_ct in container_types_bcast_across

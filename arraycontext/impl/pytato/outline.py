@@ -39,9 +39,9 @@ import pytato as pt
 
 from arraycontext.container import SerializationKey, is_array_container_type
 from arraycontext.container.traversal import rec_keyed_map_array_container
-from arraycontext.context import (
+from arraycontext.context import P
+from arraycontext.typing import (
     ArrayOrContainerOrScalar,
-    P,
     is_scalar_like,
 )
 
@@ -52,11 +52,11 @@ if TYPE_CHECKING:
     from pymbolic import Scalar
     from pytools.tag import Tag
 
-    from arraycontext.context import (
+    from arraycontext.impl.pytato import _BasePytatoArrayContext
+    from arraycontext.typing import (
         Array,
         ArrayOrScalar,
     )
-    from arraycontext.impl.pytato import _BasePytatoArrayContext
 
 
 def _get_arg_id_to_arg(

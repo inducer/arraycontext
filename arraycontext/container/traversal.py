@@ -33,14 +33,26 @@ Flattening and unflattening
 .. autofunction:: unflatten
 .. autofunction:: flat_size_and_dtype
 
-Numpy conversion
-~~~~~~~~~~~~~~~~
-.. autofunction:: from_numpy
-.. autofunction:: to_numpy
-
 Algebraic operations
 ~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: outer
+
+.. currentmodule:: arraycontext.traversal
+
+References
+----------
+
+.. class:: ArrayOrScalar
+
+    See :class:`arraycontext.ArrayOrScalar`.
+
+.. class:: ArrayOrContainer
+
+    See :class:`arraycontext.ArrayOrContainer`.
+
+.. class:: ArrayContainerT
+
+    See :class:`arraycontext.ArrayContainerT`.
 """
 
 from __future__ import annotations
@@ -71,15 +83,19 @@ THE SOFTWARE.
 """
 
 from functools import partial, singledispatch, update_wrapper
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast, overload
 from warnings import warn
 
 import numpy as np
 from typing_extensions import deprecated
 
+from pytools.obj_array import (
+    ObjectArray,
+    from_numpy as obj_array_from_numpy,
+    to_numpy as obj_array_to_numpy,
+)
+
 from arraycontext.container import (
-    ArrayContainer,
-    ArrayContainerT,
     NotAnArrayContainerError,
     SerializationKey,
     deserialize_container,
@@ -87,22 +103,25 @@ from arraycontext.container import (
     is_array_container,
     serialize_container,
 )
-from arraycontext.container.arithmetic import NumpyObjectArray
-from arraycontext.context import is_scalar_like, shape_is_int_only
+from arraycontext.typing import (
+    ArrayContainer,
+    ArrayContainerT,
+    is_scalar_like,
+    shape_is_int_only,
+)
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Collection, Iterable
 
-    from arraycontext.context import (
+    from arraycontext.context import ArrayContext
+    from arraycontext.typing import (
         Array,
-        ArrayContext,
         ArrayOrContainer,
         ArrayOrContainerOrScalar,
         ArrayOrContainerOrScalarT,
         ArrayOrContainerT,
         ArrayOrScalar,
-        ScalarLike,
     )
 
 
@@ -1087,44 +1106,19 @@ def flat_size_and_dtype(
     size = _flat_size(ary)
     return size, common_dtype
 
-# }}}
 
-
-# {{{ numpy conversion
-
-def from_numpy(
-        ary: np.ndarray | ScalarLike,
-        actx: ArrayContext) -> ArrayOrContainerOrScalar:
-    """Convert all :mod:`numpy` arrays in the :class:`~arraycontext.ArrayContainer`
-    to the base array type of :class:`~arraycontext.ArrayContext`.
-
-    The conversion is done using :meth:`arraycontext.ArrayContext.from_numpy`.
-    """
-    warn("Calling from_numpy(ary, actx) is deprecated, call actx.from_numpy(ary)"
-         " instead. This will stop working in 2023.",
-         DeprecationWarning, stacklevel=2)
-
-    return actx.from_numpy(ary)
-
-
-def to_numpy(ary: ArrayOrContainer, actx: ArrayContext) -> ArrayOrContainer:
-    """Convert all arrays in the :class:`~arraycontext.ArrayContainer` to
-    :mod:`numpy` using the provided :class:`~arraycontext.ArrayContext` *actx*.
-
-    The conversion is done using :meth:`arraycontext.ArrayContext.to_numpy`.
-    """
-    warn("Calling to_numpy(ary, actx) is deprecated, call actx.to_numpy(ary)"
-         " instead. This will stop working in 2023.",
-         DeprecationWarning, stacklevel=2)
-
-    return actx.to_numpy(ary)
+class _HasOuterBcastTypes(Protocol):
+    _outer_bcast_types: ClassVar[Collection[type]]
 
 # }}}
 
 
 # {{{ algebraic operations
 
-def outer(a: Any, b: Any) -> Any:
+def outer(
+            a: ArrayOrContainerOrScalar,
+            b: ArrayOrContainerOrScalar
+        ) -> ArrayOrContainerOrScalar:
     """
     Compute the outer product of *a* and *b* while allowing either of them
     to be an :class:`ArrayContainer`.
@@ -1139,7 +1133,7 @@ def outer(a: Any, b: Any) -> Any:
     have the same type.
     """
 
-    def treat_as_scalar(x: Any) -> bool:
+    def treat_as_scalar(x: ArrayOrContainerOrScalar) -> bool:
         try:
             serialize_container(x)
         except NotAnArrayContainerError:
@@ -1148,20 +1142,23 @@ def outer(a: Any, b: Any) -> Any:
             return (
                 not isinstance(x, np.ndarray)
                 # This condition is whether "ndarrays should broadcast inside x".
-                and NumpyObjectArray not in x.__class__._outer_bcast_types)
+                and ObjectArray not in cast(
+                        "type[_HasOuterBcastTypes]", x.__class__)._outer_bcast_types)
 
-    a_is_ndarray = isinstance(a, np.ndarray)
-    b_is_ndarray = isinstance(b, np.ndarray)
+    a_is_ndarray = isinstance(a, ObjectArray)
+    b_is_ndarray = isinstance(b, ObjectArray)
 
-    if a_is_ndarray and a.dtype != object:
+    if isinstance(a, np.ndarray) and a.dtype != object:
         raise TypeError("passing a non-object numpy array is not allowed")
-    if b_is_ndarray and b.dtype != object:
+    if isinstance(b, np.ndarray) and b.dtype != object:
         raise TypeError("passing a non-object numpy array is not allowed")
 
     if treat_as_scalar(a) or treat_as_scalar(b):
-        return a*b
+        return a*b  # pyright: ignore[reportOperatorIssue,reportReturnType]
     elif a_is_ndarray and b_is_ndarray:
-        return np.outer(a, b)
+        return obj_array_from_numpy(np.outer(
+                            obj_array_to_numpy(a),
+                            obj_array_to_numpy(b)))
     elif a_is_ndarray or b_is_ndarray:
         return map_array_container(lambda x: outer(x, b), a)
     else:
