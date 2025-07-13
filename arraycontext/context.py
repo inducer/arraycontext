@@ -84,10 +84,6 @@ The :class:`ArrayContext` Interface
 
     A :class:`typing.ParamSpec` representing the arguments of a function
     being :meth:`ArrayContext.outline`\ d.
-
-References
-----------
-
 """
 
 from __future__ import annotations

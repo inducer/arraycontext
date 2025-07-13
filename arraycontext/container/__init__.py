@@ -89,6 +89,17 @@ Canonical locations for type annotations
 .. class:: SerializedContainer
 
     :canonical: arraycontext.SerializedContainer
+
+References
+----------
+
+.. class:: GenericAlias
+
+    See :class:`types.GenericAlias`.
+
+.. class:: UnionType
+
+    See :class:`types.UnionType`.
 """
 
 from __future__ import annotations
@@ -120,7 +131,6 @@ THE SOFTWARE.
 
 from collections.abc import Hashable, Sequence
 from functools import singledispatch
-from types import GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
     TypeAlias,
@@ -133,18 +143,23 @@ import numpy
 import numpy as np
 from typing_extensions import TypeIs
 
-from pytools.obj_array import ObjectArrayND as ObjectArrayND
+from pytools.obj_array import ObjectArray, ObjectArrayND as ObjectArrayND
 
 from arraycontext.typing import (
+    ArithArrayContainer,
     ArrayContainer,
     ArrayContainerT,
     ArrayOrArithContainer,
     ArrayOrArithContainerOrScalar as ArrayOrArithContainerOrScalar,
     ArrayOrContainerOrScalar,
+    _UserDefinedArithArrayContainer,
+    _UserDefinedArrayContainer,
 )
 
 
 if TYPE_CHECKING:
+    from types import GenericAlias, UnionType
+
     from pymbolic.geometric_algebra import CoeffT, MultiVector
 
     from arraycontext.context import ArrayContext
@@ -217,17 +232,21 @@ def is_array_container_type(cls: type | GenericAlias | UnionType) -> bool:
         function will say that :class:`numpy.ndarray` is an array container
         type, only object arrays *actually are* array containers.
     """
-    if cls is ArrayContainer:
+    if cls is ArrayContainer or cls is ArithArrayContainer:
         return True
 
-    while isinstance(cls, GenericAlias):
-        cls = get_origin(cls)
+    origin = get_origin(cls)
+    if origin is not None:
+        cls = origin  # pyright: ignore[reportAny]
 
     assert isinstance(cls, type), (
         f"must pass a {type!r}, not a '{cls!r}'")
 
     return (
-            cls is ArrayContainer  # pyright: ignore[reportUnnecessaryComparison]
+            cls is ObjectArray
+            or cls is ArrayContainer  # pyright: ignore[reportUnnecessaryComparison]
+            or cls is _UserDefinedArrayContainer
+            or cls is _UserDefinedArithArrayContainer
             or (serialize_container.dispatch(cls)
                 is not serialize_container.__wrapped__))  # type:ignore[attr-defined]
 

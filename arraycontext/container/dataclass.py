@@ -66,6 +66,7 @@ from arraycontext.typing import (
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from types import GenericAlias, UnionType
 
 
 T = TypeVar("T")
@@ -81,7 +82,7 @@ class _Field(NamedTuple):
     type: type
 
 
-def _is_array_or_container_type(tp: type, /) -> bool:
+def _is_array_or_container_type(tp: type | GenericAlias | UnionType, /) -> bool:
     if tp is np.ndarray:
         warn("Encountered 'numpy.ndarray' in a dataclass_array_container. "
              "This is deprecated and will stop working in 2026. "
