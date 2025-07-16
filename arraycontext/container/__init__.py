@@ -233,7 +233,7 @@ def is_array_container_type(cls: type | GenericAlias | UnionType) -> bool:
         function will say that :class:`numpy.ndarray` is an array container
         type, only object arrays *actually are* array containers.
     """
-    def pred(tp: type) -> bool:
+    def _is_array_container_type(tp: type) -> bool:
         return (
                 tp is ObjectArray
                 or tp is _UserDefinedArrayContainer
@@ -241,7 +241,7 @@ def is_array_container_type(cls: type | GenericAlias | UnionType) -> bool:
                 or (serialize_container.dispatch(tp)
                     is not serialize_container.__wrapped__))  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
-    return all_type_leaves_satisfy_predicate(pred, cls)
+    return all_type_leaves_satisfy_predicate(_is_array_container_type, cls)
 
 
 def is_array_container(ary: object) -> TypeIs[ArrayContainer]:
