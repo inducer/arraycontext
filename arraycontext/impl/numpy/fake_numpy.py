@@ -25,7 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, overload
 
 import numpy as np
 from typing_extensions import override
@@ -41,7 +41,7 @@ from arraycontext.fake_numpy import (
     BaseFakeNumpyLinalgNamespace,
     BaseFakeNumpyNamespace,
 )
-from arraycontext.typing import OrderCF, is_scalar_like
+from arraycontext.typing import ArrayOrContainer, OrderCF, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -73,6 +73,7 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     """
     A :mod:`numpy` mimic for :class:`NumpyArrayContext`.
     """
+    @override
     def _get_fake_numpy_linalg_namespace(self):
         return NumpyFakeNumpyLinalgNamespace(self._array_context)
 
@@ -95,11 +96,40 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         raise AttributeError(name)
 
-    def sum(self, a, axis=None, dtype=None):
+    @overload
+    def sum(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> Array: ...
+    @overload
+    def sum(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> Scalar: ...
+
+    @override
+    def sum(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(sum, partial(np.sum,
                                                            axis=axis,
                                                            dtype=dtype),
                                               a)
+
+    @overload
+    def min(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def min(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Scalar: ...
 
     @override
     def min(self,
@@ -108,6 +138,17 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
             ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(
                 partial(reduce, np.minimum), partial(np.amin, axis=axis), a)
+
+    @overload
+    def max(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def max(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Scalar: ...
 
     @override
     def max(self,

@@ -31,7 +31,7 @@ THE SOFTWARE.
 
 import operator
 from functools import partial, reduce
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, overload
 from warnings import warn
 
 import numpy as np
@@ -49,7 +49,7 @@ from arraycontext.container.traversal import (
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.impl.pyopencl.taggable_cl_array import TaggableCLArray
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
-from arraycontext.typing import OrderCF, is_scalar_like
+from arraycontext.typing import ArrayOrContainer, OrderCF, ScalarLike, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -341,7 +341,25 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ mathematical functions
 
-    def sum(self, a, axis=None, dtype=None):
+    @overload
+    def sum(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> Array: ...
+    @overload
+    def sum(self,
+                a: ScalarLike,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> ScalarLike: ...
+
+    @override
+    def sum(self,
+                a: ArrayOrContainerOrScalar,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> ArrayOrScalar:
         if isinstance(axis, int):
             axis = axis,
 
@@ -357,6 +375,17 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_multimap_array_container(
                 partial(cl_array.maximum, queue=self._array_context.queue),
                 x, y)
+
+    @overload
+    def max(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def max(self,
+                a: ScalarLike,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ScalarLike: ...
 
     @override
     def max(self,
@@ -379,12 +408,23 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 _rec_max,
                 a)
 
-    amax = max
+    amax = max  # pyright: ignore[reportAssignmentType, reportDeprecated]
 
     def minimum(self, x, y):
         return rec_multimap_array_container(
                 partial(cl_array.minimum, queue=self._array_context.queue),
                 x, y)
+
+    @overload
+    def min(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def min(self,
+                a: ScalarLike,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> ScalarLike: ...
 
     @override
     def min(self,
@@ -406,7 +446,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 _rec_min,
                 a)
 
-    amin = min
+    amin = min  # pyright: ignore[reportAssignmentType, reportDeprecated]
 
     def absolute(self, a):
         return self.abs(a)
