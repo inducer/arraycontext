@@ -125,7 +125,7 @@ from typing import (
 )
 from warnings import warn
 
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from pytools import memoize_method
 
@@ -146,7 +146,6 @@ if TYPE_CHECKING:
         ArrayOrArithContainerOrScalarT,
         ArrayOrContainerOrScalar,
         ArrayOrContainerOrScalarT,
-        ArrayOrContainerT,
         ContainerOrScalarT,
         NumpyOrContainerOrScalar,
         ScalarLike,
@@ -217,6 +216,7 @@ class ArrayContext(ABC):
     def _get_fake_numpy_namespace(self) -> BaseFakeNumpyNamespace:
         ...
 
+    @override
     def __hash__(self) -> int:
         raise TypeError(f"unhashable type: '{type(self).__name__}'")
 
@@ -333,11 +333,13 @@ class ArrayContext(ABC):
     @abstractmethod
     def tag(self,
             tags: ToTagSetConvertible,
-            array: ArrayOrContainerT) -> ArrayOrContainerT:
+            array: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         """If the array type used by the array context is capable of capturing
         metadata, return a version of *array* with the *tags* applied. *array*
         itself is not modified. When working with array containers, the
         tags are applied to each leaf of the container.
+
+        Tagging is best-effort. Untaggable types will be returned as-is.
 
         See :ref:`metadata` as well as application-specific metadata types.
 

@@ -76,7 +76,6 @@ from arraycontext.typing import (
     Array,
     ArrayOrArithContainerOrScalarT,
     ArrayOrContainerOrScalarT,
-    ArrayOrContainerT,
     ArrayOrScalar,
     ScalarLike,
     is_scalar_like,
@@ -1031,8 +1030,8 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
     @override
     def tag(self,
                 tags: ToTagSetConvertible,
-                array: ArrayOrContainerT,
-            ) -> ArrayOrContainerT:
+                array: ArrayOrContainerOrScalarT,
+            ) -> ArrayOrContainerOrScalarT:
         def _tag(ary: Array) -> Array:
             import jax.numpy as jnp
             if isinstance(ary, jnp.ndarray):
