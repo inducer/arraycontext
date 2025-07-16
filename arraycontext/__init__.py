@@ -88,6 +88,7 @@ from .pytest import (
 from .transform_metadata import CommonSubexpressionTag, ElementwiseMapKernelTag
 from .typing import (
     ArithArrayContainer,
+    ArithArrayContainerT,
     Array,
     ArrayContainer,
     ArrayContainerT,
@@ -110,6 +111,7 @@ from .typing import (
 
 __all__ = (
     "ArithArrayContainer",
+    "ArithArrayContainerT",
     "Array",
     "ArrayContainer",
     "ArrayContainerT",

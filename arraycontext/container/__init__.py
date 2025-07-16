@@ -50,6 +50,7 @@
 
 .. autoclass:: ArithArrayContainer
 .. autoclass:: ArrayContainerT
+.. autoclass:: ArithArrayContainerT
 
 .. autoexception:: NotAnArrayContainerError
 
