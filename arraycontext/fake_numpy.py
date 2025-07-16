@@ -40,15 +40,18 @@ from arraycontext.container import (
     serialize_container,
 )
 from arraycontext.container.traversal import rec_map_container
-from arraycontext.typing import ArrayOrContainer, ArrayOrContainerT, is_scalar_like
+from arraycontext.typing import (
+    ArrayOrContainer,
+    ArrayOrContainerT,
+    ScalarLike,
+    is_scalar_like,
+)
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from numpy.typing import DTypeLike, NDArray
-
-    from pymbolic import Scalar
 
     from arraycontext.context import ArrayContext
     from arraycontext.typing import (
@@ -138,13 +141,13 @@ class BaseFakeNumpyNamespace(ABC):
     @abstractmethod
     def _full_like_array(self,
                 ary: Array,
-                fill_value: Scalar,
+                fill_value: ScalarLike,
             ) -> Array:
         ...
 
     def full_like(self,
                 ary: ArrayOrContainerOrScalarT,
-                fill_value: Scalar,
+                fill_value: ScalarLike,
             ) -> ArrayOrContainerOrScalarT:
         def _zeros_like(array: ArrayOrScalar) -> ArrayOrScalar:
             if is_scalar_like(array):
@@ -176,8 +179,8 @@ class BaseFakeNumpyNamespace(ABC):
 
     @overload
     def linspace(self,
-                start: NDArray[Any] | Scalar,
-                stop: NDArray[Any] | Scalar,
+                start: NDArray[Any] | ScalarLike,
+                stop: NDArray[Any] | ScalarLike,
                 num: int = 50,
                 *, endpoint: bool = True,
                 retstep: Literal[False] = False,
@@ -187,8 +190,8 @@ class BaseFakeNumpyNamespace(ABC):
 
     @overload
     def linspace(self,
-                start: NDArray[Any] | Scalar,
-                stop: NDArray[Any] | Scalar,
+                start: NDArray[Any] | ScalarLike,
+                stop: NDArray[Any] | ScalarLike,
                 num: int = 50,
                 *, endpoint: bool = True,
                 retstep: Literal[True],
@@ -197,8 +200,8 @@ class BaseFakeNumpyNamespace(ABC):
             ) -> tuple[Array, NDArray[Any] | float] | Array: ...
 
     def linspace(self,
-                start: NDArray[Any] | Scalar,
-                stop: NDArray[Any] | Scalar,
+                start: NDArray[Any] | ScalarLike,
+                stop: NDArray[Any] | ScalarLike,
                 num: int = 50,
                 *, endpoint: bool = True,
                 retstep: bool = False,
