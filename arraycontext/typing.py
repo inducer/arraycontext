@@ -71,6 +71,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+# The import of 'Union' is type-ignored below because we're specifically importing
+# Union to pick apart old/deprecated type annotations.
+
+from functools import partial
+from types import GenericAlias, UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -80,7 +85,9 @@ from typing import (
     SupportsInt,
     TypeAlias,
     TypeVar,
+    Union,  # pyright: ignore[reportDeprecated]
     cast,
+    get_args,
     get_origin,
     overload,
 )
@@ -89,10 +96,13 @@ import numpy as np
 from typing_extensions import Self, TypeIs
 
 from pymbolic.typing import Integer, Scalar as _Scalar
+from pytools import partition2
 from pytools.obj_array import ObjectArrayND
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from numpy.typing import DTypeLike
 
     from pymbolic.typing import Integer
@@ -296,3 +306,56 @@ def shape_is_int_only(shape: tuple[Array | Integer, ...], /) -> tuple[int, ...]:
                 ) from None
 
     return tuple(res)
+
+
+def all_type_leaves_satisfy_predicate(
+            predicate: Callable[[type], bool],
+            tp: type | GenericAlias | UnionType | TypeVar,
+            /, *,
+            require_homogeneity: bool = False,
+            allow_containers_with_satisfying_types: bool = False,
+        ) -> bool:
+    # This is horrible and brittle. I'm sorry.
+
+    rec = partial(
+                  all_type_leaves_satisfy_predicate,
+                  predicate,
+                  require_homogeneity=require_homogeneity,
+                  allow_containers_with_satisfying_types=allow_containers_with_satisfying_types
+              )
+    origin = get_origin(tp)
+    args = get_args(tp)
+    tp_or_origin = tp if origin is None else origin
+
+    if isinstance(tp_or_origin, TypeVar):
+        bound = cast("type | None", tp_or_origin.__bound__)
+        if bound is None:
+            return False
+        else:
+            return rec(bound)
+
+    # NOTE: `UnionType` is returned when using `Type1 | Type2`
+    if origin in (Union, UnionType):  # pyright: ignore[reportDeprecated]
+        yes_types, no_types = partition2(
+            (rec(arg), arg) for arg in args)  # pyright: ignore[reportAny]
+        if require_homogeneity and yes_types and no_types:
+            raise TypeError(f"union '{tp}' is non-homogeneous "
+                            f"in whether it satisfies '{predicate}'")
+
+        return not no_types
+
+    if not isinstance(tp_or_origin, type):
+        raise TypeError(f"encountered non-type '{type(tp_or_origin)!r}'")
+
+    if predicate(tp_or_origin):
+        return True
+
+    if args and not allow_containers_with_satisfying_types:
+        # assume these are containers
+        has_sat_types = any(rec(arg) for arg in args)  # pyright: ignore[reportAny]
+
+        if has_sat_types:
+            raise TypeError(f"container '{tp}' has an element type "
+                            f"satisfying '{predicate}'")
+
+    return False

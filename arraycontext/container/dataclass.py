@@ -37,30 +37,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-# The import of 'Union' is type-ignored below because we're specifically importing
-# Union to pick apart type annotations.
-
 from dataclasses import fields, is_dataclass
 from typing import (
     TYPE_CHECKING,
     NamedTuple,
     TypeVar,
-    Union,  # pyright: ignore[reportDeprecated]
-    cast,
-    get_args,
-    get_origin,
 )
 from warnings import warn
 
 import numpy as np
 
-from pytools.obj_array import ObjectArray
-
 from arraycontext.container import is_array_container_type
 from arraycontext.typing import (
-    ArrayContainer,
-    ArrayOrContainer,
-    ArrayOrContainerOrScalar,
+    all_type_leaves_satisfy_predicate,
     is_scalar_type,
 )
 
@@ -83,17 +72,30 @@ class _Field(NamedTuple):
     type: type
 
 
-def _is_array_or_container_type(tp: type | GenericAlias | UnionType, /) -> bool:
-    if tp is np.ndarray:
-        warn("Encountered 'numpy.ndarray' in a dataclass_array_container. "
-             "This is deprecated and will stop working in 2026. "
-             "If you meant an object array, use pytools.obj_array.ObjectArray. "
-             "For other uses, file an issue to discuss.",
-             DeprecationWarning, stacklevel=3)
-        return True
+def _is_array_or_container_type(
+            tp: type | GenericAlias | UnionType | TypeVar, /, *,
+            allow_scalar: bool = True,
+            require_homogeneity: bool = True,
+        ) -> bool:
+    def _is_array_or_container_or_scalar(tp: type) -> bool:
+        if tp is np.ndarray:
+            warn("Encountered 'numpy.ndarray' in a dataclass_array_container. "
+                 "This is deprecated and will stop working in 2026. "
+                 "If you meant an object array, use pytools.obj_array.ObjectArray. "
+                 "For other uses, file an issue to discuss.",
+                 DeprecationWarning, stacklevel=1)
+            return True
 
-    from arraycontext import Array
-    return tp is Array or is_array_container_type(tp)
+        from arraycontext import Array
+
+        return (
+                is_array_container_type(tp)
+                or tp is Array
+                or (allow_scalar and is_scalar_type(tp)))
+
+    return all_type_leaves_satisfy_predicate(
+                    _is_array_or_container_or_scalar, tp,
+                    require_homogeneity=require_homogeneity)
 
 
 def dataclass_array_container(cls: type[T]) -> type[T]:
@@ -120,8 +122,6 @@ def dataclass_array_container(cls: type[T]) -> type[T]:
         means that *cls* must live in a module that is importable.
     """
 
-    from types import GenericAlias, UnionType
-
     assert is_dataclass(cls)
 
     def is_array_field(f: _Field) -> bool:
@@ -139,61 +139,17 @@ def dataclass_array_container(cls: type[T]) -> type[T]:
         #
         # This is not set in stone, but mostly driven by current usage!
 
-        # pyright has no idea what we're up to. :)
-        if field_type is ArrayContainer:  # pyright: ignore[reportUnnecessaryComparison]
-            return True
-        if field_type is ArrayOrContainer:  # pyright: ignore[reportUnnecessaryComparison]
-            return True
-        if field_type is ArrayOrContainerOrScalar:  # pyright: ignore[reportUnnecessaryComparison]
-            return True
-
-        origin = get_origin(field_type)
-
-        if origin is ObjectArray:
-            return True
-
-        # NOTE: `UnionType` is returned when using `Type1 | Type2`
-        if origin in (Union, UnionType):  # pyright: ignore[reportDeprecated]
-            for arg in get_args(field_type):  # pyright: ignore[reportAny]
-                if not (
-                        _is_array_or_container_type(cast("type", arg))
-                        or is_scalar_type(cast("type", arg))):
-                    raise TypeError(
-                            f"Field '{f.name}' union contains non-array container "
-                            f"type '{arg}'. All types must be array containers "
-                            "or arrays or scalars."
-                        )
-
-            return True
-
         # NOTE: this should never happen due to using `inspect.get_annotations`
         assert not isinstance(field_type, str)
 
-        if __debug__:
-            if not f.init:
-                raise ValueError(
-                        f"Field with 'init=False' not allowed: '{f.name}'")
+        if not f.init:
+            raise ValueError(
+                    f"Field with 'init=False' not allowed: '{f.name}'")
 
-            # NOTE:
-            # * `GenericAlias` catches typed `list`, `tuple`, etc.
-            # * `_BaseGenericAlias` catches `List`, `Tuple`, etc.
-            # * `_SpecialForm` catches `Any`, `Literal`, etc.
-            from typing import (  # type: ignore[attr-defined]
-                _BaseGenericAlias,
-                _SpecialForm,
-            )
-            if isinstance(field_type, GenericAlias | _BaseGenericAlias | _SpecialForm):
-                # NOTE: anything except a Union is not allowed
-                raise TypeError(
-                        f"Type annotation not supported on field '{f.name}': "
-                        f"'{field_type!r}'")
-
-            if not isinstance(field_type, type):
-                raise TypeError(
-                        f"Field '{f.name}' not an instance of 'type': "
-                        f"'{field_type!r}'")
-
-        return _is_array_or_container_type(field_type)
+        try:
+            return _is_array_or_container_type(field_type)
+        except TypeError as e:
+            raise TypeError(f"Field '{f.name}': {e}") from None
 
     from pytools import partition
 
