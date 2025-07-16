@@ -61,6 +61,7 @@ from arraycontext.typing import (
     ArrayContainer,
     ArrayOrContainer,
     ArrayOrContainerOrScalar,
+    is_scalar_type,
 )
 
 
@@ -93,15 +94,6 @@ def _is_array_or_container_type(tp: type | GenericAlias | UnionType, /) -> bool:
 
     from arraycontext import Array
     return tp is Array or is_array_container_type(tp)
-
-
-def is_scalar_type(tp: object, /) -> bool:
-    if not isinstance(tp, type):
-        tp = get_origin(tp)
-    if not isinstance(tp, type):
-        return False
-
-    return issubclass(tp, (np.generic, int, float, complex))
 
 
 def dataclass_array_container(cls: type[T]) -> type[T]:
