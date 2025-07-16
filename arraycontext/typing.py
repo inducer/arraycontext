@@ -231,6 +231,7 @@ ArithArrayContainer: TypeAlias = (
 
 
 ArrayContainerT = TypeVar("ArrayContainerT", bound=ArrayContainer)
+ArithArrayContainerT = TypeVar("ArithArrayContainerT", bound=ArithArrayContainer)
 
 # }}}
 
