@@ -135,7 +135,6 @@ from functools import singledispatch
 from typing import (
     TYPE_CHECKING,
     TypeAlias,
-    get_origin,
 )
 
 # For use in singledispatch type annotations, because sphinx can't figure out
@@ -147,7 +146,7 @@ from typing_extensions import TypeIs
 from pytools.obj_array import ObjectArray, ObjectArrayND as ObjectArrayND
 
 from arraycontext.typing import (
-    ArithArrayContainer,
+    ArithArrayContainer as ArithArrayContainer,
     ArrayContainer,
     ArrayContainerT,
     ArrayOrArithContainer,
@@ -155,6 +154,7 @@ from arraycontext.typing import (
     ArrayOrContainerOrScalar,
     _UserDefinedArithArrayContainer,
     _UserDefinedArrayContainer,
+    all_type_leaves_satisfy_predicate,
 )
 
 
@@ -233,23 +233,15 @@ def is_array_container_type(cls: type | GenericAlias | UnionType) -> bool:
         function will say that :class:`numpy.ndarray` is an array container
         type, only object arrays *actually are* array containers.
     """
-    if cls is ArrayContainer or cls is ArithArrayContainer:
-        return True
+    def pred(tp: type) -> bool:
+        return (
+                tp is ObjectArray
+                or tp is _UserDefinedArrayContainer
+                or tp is _UserDefinedArithArrayContainer
+                or (serialize_container.dispatch(tp)
+                    is not serialize_container.__wrapped__))  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
-    origin = get_origin(cls)
-    if origin is not None:
-        cls = origin  # pyright: ignore[reportAny]
-
-    assert isinstance(cls, type), (
-        f"must pass a {type!r}, not a '{cls!r}'")
-
-    return (
-            cls is ObjectArray
-            or cls is ArrayContainer  # pyright: ignore[reportUnnecessaryComparison]
-            or cls is _UserDefinedArrayContainer
-            or cls is _UserDefinedArithArrayContainer
-            or (serialize_container.dispatch(cls)
-                is not serialize_container.__wrapped__))  # type:ignore[attr-defined]
+    return all_type_leaves_satisfy_predicate(pred, cls)
 
 
 def is_array_container(ary: object) -> TypeIs[ArrayContainer]:
@@ -265,7 +257,7 @@ def is_array_container(ary: object) -> TypeIs[ArrayContainer]:
             "cheaper option, see is_array_container_type.",
             DeprecationWarning, stacklevel=2)
     return (serialize_container.dispatch(ary.__class__)
-            is not serialize_container.__wrapped__       # type:ignore[attr-defined]
+            is not serialize_container.__wrapped__       # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
             # numpy values with scalar elements aren't array containers
             and not (isinstance(ary, np.ndarray)
                      and ary.dtype.kind != "O")

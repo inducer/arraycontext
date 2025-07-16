@@ -72,9 +72,9 @@ def test_dataclass_array_container() -> None:
     class ArrayContainerWithOptional:
         x: np.ndarray
         # Deliberately left as Optional to test compatibility.
-        y: Optional[np.ndarray]  # noqa: UP045
+        y: Optional[np.ndarray]  # noqa: UP045  # pyright: ignore[reportDeprecated]
 
-    with pytest.raises(TypeError, match="Field 'y' union contains non-array"):
+    with pytest.raises(TypeError, match=r"Field 'y':.*non-homogeneous.*"):
         # NOTE: cannot have wrapped annotations (here by `Optional`)
         dataclass_array_container(ArrayContainerWithOptional)
 
@@ -88,7 +88,7 @@ def test_dataclass_array_container() -> None:
         # Deliberately left as Tuple to test compatibility.
         y: Tuple[Array, Array]  # noqa: UP006
 
-    with pytest.raises(TypeError, match="Type annotation not supported on field 'y'"):
+    with pytest.raises(TypeError, match=r"Field 'y':.*has an element type.*"):
         dataclass_array_container(ArrayContainerWithTuple)
 
     @dataclass
@@ -96,7 +96,7 @@ def test_dataclass_array_container() -> None:
         x: Array
         y: tuple[Array, Array]
 
-    with pytest.raises(TypeError, match="Type annotation not supported on field 'y'"):
+    with pytest.raises(TypeError, match=r"Field 'y':.*has an element type.*"):
         dataclass_array_container(ArrayContainerWithTupleAlt)
 
     # }}}
@@ -159,11 +159,20 @@ def test_dataclass_container_unions() -> None:
     @dataclass
     class ArrayContainerWithWrongUnion:
         x: np.ndarray
-        y: np.ndarray | list[bool]
+        y: np.ndarray | list[str]
 
-    with pytest.raises(TypeError, match="Field 'y' union contains non-array container"):
-        # NOTE: bool is not an ArrayContainer, so y should fail
+    with pytest.raises(TypeError, match=r"Field 'y':.*non-homogeneous.*"):
+        # NOTE: str is not an ArrayContainer, so y should fail
         dataclass_array_container(ArrayContainerWithWrongUnion)
+
+    @dataclass
+    class ArrayContainerWithWrongUnion2:
+        x: np.ndarray
+        y: np.ndarray | str
+
+    with pytest.raises(TypeError, match=r"Field 'y':.*non-homogeneous.*"):
+        # NOTE: str is not an ArrayContainer, so y should fail
+        dataclass_array_container(ArrayContainerWithWrongUnion2)
 
     # }}}
 
@@ -174,7 +183,7 @@ def test_dataclass_container_unions() -> None:
         x: np.ndarray
         y: np.ndarray | None
 
-    with pytest.raises(TypeError, match="Field 'y' union contains non-array container"):
+    with pytest.raises(TypeError, match=r"Field 'y':.*non-homogeneous.*"):
         # NOTE: None is not an ArrayContainer, so y should fail
         dataclass_array_container(ArrayContainerWithWrongUnion)
 
