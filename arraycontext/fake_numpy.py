@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
+from typing_extensions import deprecated
 
 from arraycontext.container import (
     NotAnArrayContainerError,
@@ -394,28 +395,65 @@ class BaseFakeNumpyNamespace(ABC):
 
         # {{{ reductions
 
+        @overload
+        def sum(self,
+                    a: ArrayOrContainer,
+                    axis: int | tuple[int, ...] | None = None,
+                    dtype: DTypeLike = None,
+                ) -> Array: ...
+        @overload
+        def sum(self,
+                    a: ScalarLike,
+                    axis: int | tuple[int, ...] | None = None,
+                    dtype: DTypeLike = None,
+                ) -> ScalarLike: ...
+
         def sum(self,
                     a: ArrayOrContainerOrScalar,
                     axis: int | tuple[int, ...] | None = None,
                     dtype: DTypeLike = None,
                 ) -> ArrayOrScalar: ...
 
-        def max(self,
-                    a: ArrayOrContainerOrScalar,
+        @overload
+        def min(self,
+                    a: ArrayOrContainer,
                     axis: int | tuple[int, ...] | None = None,
-                ) -> ArrayOrScalar: ...
+                ) -> Array: ...
+        @overload
+        def min(self,
+                    a: ScalarLike,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> ScalarLike: ...
 
         def min(self,
                     a: ArrayOrContainerOrScalar,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ArrayOrScalar: ...
 
-        def amax(self,
+        @overload
+        def max(self,
+                    a: ArrayOrContainer,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> Array: ...
+        @overload
+        def max(self,
+                    a: ScalarLike,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> ScalarLike: ...
+
+        def max(self,
                     a: ArrayOrContainerOrScalar,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ArrayOrScalar: ...
 
+        @deprecated("use min instead")
         def amin(self,
+                    a: ArrayOrContainerOrScalar,
+                    axis: int | tuple[int, ...] | None = None,
+                ) -> ArrayOrScalar: ...
+
+        @deprecated("use max instead")
+        def amax(self,
                     a: ArrayOrContainerOrScalar,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ArrayOrScalar: ...

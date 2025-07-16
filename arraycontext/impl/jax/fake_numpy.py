@@ -25,7 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, overload
 
 import numpy as np
 from typing_extensions import override
@@ -42,7 +42,7 @@ from arraycontext.container.traversal import (
     rec_multimap_array_container,
 )
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace, BaseFakeNumpyNamespace
-from arraycontext.typing import is_scalar_like
+from arraycontext.typing import ArrayOrContainer, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -205,6 +205,19 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     # {{{ mathematical functions
 
+    @overload
+    def sum(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> Array: ...
+    @overload
+    def sum(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> Scalar: ...
+
     @override
     def sum(self,
                 a: ArrayOrContainerOrScalar,
@@ -216,6 +229,17 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
             partial(jnp.sum, axis=axis, dtype=dtype),
             a)
 
+    @overload
+    def min(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def min(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Scalar: ...
+
     @override
     def min(self,
                 a: ArrayOrContainerOrScalar,
@@ -224,7 +248,18 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_reduce_array_container(
                 partial(reduce, jnp.minimum), partial(jnp.amin, axis=axis), a)
 
-    amin = min
+    amin = min  # pyright: ignore[reportAssignmentType, reportDeprecated]
+
+    @overload
+    def max(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def max(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Scalar: ...
 
     @override
     def max(self,
@@ -234,7 +269,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         return rec_map_reduce_array_container(
                 partial(reduce, jnp.maximum), partial(jnp.amax, axis=axis), a)
 
-    amax = max
+    amax = max  # pyright: ignore[reportDeprecated, reportAssignmentType]
 
     # }}}
 

@@ -25,7 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from functools import partial, reduce
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 from typing_extensions import override
@@ -41,7 +41,7 @@ from arraycontext.container.traversal import (
 )
 from arraycontext.fake_numpy import BaseFakeNumpyLinalgNamespace
 from arraycontext.loopy import LoopyBasedFakeNumpyNamespace
-from arraycontext.typing import ArrayOrScalar, OrderCF, is_scalar_like
+from arraycontext.typing import ArrayOrContainer, ArrayOrScalar, OrderCF, is_scalar_like
 
 
 if TYPE_CHECKING:
@@ -230,6 +230,19 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ mathematical functions
 
+    @overload
+    def sum(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> Array: ...
+    @overload
+    def sum(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+                dtype: DTypeLike = None,
+            ) -> Scalar: ...
+
     @override
     def sum(self,
                 a: ArrayOrContainerOrScalar,
@@ -244,6 +257,17 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
         return rec_map_reduce_array_container(sum, _pt_sum, a)
 
+    @overload
+    def max(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def max(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Scalar: ...
+
     @override
     def max(self,
                 a: ArrayOrContainerOrScalar,
@@ -252,7 +276,18 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.maximum), partial(pt.amax, axis=axis), a)
 
-    amax = max
+    amax = max  # pyright: ignore[reportAssignmentType, reportDeprecated]
+
+    @overload
+    def min(self,
+                a: ArrayOrContainer,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Array: ...
+    @overload
+    def min(self,
+                a: Scalar,
+                axis: int | tuple[int, ...] | None = None,
+            ) -> Scalar: ...
 
     @override
     def min(self,
@@ -262,7 +297,7 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.minimum), partial(pt.amin, axis=axis), a)
 
-    amin = min
+    amin = min  # pyright: ignore[reportDeprecated, reportAssignmentType]
 
     def absolute(self, a):
         return self.abs(a)
