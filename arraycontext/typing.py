@@ -81,6 +81,7 @@ from typing import (
     TypeAlias,
     TypeVar,
     cast,
+    get_origin,
     overload,
 )
 
@@ -93,6 +94,8 @@ from pytools.obj_array import ObjectArrayND
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
+
+    from pymbolic.typing import Integer
 
 
 # deprecated, use ScalarLike instead
@@ -237,7 +240,7 @@ ArithArrayContainerT = TypeVar("ArithArrayContainerT", bound=ArithArrayContainer
 
 
 ArrayT = TypeVar("ArrayT", bound=Array)
-ArrayOrScalar: TypeAlias = Array | _Scalar
+ArrayOrScalar: TypeAlias = Array | ScalarLike
 ArrayOrScalarT = TypeVar("ArrayOrScalarT", bound=ArrayOrScalar)
 ArrayOrContainer: TypeAlias = Array | ArrayContainer
 ArrayOrArithContainer: TypeAlias = Array | ArithArrayContainer
@@ -259,6 +262,22 @@ ContainerOrScalarT = TypeVar("ContainerOrScalarT", bound="ArrayContainer | Scala
 
 
 NumpyOrContainerOrScalar: TypeAlias = "np.ndarray | ArrayContainer | ScalarLike"
+
+
+def is_scalar_type(tp: object, /) -> bool:
+    if not isinstance(tp, type):
+        tp = get_origin(tp)
+    if not isinstance(tp, type):
+        return False
+    if tp is int or tp is bool:
+        # int has loads of undesirable subclasses: enums, ...
+        # We're not going to tolerate them.
+        #
+        # bool has to be OK because arraycontext is expected to handle
+        # arrays of bools.
+        return True
+
+    return issubclass(tp, (np.generic, float, complex))
 
 
 def is_scalar_like(x: object, /) -> TypeIs[Scalar]:
