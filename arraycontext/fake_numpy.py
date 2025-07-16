@@ -160,17 +160,18 @@ class BaseFakeNumpyNamespace(ABC):
     def ones_like(self, ary: ArrayOrContainerOrScalarT) -> ArrayOrContainerOrScalarT:
         return self.full_like(ary, 1)
 
-    def conjugate(self, x: ArrayOrContainerOrScalar):
+    def conjugate(self, x: ArrayOrContainerOrScalarT, /) -> ArrayOrContainerOrScalarT:
         # NOTE: conjugate distributes over object arrays, but it looks for a
         # `conjugate` ufunc, while some implementations only have the shorter
         # `conj` (e.g. cl.array.Array), so this should work for everybody.
-        return rec_map_container(lambda obj: cast("Array", obj).conj(), x)
+        return self.conj(x)
 
-    def conj(self, x: ArrayOrContainerOrScalar):
+    def conj(self, x: ArrayOrContainerOrScalarT, /) -> ArrayOrContainerOrScalarT:
         # NOTE: conjugate distributes over object arrays, but it looks for a
         # `conjugate` ufunc, while some implementations only have the shorter
         # `conj` (e.g. cl.array.Array), so this should work for everybody.
-        return rec_map_container(lambda obj: cast("Array", obj).conj(), x)
+        return cast("ArrayOrContainerOrScalarT",
+                    rec_map_container(lambda obj: cast("Array", obj).conj(), x))
 
     # {{{ linspace
 
