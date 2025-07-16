@@ -31,8 +31,8 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import pytest
 
+import pytools.obj_array as obj_array
 from pytools import ndindex
-from pytools.obj_array import ObjectArray1D, make_obj_array
 from pytools.tag import Tag
 
 from arraycontext import (
@@ -61,6 +61,8 @@ from testlib import DOFArray, MyContainer, MyContainerDOFBcast, Velocity2D
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+    from pytools.obj_array import ObjectArray1D
 
 
 logger = logging.getLogger(__name__)
@@ -136,18 +138,18 @@ def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     dataclass_of_dofs = MyContainer(
             name="container",
             mass=x,
-            momentum=make_obj_array([x] * ambient_dim),
+            momentum=obj_array.new_1d([x] * ambient_dim),
             enthalpy=x)
 
     # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     bcast_dataclass_of_dofs = MyContainerDOFBcast(
             name="container",
             mass=x,
-            momentum=make_obj_array([x] * ambient_dim),
+            momentum=obj_array.new_1d([x] * ambient_dim),
             enthalpy=x)
 
     ary_dof = x
-    ary_of_dofs = make_obj_array([x] * ambient_dim)
+    ary_of_dofs = obj_array.new_1d([x] * ambient_dim)
     mat_of_dofs = np.empty((ambient_dim, ambient_dim), dtype=object)
     for i in ndindex(mat_of_dofs.shape):
         mat_of_dofs[i] = x
@@ -213,7 +215,7 @@ def assert_close_to_numpy_in_containers(actx, op, args):
     # {{{ test object arrays of DOFArrays
 
     obj_array_args = [
-            make_obj_array([arg]) if isinstance(arg, DOFArray) else arg
+            obj_array.new_1d([arg]) if isinstance(arg, DOFArray) else arg
             for arg in dofarray_args]
 
     obj_array_result = op(actx.np, *obj_array_args)
@@ -513,7 +515,7 @@ def test_dof_array_arithmetic_same_as_numpy(actx_factory: ArrayContextFactory):
                     get_imag,
                     ]:
                 obj_array_args = [
-                        make_obj_array([arg]) if isinstance(arg, DOFArray) else arg
+                        obj_array.new_1d([arg]) if isinstance(arg, DOFArray) else arg
                         for arg in actx_args]
 
                 obj_array_result = actx.to_numpy(
@@ -908,9 +910,8 @@ def test_container_freeze_thaw(actx_factory: ArrayContextFactory):
 def test_container_norm(actx_factory: ArrayContextFactory, ord):
     actx = actx_factory()
 
-    from pytools.obj_array import make_obj_array
-    c = MyContainer(name="hey", mass=1, momentum=make_obj_array([2, 3]), enthalpy=5)
-    n1 = actx.np.linalg.norm(make_obj_array([c, c]), ord)
+    c = MyContainer(name="hey", mass=1, momentum=obj_array.new_1d([2, 3]), enthalpy=5)
+    n1 = actx.np.linalg.norm(obj_array.new_1d([c, c]), ord)
     n2 = np.linalg.norm([1, 2, 3, 5]*2, ord)
 
     assert abs(n1 - n2) < 1e-12
@@ -1038,7 +1039,7 @@ def test_numpy_conversion(actx_factory: ArrayContextFactory):
     ac = MyContainer(
             name="test_numpy_conversion",
             mass=rng.uniform(size=(nelements, nelements)),
-            momentum=make_obj_array([rng.uniform(size=nelements) for _ in range(3)]),
+            momentum=obj_array.new_1d([rng.uniform(size=nelements) for _ in range(3)]),
             enthalpy=np.array(rng.uniform()),
             )
 
@@ -1199,7 +1200,7 @@ def test_actx_compile_with_outlined_function(actx_factory: ArrayContextFactory):
                 vel1: Velocity2D,
                 vel2: Velocity2D
             ) -> ObjectArray1D[Velocity2D]:
-        return make_obj_array([
+        return obj_array.new_1d([
             outlined_scale_and_orthogonalize(alpha, vel1),
             outlined_scale_and_orthogonalize(alpha, vel2)])
 
@@ -1291,7 +1292,7 @@ def test_no_leaf_array_type_broadcasting(actx_factory: ArrayContextFactory):
     mc = MyContainer(
          name="hi",
          mass=dof_ary,
-         momentum=make_obj_array([dof_ary, dof_ary]),
+         momentum=obj_array.new_1d([dof_ary, dof_ary]),
          enthalpy=dof_ary)
 
     with pytest.raises(TypeError):
@@ -1389,7 +1390,7 @@ def test_outer(actx_factory: ArrayContextFactory):
     # Vector and array container
     assert equal(
         outer(a_ary_of_dofs, b_bcast_dc_of_dofs),
-        make_obj_array([a_i*b_bcast_dc_of_dofs for a_i in a_ary_of_dofs]))
+        obj_array.new_1d([a_i*b_bcast_dc_of_dofs for a_i in a_ary_of_dofs]))
 
     # Array container and vector
     assert equal(

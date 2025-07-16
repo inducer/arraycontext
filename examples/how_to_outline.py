@@ -7,7 +7,7 @@ import numpy as np
 from typing_extensions import override
 
 import pytato as pt
-from pytools.obj_array import ObjectArray1D, make_obj_array
+import pytools.obj_array as obj_array
 
 from arraycontext import (
     Array,
@@ -18,6 +18,8 @@ from arraycontext import (
 
 
 if TYPE_CHECKING:
+    from pytools.obj_array import ObjectArray1D
+
     from arraycontext import (
         ArrayOrArithContainer,
     )
@@ -91,15 +93,15 @@ for _ in range(Ncalls):
     Nel = rng.integers(low=4, high=17)
     state1_np = State(
         mass=rng.random((Nel, Ndof)),
-        vel=make_obj_array([*rng.random((Ndim, Nel, Ndof))]),
+        vel=obj_array.new_1d([*rng.random((Ndim, Nel, Ndof))]),
     )
     state2_np = State(
         mass=rng.random((Nel, Ndof)),
-        vel=make_obj_array([*rng.random((Ndim, Nel, Ndof))]),
+        vel=obj_array.new_1d([*rng.random((Ndim, Nel, Ndof))]),
     )
 
     state1 = actx.from_numpy(state1_np)
     state2 = actx.from_numpy(state2_np)
     results.append(foo(state1, state2))
 
-actx.to_numpy(make_obj_array(results))
+actx.to_numpy(obj_array.new_1d(results))

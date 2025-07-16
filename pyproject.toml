@@ -29,7 +29,7 @@ classifiers = [
 dependencies = [
     "immutabledict>=4.1",
     "numpy",
-    "pytools>=2025.2",
+    "pytools>=2025.2.2",
     # for TypeIs
     "typing_extensions>=4.10",
 ]

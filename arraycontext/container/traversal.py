@@ -379,7 +379,7 @@ def map_array_container(
         ary: ArrayOrContainerOrScalar) -> ArrayOrContainerOrScalar:
     r"""Applies *f* to all components of an :class:`ArrayContainer`.
 
-    Works similarly to :func:`~pytools.obj_array.obj_array_vectorize`, but
+    Works similarly to :func:`~pytools.obj_array.vectorize`, but
     on arbitrary containers.
 
     For a recursive version, see :func:`rec_map_array_container`.
@@ -400,7 +400,7 @@ def map_array_container(
 def multimap_array_container(f: Callable[..., Any], *args: Any) -> Any:
     r"""Applies *f* to the components of multiple :class:`ArrayContainer`\ s.
 
-    Works similarly to :func:`~pytools.obj_array.obj_array_vectorize_n_args`,
+    Works similarly to :func:`~pytools.obj_array.vectorize_n_args`,
     but on arbitrary containers. The containers must all have the same type,
     which will also be the return type.
 
