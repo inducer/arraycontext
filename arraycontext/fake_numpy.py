@@ -29,7 +29,6 @@ THE SOFTWARE.
 
 import operator
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
@@ -66,14 +65,13 @@ if TYPE_CHECKING:
 
 # {{{ BaseFakeNumpyNamespace
 
-@dataclass(frozen=True)
 class BaseFakeNumpyNamespace(ABC):
     _array_context: ArrayContext
     linalg: BaseFakeNumpyLinalgNamespace
 
     def __init__(self, array_context: ArrayContext):
-        object.__setattr__(self, "_array_context", array_context)
-        object.__setattr__(self, "linalg", self._get_fake_numpy_linalg_namespace())
+        self._array_context = array_context
+        self.linalg = self._get_fake_numpy_linalg_namespace()
 
     def _get_fake_numpy_linalg_namespace(self):
         return BaseFakeNumpyLinalgNamespace(self._array_context)
