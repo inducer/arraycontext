@@ -2098,10 +2098,26 @@
         ],
         "./arraycontext/impl/jax/fake_numpy.py": [
             {
+                "code": "reportUnknownMemberType",
+                "range": {
+                    "startColumn": 44,
+                    "endColumn": 53,
+                    "lineCount": 1
+                }
+            },
+            {
                 "code": "reportArgumentType",
                 "range": {
                     "startColumn": 73,
                     "endColumn": 78,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportUnknownMemberType",
+                "range": {
+                    "startColumn": 44,
+                    "endColumn": 57,
                     "lineCount": 1
                 }
             },
