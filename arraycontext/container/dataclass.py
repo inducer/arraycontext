@@ -163,14 +163,16 @@ def _get_annotated_fields(cls: type) -> Sequence[_Field]:
     from inspect import get_annotations
 
     result = []
-    cls_ann: Mapping[str, type] | None = None
+    field_name_to_type: Mapping[str, type] | None = None
     for field in fields(cls):
         field_type_or_str = field.type
         if isinstance(field_type_or_str, str):
-            if cls_ann is None:
-                cls_ann = get_annotations(cls, eval_str=True)
+            if field_name_to_type is None:
+                field_name_to_type = {}
+                for subcls in cls.__mro__[::-1]:
+                    field_name_to_type.update(get_annotations(subcls, eval_str=True))
 
-            field_type = cls_ann[field.name]
+            field_type = field_name_to_type[field.name]
         else:
             field_type = field_type_or_str
 
