@@ -130,6 +130,9 @@ extend-ignore-re = [
 [tool.typos.default.extend-words]
 "nd" = "nd"
 
+# short for 'serialization'
+"ser" = "ser"
+
 [tool.basedpyright]
 reportImplicitStringConcatenation = "none"
 reportUnnecessaryIsInstance = "none"
