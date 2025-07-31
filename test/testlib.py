@@ -217,6 +217,15 @@ class Velocity2D:
     __array_ufunc__: ClassVar[None] = None
 
 
+# https://github.com/inducer/arraycontext/pull/333
+# (i.e. test that we consider inherited annotations)
+@with_container_arithmetic(bcasts_across_obj_array=True, rel_comparison=True)
+@dataclass_array_container
+@dataclass(frozen=True)
+class Velocity3D(Velocity2D):
+    w: ArrayOrContainer
+
+
 @with_array_context.register(Velocity2D)
 # https://github.com/python/mypy/issues/13040
 def _with_actx_velocity_2d(ary, actx):  # type: ignore[misc]
