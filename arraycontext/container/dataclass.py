@@ -126,20 +126,6 @@ def dataclass_array_container(cls: type[T]) -> type[T]:
 
     def is_array_field(f: _Field) -> bool:
         field_type = f.type
-
-        # NOTE: unions of array containers are treated separately to handle
-        # unions of only array containers, e.g. `Union[np.ndarray, Array]`, as
-        # they can work seamlessly with arithmetic and traversal.
-        #
-        # `Optional[ArrayContainer]` is not allowed, since `None` is not
-        # handled by `with_container_arithmetic`, which is the common case
-        # for current container usage. Other type annotations, e.g.
-        # `Tuple[Container, Container]`, are also not allowed, as they do not
-        # work with `with_container_arithmetic`.
-        #
-        # This is not set in stone, but mostly driven by current usage!
-
-        # NOTE: this should never happen due to using `inspect.get_annotations`
         assert not isinstance(field_type, str)
 
         if not f.init:
