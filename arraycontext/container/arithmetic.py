@@ -46,7 +46,7 @@ import operator
 from dataclasses import dataclass, field
 from functools import partialmethod
 from numbers import Number
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Protocol, TypeVar, cast
 from warnings import warn
 
 import numpy as np
@@ -66,7 +66,7 @@ from arraycontext.container import (
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
     from arraycontext.context import ArrayContext
     from arraycontext.typing import (
@@ -80,6 +80,19 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 TypeT = TypeVar("TypeT", bound=type)
+
+
+class _HasInitArraysSerialization(Protocol):
+    @classmethod
+    def _serialize_init_arrays_code(cls, instance_name: str) -> Mapping[str, str]:
+        ...
+
+    @classmethod
+    def _deserialize_init_arrays_code(cls,
+                tmpl_instance_name: str,
+                args: Mapping[str, str]
+            ) -> str:
+        ...
 
 
 @enum.unique
@@ -254,11 +267,15 @@ def with_container_arithmetic(
         structure type, the implementation might look like this::
 
             @classmethod
-            def _serialize_init_arrays_code(cls, instance_name):
+            def _serialize_init_arrays_code(cls,
+                        instance_name: str) -> Mapping[str, str]:
                 return {"u": f"{instance_name}.u", "v": f"{instance_name}.v"}
 
             @classmethod
-            def _deserialize_init_arrays_code(cls, tmpl_instance_name, args):
+            def _deserialize_init_arrays_code(cls,
+                        tmpl_instance_name: str,
+                        args: Mapping[str, str]
+                    ) -> str:
                 return f"u={args['u']}, v={args['v']}"
 
     :func:`dataclass_array_container` automatically generates an appropriate
@@ -366,7 +383,7 @@ def with_container_arithmetic(
         def numpy_pred(name: str) -> str:
             return f"isinstance({name}, np.ndarray) and {name}.dtype.char == 'O'"
     else:
-        def numpy_pred(name: str) -> str:
+        def numpy_pred(name: str) -> str:  # pyright: ignore[reportUnusedParameter]
             return "False"  # optimized away
 
     if np.ndarray in container_types_bcast_across and bcasts_across_obj_array:
@@ -383,7 +400,7 @@ def with_container_arithmetic(
         else [old_ct])
     )
 
-    desired_op_classes = set()
+    desired_op_classes: set[_OpClass] = set()
     if arithmetic:
         desired_op_classes.add(_OpClass.ARITHMETIC)
     if matmul:
@@ -399,7 +416,7 @@ def with_container_arithmetic(
 
     # }}}
 
-    def wrap(cls: Any) -> Any:
+    def wrap(cls: TypeT) -> TypeT:
         if not hasattr(cls, "__array_ufunc__"):
             warn(f"{cls} does not have __array_ufunc__ set. "
                  "This will cause numpy to attempt broadcasting, in a way that "
@@ -533,15 +550,16 @@ def with_container_arithmetic(
 
         # {{{ unary operators
 
+        cls_init_arg_ser = cast("type[_HasInitArraysSerialization]", cls)
         for dunder_name, op_str, op_cls in _UNARY_OP_AND_DUNDER:
             if op_cls not in desired_op_classes:
                 continue
 
             fname = f"_{cls.__name__.lower()}_{dunder_name}"
-            init_args = cls._deserialize_init_arrays_code("arg1", {
+            init_args = cls_init_arg_ser._deserialize_init_arrays_code("arg1", {
                     key_arg1: _format_unary_op_str(op_str, expr_arg1)
                     for key_arg1, expr_arg1 in
-                    cls._serialize_init_arrays_code("arg1").items()
+                    cls_init_arg_ser._serialize_init_arrays_code("arg1").items()
                     })
 
             gen(f"""
@@ -572,24 +590,28 @@ def with_container_arithmetic(
 
                 continue
 
-            zip_init_args = cls._deserialize_init_arrays_code("arg1", {
+            zip_init_args = cls_init_arg_ser._deserialize_init_arrays_code("arg1", {
                     same_key(key_arg1, key_arg2):
                     _format_binary_op_str(op_str, expr_arg1, expr_arg2)
                     for (key_arg1, expr_arg1), (key_arg2, expr_arg2) in zip(
-                        cls._serialize_init_arrays_code("arg1").items(),
-                        cls._serialize_init_arrays_code("arg2").items(),
+                        cls_init_arg_ser._serialize_init_arrays_code("arg1").items(),
+                        cls_init_arg_ser._serialize_init_arrays_code("arg2").items(),
                         strict=True)
                     })
-            bcast_init_args_arg1_is_outer = cls._deserialize_init_arrays_code("arg1", {
-                    key_arg1: _format_binary_op_str(op_str, expr_arg1, "arg2")
-                    for key_arg1, expr_arg1 in
-                    cls._serialize_init_arrays_code("arg1").items()
-                    })
-            bcast_init_args_arg2_is_outer = cls._deserialize_init_arrays_code("arg2", {
-                    key_arg2: _format_binary_op_str(op_str, "arg1", expr_arg2)
-                    for key_arg2, expr_arg2 in
-                    cls._serialize_init_arrays_code("arg2").items()
-                    })
+            bcast_init_args_arg1_is_outer = \
+            cls_init_arg_ser._deserialize_init_arrays_code(
+                    "arg1", {
+                        key_arg1: _format_binary_op_str(op_str, expr_arg1, "arg2")
+                        for key_arg1, expr_arg1 in
+                        cls_init_arg_ser._serialize_init_arrays_code("arg1").items()
+                        })
+            bcast_init_args_arg2_is_outer = \
+            cls_init_arg_ser._deserialize_init_arrays_code(
+                    "arg2", {
+                        key_arg2: _format_binary_op_str(op_str, "arg1", expr_arg2)
+                        for key_arg2, expr_arg2 in
+                        cls_init_arg_ser._serialize_init_arrays_code("arg2").items()
+                        })
 
             # {{{ "forward" binary operators
 

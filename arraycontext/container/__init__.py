@@ -208,7 +208,7 @@ def serialize_container(
 @singledispatch
 def deserialize_container(
         template: ArrayContainerT,
-        serialized: SerializedContainer) -> ArrayContainerT:
+        serialized: SerializedContainer) -> ArrayContainerT:  # pyright: ignore[reportUnusedParameter]
     """Deserialize a sequence into an array container following a *template*.
 
     :param template: an instance of an existing object that
