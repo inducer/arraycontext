@@ -16,14 +16,14 @@ jobs:
         name: Typos
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -   uses: crate-ci/typos@master
 
     ruff:
         name: Ruff
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -
             uses: actions/setup-python@v5
         -   name: "Main Script"
@@ -34,7 +34,7 @@ jobs:
     basedpyright:
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -   name: "Main Script"
             run: |
                 EXTRA_INSTALL="pytest types-colorama types-Pygments"
@@ -50,7 +50,7 @@ jobs:
         name: Pytest Conda Py3 POCL
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -   name: "Main Script"
             run: |
                 curl -L -O https://tiker.net/ci-support-v0
@@ -62,7 +62,7 @@ jobs:
         name: Pytest Conda Py3 Intel
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -   name: "Main Script"
             run: |
                 curl -L -O https://raw.githubusercontent.com/illinois-scicomp/machine-shop-maintenance/main/install-intel-icd.sh
@@ -83,7 +83,7 @@ jobs:
         name: Examples Conda Py3
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -   name: "Main Script"
             run: |
                 export MPLBACKEND=Agg
@@ -95,7 +95,7 @@ jobs:
         name: Documentation
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -
             uses: actions/setup-python@v5
             with:
@@ -119,7 +119,7 @@ jobs:
         name: Tests for downstream project ${{ matrix.downstream_project }}
         runs-on: ubuntu-latest
         steps:
-        -   uses: actions/checkout@v4
+        -   uses: actions/checkout@v5
         -   name: "Main Script"
             env:
                 DOWNSTREAM_PROJECT: ${{ matrix.downstream_project }}
