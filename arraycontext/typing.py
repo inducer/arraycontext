@@ -153,7 +153,7 @@ class Array(Protocol):
     # If you'd  like to see how, try changing the Any to
     # AxisIndex = slice | int | "Array"
     # Index = AxisIndex |tuple[AxisIndex]
-    def __getitem__(self, index: Any) -> Array:  # pyright: ignore[reportAny]
+    def __getitem__(self, key: Any) -> Array:  # pyright: ignore[reportAny]
         ...
 
     # Some basic arithmetic that's supposed to work
