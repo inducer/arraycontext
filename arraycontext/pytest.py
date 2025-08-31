@@ -33,7 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import override
 
@@ -42,6 +42,8 @@ from arraycontext import NumpyArrayContext
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    import pyopencl as cl
 
     from arraycontext.context import ArrayContext
 
@@ -62,14 +64,16 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     .. automethod:: __init__
     .. automethod:: __call__
     """
+    device: cl.Device
 
-    def __init__(self, device):
+    def __init__(self, device: cl.Device):
         """
         :arg device: a :class:`pyopencl.Device`.
         """
         self.device = device
 
     @classmethod
+    @override
     def is_available(cls) -> bool:
         try:
             import pyopencl  # noqa: F401
@@ -384,7 +388,10 @@ def pytest_generate_tests_for_array_contexts(
             if pyopencl_factories:
                 for arg_dict in arg_values:
                     arg_values_with_actx.extend([
-                        {factory_arg_name: factory(arg_dict["device"]), **arg_dict}
+                        {factory_arg_name: cast(
+                                "type[PytestPyOpenCLArrayContextFactory]",
+                                factory)(cast("cl.Device", arg_dict["device"])),
+                            **arg_dict}
                         for factory in pyopencl_factories
                         ])
 
