@@ -46,3 +46,12 @@ nitpick_ignore_regex = [
     ["py:class", r"np.integer"],
     ["py:class", r".*\|.*"],
     ]
+
+sphinxconfig_missing_reference_aliases = {
+    # pyopencl
+    "cl.Device": "obj:pyopencl.Device",
+}
+
+
+def setup(app):
+    app.connect("missing-reference", process_autodoc_missing_reference)  # noqa: F821

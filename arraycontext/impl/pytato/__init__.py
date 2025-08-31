@@ -653,7 +653,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 transformed_dag = self.transform_dag(normalized_expr)
 
                 from pytato.tags import PrefixNamed
-                name_hint_tags = []
+                name_hint_tags: list[PrefixNamed] = []
                 for subary in key_to_pt_arrays.values():
                     name_hint_tags.extend(subary.tags_of_type(PrefixNamed))
 
