@@ -64,7 +64,7 @@ def _get_arg_id_to_arg(
             kwargs: Mapping[str, ArrayOrContainerOrScalar | None]
         ) -> immutabledict[tuple[SerializationKey, ...], pt.Array]:
     """
-    Helper for :meth:`OulinedCall.__call__`. Extracts mappings from argument id
+    Helper for :meth:`OutlinedCall.__call__`. Extracts mappings from argument id
     to argument values. See
     :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
     representation.
@@ -120,7 +120,7 @@ def _get_arg_id_to_placeholder(
             prefix: str | None = None
         ) -> immutabledict[tuple[SerializationKey, ...], pt.Placeholder]:
     """
-    Helper for :meth:`OulinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
+    Helper for :meth:`OutlinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
     for each argument in *arg_id_to_arg*. See
     :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
     representation.
