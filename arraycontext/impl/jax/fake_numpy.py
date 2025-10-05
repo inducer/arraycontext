@@ -94,7 +94,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     # }}}
 
-    # {{{ array manipulation routies
+    # {{{ array manipulation routines
 
     def ravel(self, a: ArrayOrContainerOrScalar, order="C"):
         """
