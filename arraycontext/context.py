@@ -125,7 +125,7 @@ from typing import (
 )
 from warnings import warn
 
-from typing_extensions import Self, override
+from typing_extensions import Self, TypeIs, override
 
 from pytools import memoize_method
 
@@ -482,6 +482,10 @@ class ArrayContext(ABC):
         :return: a function with the same signature as *f*.
         """
         return f
+
+    @classmethod
+    def is_array_type(cls, obj: object) -> TypeIs[Array]:
+        return isinstance(obj, cls.array_types)
 
     # undocumented for now
     @property
