@@ -196,6 +196,7 @@ class ArrayContext(ABC):
         with :func:`isinstance`. Other uses are not allowed. This allows
         for 'types' with overridden :meth:`type.__instancecheck__`.
 
+    .. automethod:: is_array_type
     .. automethod:: freeze
     .. automethod:: thaw
     .. automethod:: freeze_thaw
@@ -483,9 +484,8 @@ class ArrayContext(ABC):
         """
         return f
 
-    @classmethod
-    def is_array_type(cls, obj: object) -> TypeIs[Array]:
-        return isinstance(obj, cls.array_types)
+    def is_array_type(self, obj: object) -> TypeIs[Array]:
+        return isinstance(obj, self.array_types)
 
     # undocumented for now
     @property
