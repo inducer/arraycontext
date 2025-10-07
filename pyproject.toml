@@ -150,6 +150,13 @@ pythonPlatform = "All"
 
 reportImplicitOverride = "hint"
 
+exclude = [
+    "doc",
+    ".conda-root",
+    "build",
+    ".env",
+]
+
 [[tool.basedpyright.executionEnvironments]]
 root = "test"
 reportUnknownArgumentType = "hint"
