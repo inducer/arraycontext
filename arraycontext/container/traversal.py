@@ -244,9 +244,16 @@ def _multimap_array_container_impl(
         except NotAnArrayContainerError:
             return f(*args_)
 
-        assert all(
-                type(args_[i]) is type(template_ary) for i in container_indices[1:]
-                ), f"expected type '{type(template_ary).__name__}'"
+        if __debug__:  # noqa: SIM102
+            if not all(
+                        type(args_[i]) is type(template_ary)
+                        for i in container_indices[1:]
+                    ):
+                arg_summary = ", ".join(
+                    f"arg{i+1}: {type(arg)}"
+                    for i, arg in enumerate(args_))
+                raise TypeError(
+                    f"inconsistent types in multiple traversal: {arg_summary}")
 
         result = []
         new_args = list(args_)
