@@ -157,11 +157,11 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     # {{{ logic functions
 
-    def all(self, a):
+    def all(self, a, /):
         return rec_map_reduce_array_container(
             partial(reduce, jnp.logical_and), jnp.all, a)
 
-    def any(self, a):
+    def any(self, a, /):
         return rec_map_reduce_array_container(
             partial(reduce, jnp.logical_or), jnp.any, a)
 

@@ -173,12 +173,12 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ logic functions
 
-    def all(self, a):
+    def all(self, a, /):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.logical_and),
                 lambda subary: pt.all(subary), a)
 
-    def any(self, a):
+    def any(self, a, /):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.logical_or),
                 lambda subary: pt.any(subary), a)

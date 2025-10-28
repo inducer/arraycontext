@@ -236,11 +236,11 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def vdot(self, x, y):
         return rec_multimap_reduce_array_container(sum, np.vdot, x, y)
 
-    def any(self, a):
+    def any(self, a, /):
         return rec_map_reduce_array_container(partial(reduce, np.logical_or),
                                               lambda subary: np.any(subary), a)
 
-    def all(self, a):
+    def all(self, a, /):
         return rec_map_reduce_array_container(partial(reduce, np.logical_and),
                                               lambda subary: np.all(subary), a)
 
