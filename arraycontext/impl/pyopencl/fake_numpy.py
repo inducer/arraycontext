@@ -197,7 +197,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ logic functions
 
-    def all(self, a):
+    def all(self, a, /):
         queue = self._array_context.queue
 
         def _all(ary):
@@ -210,7 +210,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 _all,
                 a)
 
-    def any(self, a):
+    def any(self, a, /):
         queue = self._array_context.queue
 
         def _any(ary):

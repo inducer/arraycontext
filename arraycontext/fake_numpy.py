@@ -313,54 +313,101 @@ class BaseFakeNumpyNamespace(ABC):
         # as attributes, making __getattr__ fail to retrieve the intended function.
 
         def broadcast_to(self,
-                array: ArrayOrContainerOrScalar,
+                array: ArrayOrContainerOrScalar, /,
                 shape: tuple[int, ...]
             ) -> ArrayOrContainerOrScalar: ...
 
         def concatenate(self,
-                    arrays: Sequence[ArrayOrContainerT],
+                    arrays: Sequence[ArrayOrContainerT], /,
                     axis: int = 0
                 ) -> ArrayOrContainerT: ...
 
         def stack(self,
-                    arrays: Sequence[ArrayOrContainerT],
+                    arrays: Sequence[ArrayOrContainerT], /,
                     axis: int = 0
                 ) -> ArrayOrContainerT: ...
 
         def ravel(self,
-                    a: ArrayOrContainerOrScalarT,
+                    a: ArrayOrContainerOrScalarT, /,
                     order: OrderCF = "C"
                 ) -> ArrayOrContainerOrScalarT: ...
 
         def array_equal(self,
                     a: ArrayOrContainerOrScalar,
-                    b: ArrayOrContainerOrScalar
+                    b: ArrayOrContainerOrScalar,
+                    /
                 ) -> Array: ...
 
-        def sqrt(self,
-                    a: ArrayOrContainerOrScalarT,
+        def sqrt(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def abs(self, a: ArrayOrContainerOrScalarT, /,
                 ) -> ArrayOrContainerOrScalarT: ...
 
-        def abs(self,
-                    a: ArrayOrContainerOrScalarT,
+        def sin(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def cos(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def tan(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def arcsin(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def arccos(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def arctan(self, a: ArrayOrContainerOrScalarT, /,
                 ) -> ArrayOrContainerOrScalarT: ...
 
-        def sin(self,
+        def hypot(self,
                     a: ArrayOrContainerOrScalarT,
+                    b: ArrayOrContainerOrScalarT,
+                    /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def arctan2(self,
+                    a: ArrayOrContainerOrScalarT,
+                    b: ArrayOrContainerOrScalarT,
+                    /,
                 ) -> ArrayOrContainerOrScalarT: ...
 
-        def cos(self,
-                    a: ArrayOrContainerOrScalarT,
+        def deg2rad(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def rad2deg(self, a: ArrayOrContainerOrScalarT, /,
                 ) -> ArrayOrContainerOrScalarT: ...
 
-        def floor(self,
-                    a: ArrayOrContainerOrScalarT,
+        def sinh(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def cosh(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def tanh(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def arcsinh(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def arccosh(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def arctanh(self, a: ArrayOrContainerOrScalarT, /,
                 ) -> ArrayOrContainerOrScalarT: ...
 
-        def ceil(self,
-                    a: ArrayOrContainerOrScalarT,
+        def ceil(self, a: ArrayOrContainerOrScalarT, /,
+                ) -> ArrayOrContainerOrScalarT: ...
+        def floor(self, a: ArrayOrContainerOrScalarT, /,
                 ) -> ArrayOrContainerOrScalarT: ...
 
+        def exp(self, a: ArrayOrContainerOrScalarT, /
+                ) -> ArrayOrContainerOrScalarT: ...
+        def expm1(self, a: ArrayOrContainerOrScalarT, /
+                  ) -> ArrayOrContainerOrScalarT: ...
+        def exp2(self, a: ArrayOrContainerOrScalarT, /
+                 ) -> ArrayOrContainerOrScalarT: ...
+        def log(self, a: ArrayOrContainerOrScalarT, /
+                ) -> ArrayOrContainerOrScalarT: ...
+        def log10(self, a: ArrayOrContainerOrScalarT, /
+                  ) -> ArrayOrContainerOrScalarT: ...
+        def log2(self, a: ArrayOrContainerOrScalarT, /
+                 ) -> ArrayOrContainerOrScalarT: ...
+        def log1p(self, a: ArrayOrContainerOrScalarT, /
+                  ) -> ArrayOrContainerOrScalarT: ...
+        def logaddexp(self, a: ArrayOrContainerOrScalarT, /
+                      ) -> ArrayOrContainerOrScalarT: ...
+        def logaddexp2(self, a: ArrayOrContainerOrScalarT, /
+                       ) -> ArrayOrContainerOrScalarT: ...
         # {{{ binary/ternary ufuncs
 
         # FIXME: These are more restrictive than necessary, but they'll do the job
@@ -397,73 +444,71 @@ class BaseFakeNumpyNamespace(ABC):
 
         @overload
         def sum(self,
-                    a: ArrayOrContainer,
+                    a: ArrayOrContainer, /,
                     axis: int | tuple[int, ...] | None = None,
                     dtype: DTypeLike = None,
                 ) -> Array: ...
         @overload
         def sum(self,
-                    a: ScalarLike,
+                    a: ScalarLike, /,
                     axis: int | tuple[int, ...] | None = None,
                     dtype: DTypeLike = None,
                 ) -> ScalarLike: ...
 
         def sum(self,
-                    a: ArrayOrContainerOrScalar,
+                    a: ArrayOrContainerOrScalar, /,
                     axis: int | tuple[int, ...] | None = None,
                     dtype: DTypeLike = None,
                 ) -> ArrayOrScalar: ...
 
         @overload
         def min(self,
-                    a: ArrayOrContainer,
+                    a: ArrayOrContainer, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> Array: ...
         @overload
         def min(self,
-                    a: ScalarLike,
+                    a: ScalarLike, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ScalarLike: ...
 
         def min(self,
-                    a: ArrayOrContainerOrScalar,
+                    a: ArrayOrContainerOrScalar, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ArrayOrScalar: ...
 
         @overload
         def max(self,
-                    a: ArrayOrContainer,
+                    a: ArrayOrContainer, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> Array: ...
         @overload
         def max(self,
-                    a: ScalarLike,
+                    a: ScalarLike, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ScalarLike: ...
 
         def max(self,
-                    a: ArrayOrContainerOrScalar,
+                    a: ArrayOrContainerOrScalar, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ArrayOrScalar: ...
 
         @deprecated("use min instead")
         def amin(self,
-                    a: ArrayOrContainerOrScalar,
+                    a: ArrayOrContainerOrScalar, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ArrayOrScalar: ...
 
         @deprecated("use max instead")
         def amax(self,
-                    a: ArrayOrContainerOrScalar,
+                    a: ArrayOrContainerOrScalar, /,
                     axis: int | tuple[int, ...] | None = None,
                 ) -> ArrayOrScalar: ...
 
-        def any(self,
-                    a: ArrayOrContainerOrScalar,
+        def any(self, a: ArrayOrContainerOrScalar, /,
                 ) -> ArrayOrScalar: ...
 
-        def all(self,
-                    a: ArrayOrContainerOrScalar,
+        def all(self, a: ArrayOrContainerOrScalar, /,
                 ) -> ArrayOrScalar: ...
 
         # }}}
@@ -475,50 +520,40 @@ class BaseFakeNumpyNamespace(ABC):
         # These operations provide access to numpy-style comparisons in that
         # case.
 
-        def greater(
-                    self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-                ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def greater_equal(
-                          self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-                      ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def less(
-                 self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-             ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def less_equal(
-                       self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-                   ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def equal(
-                  self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-              ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def not_equal(
-                      self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-                  ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def logical_or(
-                       self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-                   ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def logical_and(
-                        self, x: ArrayOrContainerOrScalar, y: ArrayOrContainerOrScalar
-                    ) -> ArrayOrContainerOrScalar:
-            ...
-
-        def logical_not(
-                        self, x: ArrayOrContainerOrScalar
-                    ) -> ArrayOrContainerOrScalar:
-            ...
+        def greater(self,
+                    x: ArrayOrContainerOrScalar,
+                    y: ArrayOrContainerOrScalar, /,
+                ) -> ArrayOrContainerOrScalar: ...
+        def greater_equal(self,
+                    x: ArrayOrContainerOrScalar,
+                    y: ArrayOrContainerOrScalar, /
+                ) -> ArrayOrContainerOrScalar: ...
+        def less(self,
+                    x: ArrayOrContainerOrScalar,
+                    y: ArrayOrContainerOrScalar, /
+             ) -> ArrayOrContainerOrScalar: ...
+        def less_equal(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar, /
+            ) -> ArrayOrContainerOrScalar: ...
+        def equal(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar, /
+            ) -> ArrayOrContainerOrScalar: ...
+        def not_equal(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar, /
+            ) -> ArrayOrContainerOrScalar: ...
+        def logical_or(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar, /
+            ) -> ArrayOrContainerOrScalar: ...
+        def logical_and(self,
+                x: ArrayOrContainerOrScalar,
+                y: ArrayOrContainerOrScalar, /
+            ) -> ArrayOrContainerOrScalar: ...
+        def logical_not(self, x: ArrayOrContainerOrScalar, /
+            ) -> ArrayOrContainerOrScalar: ...
 
 # }}}
 
