@@ -802,7 +802,7 @@ def test_container_multimap(actx_factory: ArrayContextFactory):
     for ary in [ary_dof, ary_of_dofs, mat_of_dofs, dc_of_dofs]:
         check_leaf(2, ary, 2, ary)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError):
         rec_multimap_array_container(func_multiple_scalar, 2, ary_dof, 2, dc_of_dofs)
 
     # }}}
