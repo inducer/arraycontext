@@ -197,7 +197,7 @@ class NumpyArrayContext(ArrayContext):
         return array
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
-        return np.einsum(spec, *args)
+        return np.einsum(spec, *args, optimize="optimal")
 
     @property
     def permits_inplace_modification(self):
