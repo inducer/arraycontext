@@ -2375,7 +2375,7 @@
                 "code": "reportCallIssue",
                 "range": {
                     "startColumn": 15,
-                    "endColumn": 37,
+                    "endColumn": 57,
                     "lineCount": 1
                 }
             },
@@ -2383,7 +2383,7 @@
                 "code": "reportUnknownVariableType",
                 "range": {
                     "startColumn": 15,
-                    "endColumn": 37,
+                    "endColumn": 57,
                     "lineCount": 1
                 }
             },
