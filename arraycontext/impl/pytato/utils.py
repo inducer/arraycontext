@@ -222,8 +222,6 @@ class TransferFromNumpyMapper(CopyMapper):
         actx_ary = self.actx.from_numpy(expr.data)
         assert isinstance(actx_ary, DataWrapper)
 
-        # https://github.com/pylint-dev/pylint/issues/3893
-        # pylint: disable=unexpected-keyword-arg
         return DataWrapper(
             data=actx_ary.data,
             shape=expr.shape,
