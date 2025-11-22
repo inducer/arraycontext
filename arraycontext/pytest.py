@@ -33,7 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from typing_extensions import override
 
@@ -42,6 +42,8 @@ from arraycontext import NumpyArrayContext
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    import pytest
 
     import pyopencl as cl
 
@@ -66,7 +68,7 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     """
     device: cl.Device
 
-    def __init__(self, device: cl.Device):
+    def __init__(self, device: cl.Device) -> None:
         """
         :arg device: a :class:`pyopencl.Device`.
         """
@@ -76,12 +78,12 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     @override
     def is_available(cls) -> bool:
         try:
-            import pyopencl  # noqa: F401
+            import pyopencl  # noqa: F401 # pyright: ignore[reportUnusedImport]
             return True
         except ImportError:
             return False
 
-    def get_command_queue(self):
+    def get_command_queue(self) -> tuple[cl.Context, cl.CommandQueue]:
         # Get rid of leftovers from past tests.
         # CL implementations are surprisingly limited in how many
         # simultaneous contexts they allow...
@@ -101,22 +103,24 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
 
 class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFactory):
     # Deprecated, remove in 2025.
-    _force_device_scalars = True
+    _force_device_scalars: ClassVar[bool] = True
 
     @property
-    def force_device_scalars(self):
+    def force_device_scalars(self) -> bool:
         from warnings import warn
         warn(
             "force_device_scalars is deprecated and will be removed in 2025.",
              DeprecationWarning, stacklevel=2)
+
         return self._force_device_scalars
 
     @property
-    def actx_class(self):
+    def actx_class(self) -> type[ArrayContext]:
         from arraycontext import PyOpenCLArrayContext
         return PyOpenCLArrayContext
 
-    def __call__(self):
+    @override
+    def __call__(self) -> ArrayContext:
         # The ostensibly pointless assignment to *ctx* keeps the CL context alive
         # long enough to create the array context, which will then start
         # holding a reference to the context to keep it alive in turn.
@@ -125,7 +129,6 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
         _ctx, queue = self.get_command_queue()
 
         alloc = None
-
         if queue.device.platform.name == "NVIDIA CUDA":
             from pyopencl.tools import ImmediateAllocator
             alloc = ImmediateAllocator(queue)
@@ -136,11 +139,10 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
                  "See https://github.com/inducer/arraycontext/issues/196",
                  stacklevel=1)
 
-        return self.actx_class(
-                queue,
-                allocator=alloc)
+        return self.actx_class(queue, allocator=alloc)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         return (f"<{self.actx_class.__name__} "
             f"for <pyopencl.Device '{self.device.name.strip()}' "
             f"on '{self.device.platform.name.strip()}'>>")
@@ -148,22 +150,22 @@ class _PytestPyOpenCLArrayContextFactoryWithClass(PytestPyOpenCLArrayContextFact
 
 class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory):
     @classmethod
+    @override
     def is_available(cls) -> bool:
         try:
-            import pyopencl  # noqa: F401
-            import pytato  # noqa: F401
+            import pyopencl  # noqa: F401 # pyright: ignore[reportUnusedImport]
+            import pytato  # noqa: F401  # pyright: ignore[reportUnusedImport]
             return True
         except ImportError:
             return False
 
     @property
-    def actx_class(self):
+    def actx_class(self) -> type[ArrayContext]:
         from arraycontext import PytatoPyOpenCLArrayContext
-        actx_cls = PytatoPyOpenCLArrayContext
-        return actx_cls
+        return PytatoPyOpenCLArrayContext
 
     @override
-    def __call__(self):
+    def __call__(self) -> ArrayContext:
         # The ostensibly pointless assignment to *ctx* keeps the CL context alive
         # long enough to create the array context, which will then start
         # holding a reference to the context to keep it alive in turn.
@@ -186,67 +188,71 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
         return self.actx_class(queue, allocator=alloc)
 
     @override
-    def __str__(self):
-        return ("<PytatoPyOpenCLArrayContext for "
+    def __str__(self) -> str:
+        return (f"<{self.actx_class.__name__} for "
                 f"<pyopencl.Device '{self.device.name.strip()}' "
                 f"on '{self.device.platform.name.strip()}'>>")
 
 
 class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         pass
 
     @classmethod
     @override
     def is_available(cls) -> bool:
         try:
-            import jax  # noqa: F401
+            import jax  # noqa: F401 # pyright: ignore[reportUnusedImport]
             return True
         except ImportError:
             return False
 
     @override
-    def __call__(self):
-        from jax import config
+    def __call__(self) -> ArrayContext:
+        import jax
 
         from arraycontext import EagerJAXArrayContext
-        config.update("jax_enable_x64", True)
+
+        jax.config.update("jax_enable_x64", True)
         return EagerJAXArrayContext()
 
     @override
-    def __str__(self):
+    def __str__(self) -> str:
         return "<EagerJAXArrayContext>"
 
 
 class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         pass
 
     @classmethod
+    @override
     def is_available(cls) -> bool:
         try:
-            import jax  # noqa: F401
-            import pytato  # noqa: F401
+            import jax  # noqa: F401 # pyright: ignore[reportUnusedImport]
+            import pytato  # noqa: F401 # pyright: ignore[reportUnusedImport]
             return True
         except ImportError:
             return False
 
-    def __call__(self):
-        from jax import config
+    @override
+    def __call__(self) -> ArrayContext:
+        import jax
 
         from arraycontext import PytatoJAXArrayContext
-        config.update("jax_enable_x64", True)
+
+        jax.config.update("jax_enable_x64", True)
         return PytatoJAXArrayContext()
 
     @override
-    def __str__(self):
+    def __str__(self) -> str:
         return "<PytatoJAXArrayContext>"
 
 
 # {{{ _PytestArrayContextFactory
 
 class _PytestNumpyArrayContextFactory(PytestArrayContextFactory):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__()
 
     @override
@@ -254,7 +260,7 @@ class _PytestNumpyArrayContextFactory(PytestArrayContextFactory):
         return NumpyArrayContext()
 
     @override
-    def __str__(self):
+    def __str__(self) -> str:
         return "<NumpyArrayContext>"
 
 # }}}
@@ -322,6 +328,7 @@ def pytest_generate_tests_for_array_contexts(
     import os
     env_factory_string = os.environ.get("ARRAYCONTEXT_TEST", None)
 
+    unique_factories: set[str | type[PytestArrayContextFactory]]
     if env_factory_string is not None:
         unique_factories = set(env_factory_string.split(","))
     else:
@@ -345,7 +352,8 @@ def pytest_generate_tests_for_array_contexts(
             raise ValueError(f"unknown array contexts: {unknown_factories}")
 
     available_factories = {
-        factory for key in unique_factories
+        factory
+        for key in unique_factories
         for factory in [_ARRAY_CONTEXT_FACTORY_REGISTRY.get(key, key)]
         if (
             not isinstance(factory, str)
@@ -360,7 +368,7 @@ def pytest_generate_tests_for_array_contexts(
 
     # }}}
 
-    def inner(metafunc):
+    def inner(metafunc: pytest.Metafunc) -> None:
         # {{{ get pyopencl devices
 
         import pyopencl.tools as cl_tools
@@ -383,7 +391,7 @@ def pytest_generate_tests_for_array_contexts(
                         f"Cannot use both an '{factory_arg_name}' and a "
                         "'ctx_factory' / 'ctx_getter' as arguments.")
 
-            arg_values_with_actx = []
+            arg_values_with_actx: list[dict[str, Any]] = []
 
             if pyopencl_factories:
                 for arg_dict in arg_values:
