@@ -30,7 +30,7 @@ THE SOFTWARE.
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, overload
 
 import numpy as np
 from typing_extensions import deprecated
@@ -78,7 +78,7 @@ class BaseFakeNumpyNamespace(ABC):
     def _get_fake_numpy_linalg_namespace(self):
         return BaseFakeNumpyLinalgNamespace(self._array_context)
 
-    _numpy_math_functions = frozenset({
+    _numpy_math_functions: ClassVar[frozenset[str]] = frozenset({
         # https://numpy.org/doc/stable/reference/routines.math.html
 
         # FIXME: Heads up: not all of these are supported yet.
@@ -560,7 +560,9 @@ class BaseFakeNumpyNamespace(ABC):
 
 # {{{ BaseFakeNumpyLinalgNamespace
 
-def _reduce_norm(actx: ArrayContext, arys: Iterable[ArrayOrScalar], ord: float | None):
+def _reduce_norm(actx: ArrayContext,
+                 arys: Iterable[ArrayOrScalar],
+                 ord: float | None) -> ArrayOrScalar:
     from functools import reduce
     from numbers import Number
 
@@ -617,7 +619,7 @@ class BaseFakeNumpyLinalgNamespace:
             raise NotImplementedError("only vector norms are implemented")
 
         if ary.size == 0:
-            return ary.dtype.type(0)
+            return cast("ScalarLike", ary.dtype.type(0))
 
         from numbers import Number
         if ord == 2:

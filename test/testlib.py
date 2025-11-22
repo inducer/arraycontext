@@ -114,8 +114,7 @@ def _serialize_dof_container(ary: DOFArray):
 
 
 @deserialize_container.register(DOFArray)
-# https://github.com/python/mypy/issues/13040
-def _deserialize_dof_container(  # type: ignore[misc]
+def _deserialize_dof_container(
         template, iterable):
     def _raise_index_inconsistency(i, stream_i):
         raise ValueError(
@@ -130,8 +129,7 @@ def _deserialize_dof_container(  # type: ignore[misc]
 
 
 @with_array_context.register(DOFArray)
-# https://github.com/python/mypy/issues/13040
-def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:  # type: ignore[misc]
+def _with_actx_dofarray(ary: DOFArray, actx: ArrayContext) -> DOFArray:
     return type(ary)(actx, ary.data)
 
 # }}}
@@ -227,6 +225,5 @@ class Velocity3D(Velocity2D):
 
 
 @with_array_context.register(Velocity2D)
-# https://github.com/python/mypy/issues/13040
-def _with_actx_velocity_2d(ary, actx):  # type: ignore[misc]
+def _with_actx_velocity_2d(ary, actx):
     return type(ary)(ary.u, ary.v, actx)

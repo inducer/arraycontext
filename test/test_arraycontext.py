@@ -134,14 +134,12 @@ def _get_test_containers(actx, ambient_dim=2, shapes=50_000):
     x = DOFArray(actx, tuple(actx.from_numpy(randn(shape, np.float64))
         for shape in shapes))
 
-    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     dataclass_of_dofs = MyContainer(
             name="container",
             mass=x,
             momentum=obj_array.new_1d([x] * ambient_dim),
             enthalpy=x)
 
-    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     bcast_dataclass_of_dofs = MyContainerDOFBcast(
             name="container",
             mass=x,

@@ -440,7 +440,7 @@ class LazilyPyOpenCLCompilingFunctionCaller(BaseLazilyCompilingFunctionCaller):
                     options=opts,
                     function_name=_prg_id_to_kernel_name(prg_id),
                     target=self.actx.get_target(),
-                    ).bind_to_context(self.actx.context)  # pylint: disable=no-member
+                    ).bind_to_context(self.actx.context)
             assert isinstance(pytato_program, BoundPyOpenCLExecutable)
 
         self.actx._compile_trace_callback(
