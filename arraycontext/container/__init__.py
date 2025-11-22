@@ -299,8 +299,7 @@ def _serialize_ndarray_container(ary: numpy.ndarray) -> SerializedContainer:
 
 
 @deserialize_container.register(np.ndarray)
-# https://github.com/python/mypy/issues/13040
-def _deserialize_ndarray_container(  # type: ignore[misc]
+def _deserialize_ndarray_container(
         template: numpy.ndarray,
         serialized: SerializedContainer) -> numpy.ndarray:
     # disallow subclasses
@@ -309,8 +308,7 @@ def _deserialize_ndarray_container(  # type: ignore[misc]
 
     result = type(template)(template.shape, dtype=object)
     for i, subary in serialized:
-        # FIXME: numpy annotations don't seem to handle object arrays very well
-        result[i] = subary  # type: ignore[call-overload]
+        result[i] = subary
 
     return result
 

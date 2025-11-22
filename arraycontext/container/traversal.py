@@ -1,5 +1,3 @@
-# mypy: disallow-untyped-defs
-
 """
 .. currentmodule:: arraycontext
 
@@ -976,7 +974,6 @@ def unflatten(
         checking is performed on the unflattened array. Otherwise, these
         checks are skipped.
     """
-    # NOTE: https://github.com/python/mypy/issues/7057
     offset: int = 0
     common_dtype = None
 
@@ -1046,12 +1043,12 @@ def unflatten(
                 # Checking strides for 0 sized arrays is ill-defined
                 # since they cannot be indexed
                 if (
-                    # Mypy has a point: nobody promised a .strides attribute.
+                    # pyright has a point: nobody promised a .strides attribute.
                     template_subary_c.strides != subary.strides  # pyright: ignore[reportAttributeAccessIssue]
                     and template_subary_c.size != 0
                 ):
                     raise ValueError(
-                            # Mypy has a point: nobody promised a .strides attribute.
+                            # pyright has a point: nobody promised a .strides attribute.
                             f"strides do not match template: got {subary.strides}, "  # pyright: ignore[reportAttributeAccessIssue]
                             f"expected {template_subary_c.strides}") from None
 
