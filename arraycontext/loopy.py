@@ -56,7 +56,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, ClassVar
+from abc import ABC
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import numpy as np
 
@@ -83,6 +84,8 @@ if TYPE_CHECKING:
     from loopy.kernel.instruction import InstructionBase
     from pytools.tag import ToTagSetConvertible
 
+    from arraycontext import ArrayContext
+    from arraycontext.typing import ArrayOrScalar, ScalarLike
 
 # {{{ loopy
 
@@ -116,7 +119,7 @@ def make_loopy_program(
             tags=tags)
 
 
-def get_default_entrypoint(t_unit):
+def get_default_entrypoint(t_unit: lp.TranslationUnit) -> lp.LoopKernel:
     try:
         # main and "kernel callables" branch
         return t_unit.default_entrypoint
@@ -128,9 +131,11 @@ def get_default_entrypoint(t_unit):
                     "translation unit") from err
 
 
-def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
+def _get_scalar_func_loopy_program(
+        actx: ArrayContext, c_name: str, nargs: int, naxes: int,
+    ) -> lp.TranslationUnit:
     @memoize_in(actx, _get_scalar_func_loopy_program)
-    def get(c_name, nargs, naxes):
+    def get(c_name: str, nargs: int, naxes: int) -> lp.TranslationUnit:
         from pymbolic.primitives import Subscript, Variable
 
         var_names = [f"i{i}" for i in range(naxes)]
@@ -170,7 +175,7 @@ def _get_scalar_func_loopy_program(actx, c_name, nargs, naxes):
     return get(c_name, nargs, naxes)
 
 
-class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
+class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace, ABC):
     _numpy_to_c_arc_functions: ClassVar[Mapping[str, str]] = {
             "arcsin": "asin",
             "arccos": "acos",
@@ -185,12 +190,15 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
     _c_to_numpy_arc_functions: ClassVar[Mapping[str, str]] = {c_name: numpy_name
             for numpy_name, c_name in _numpy_to_c_arc_functions.items()}
 
-    def __getattr__(self, name):
-        def loopy_implemented_elwise_func(*args):
+    def __getattr__(self, name: str):
+        def loopy_implemented_elwise_func(*args: ArrayOrScalar) -> ArrayOrScalar:
             if all(np.isscalar(ary) for ary in args):
-                return getattr(
-                         np, self._c_to_numpy_arc_functions.get(name, name)
-                         )(*args)
+                result = getattr(
+                    np, self._c_to_numpy_arc_functions.get(name, name)
+                    )(*args)
+
+                return cast("ScalarLike", result)
+
             actx = self._array_context
             prg = _get_scalar_func_loopy_program(actx,
                     c_name, nargs=len(args), naxes=len(args[0].shape))
@@ -199,8 +207,8 @@ class LoopyBasedFakeNumpyNamespace(BaseFakeNumpyNamespace):
             return outputs["out"]
 
         if name in self._c_to_numpy_arc_functions:
-            raise RuntimeError(f"'{name}' in ArrayContext.np has been removed. "
-                    f"Use '{self._c_to_numpy_arc_functions[name]}' as in numpy. ")
+            raise RuntimeError(f"'{name}' in ArrayContext.np has been removed: "
+                    f"use '{self._c_to_numpy_arc_functions[name]}' (as in numpy)")
 
         # normalize to C names anyway
         c_name = self._numpy_to_c_arc_functions.get(name, name)
