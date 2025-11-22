@@ -325,7 +325,7 @@ def pytest_generate_tests_for_array_contexts(
     if env_factory_string is not None:
         unique_factories = set(env_factory_string.split(","))
     else:
-        unique_factories = set(factories)               # type: ignore[arg-type]
+        unique_factories = set(factories)
 
     if not unique_factories:
         raise ValueError("no array context factories were selected")
