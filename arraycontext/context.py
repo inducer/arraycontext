@@ -135,6 +135,7 @@ from .typing import ArrayOrArithContainerTc as ArrayOrArithContainerTc
 
 if TYPE_CHECKING:
     import numpy as np
+    from numpy.typing import DTypeLike
 
     import loopy
     from pytools.tag import ToTagSetConvertible
@@ -223,7 +224,7 @@ class ArrayContext(ABC):
 
     def zeros(self,
               shape: int | tuple[int, ...],
-              dtype: np.dtype[Any]) -> Array:
+              dtype: DTypeLike) -> Array:
         warn(f"{type(self).__name__}.zeros is deprecated and will stop "
             "working in 2025. Use actx.np.zeros instead.",
             DeprecationWarning, stacklevel=2)
