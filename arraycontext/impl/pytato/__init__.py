@@ -663,6 +663,12 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 # All name_hint_tags shared at least some common prefix.
                 function_name = f"frozen_{name_hint}" if name_hint else "frozen_result"
 
+                self._compile_trace_callback(
+                        function_name, "frozen-expr", normalized_expr)
+
+                self._compile_trace_callback(
+                        function_name, "post_transform_dag", transformed_dag)
+
                 self._dag_transform_cache[normalized_expr] = (
                         transformed_dag, function_name)
 
@@ -670,13 +676,30 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             opts = _DEFAULT_LOOPY_OPTIONS
             assert opts.return_dict
 
+            self._compile_trace_callback(
+                    function_name, "pre_generate_loopy", transformed_dag)
+
             pt_prg = pt.generate_loopy(transformed_dag,
                                        options=opts,
                                        function_name=function_name,
                                        target=self.get_target()
                                        ).bind_to_context(self.context)
+
+            self._compile_trace_callback(
+                    function_name, "post_generate_loopy", pt_prg)
+
+            self._compile_trace_callback(
+                    function_name, "pre_transform_loopy_program", pt_prg)
+
             pt_prg = pt_prg.with_transformed_translation_unit(
                     self.transform_loopy_program)
+
+            self._compile_trace_callback(
+                    function_name, "post_transform_loopy_program", pt_prg)
+
+            self._compile_trace_callback(
+                    function_name, "final", pt_prg)
+
             self._freeze_prg_cache[normalized_expr] = pt_prg
         else:
             transformed_dag, function_name = (
