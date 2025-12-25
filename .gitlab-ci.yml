@@ -82,7 +82,6 @@ Python 3 Conda:
 Documentation:
   script: |
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-docs.sh
-    CI_SUPPORT_SPHINX_VERSION_SPECIFIER=">=4.0"
     . ./build-docs.sh
   tags:
   - python3
