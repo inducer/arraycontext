@@ -209,20 +209,20 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def sum(self,
                 a: ArrayOrContainer,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> Array: ...
     @overload
     def sum(self,
                 a: Scalar,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> Scalar: ...
 
     @override
     def sum(self,
                 a: ArrayOrContainerOrScalar,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(
             sum,

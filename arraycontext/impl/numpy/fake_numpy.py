@@ -100,20 +100,20 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
     def sum(self,
                 a: ArrayOrContainer,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> Array: ...
     @overload
     def sum(self,
                 a: Scalar,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> Scalar: ...
 
     @override
     def sum(self,
                 a: ArrayOrContainerOrScalar,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> ArrayOrScalar:
         return rec_map_reduce_array_container(sum, partial(np.sum,
                                                            axis=axis,
@@ -273,7 +273,7 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     @override
     def arange(self, *args, **kwargs):
-        return np.arange(*args, **kwargs)
+        return cast("Array", cast("object", np.arange(*args, **kwargs)))
 
     @override
     def linspace(self, *args, **kwargs):

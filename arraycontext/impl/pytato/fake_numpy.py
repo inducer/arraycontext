@@ -234,20 +234,20 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def sum(self,
                 a: ArrayOrContainer,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> Array: ...
     @overload
     def sum(self,
                 a: Scalar,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> Scalar: ...
 
     @override
     def sum(self,
                 a: ArrayOrContainerOrScalar,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> ArrayOrScalar:
         def _pt_sum(ary):
             if dtype not in [ary.dtype, None]:

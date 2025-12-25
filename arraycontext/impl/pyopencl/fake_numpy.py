@@ -345,20 +345,20 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def sum(self,
                 a: ArrayOrContainer,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> Array: ...
     @overload
     def sum(self,
                 a: ScalarLike,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> ScalarLike: ...
 
     @override
     def sum(self,
                 a: ArrayOrContainerOrScalar,
                 axis: int | tuple[int, ...] | None = None,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
             ) -> ArrayOrScalar:
         if isinstance(axis, int):
             axis = axis,

@@ -185,7 +185,7 @@ def to_tagged_cl_array(ary: cla.Array,
 def empty(
             queue: cl.CommandQueue,
             shape: tuple[int, ...] | int,
-            dtype: DTypeLike = float,
+            dtype: DTypeLike | None = None,
             *, axes: tuple[Axis, ...] | None = None,
             tags: frozenset[Tag] = _EMPTY_TAG_SET,
             order: Literal["C"] | Literal["F"] = "C",
