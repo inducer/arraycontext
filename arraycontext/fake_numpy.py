@@ -186,7 +186,7 @@ class BaseFakeNumpyNamespace(ABC):
                 num: int = 50,
                 *, endpoint: bool = True,
                 retstep: Literal[False] = False,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
                 axis: int = 0
             ) -> Array: ...
 
@@ -197,7 +197,7 @@ class BaseFakeNumpyNamespace(ABC):
                 num: int = 50,
                 *, endpoint: bool = True,
                 retstep: Literal[True],
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
                 axis: int = 0
             ) -> tuple[Array, NDArray[Any] | float] | Array: ...
 
@@ -207,7 +207,7 @@ class BaseFakeNumpyNamespace(ABC):
                 num: int = 50,
                 *, endpoint: bool = True,
                 retstep: bool = False,
-                dtype: DTypeLike = None,
+                dtype: DTypeLike | None = None,
                 axis: int = 0
             ) -> tuple[Array, NDArray[Any] | float] | Array:
         num = operator.index(num)
@@ -446,19 +446,19 @@ class BaseFakeNumpyNamespace(ABC):
         def sum(self,
                     a: ArrayOrContainer, /,
                     axis: int | tuple[int, ...] | None = None,
-                    dtype: DTypeLike = None,
+                    dtype: DTypeLike | None = None,
                 ) -> Array: ...
         @overload
         def sum(self,
                     a: ScalarLike, /,
                     axis: int | tuple[int, ...] | None = None,
-                    dtype: DTypeLike = None,
+                    dtype: DTypeLike | None = None,
                 ) -> ScalarLike: ...
 
         def sum(self,
                     a: ArrayOrContainerOrScalar, /,
                     axis: int | tuple[int, ...] | None = None,
-                    dtype: DTypeLike = None,
+                    dtype: DTypeLike | None = None,
                 ) -> ArrayOrScalar: ...
 
         @overload
