@@ -54,6 +54,7 @@ THE SOFTWARE.
 import abc
 import sys
 from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -68,13 +69,16 @@ from arraycontext.container.traversal import (
 )
 from arraycontext.context import (
     ArrayContext,
+    CSRMatrix as _BaseCSRMatrix,
     P,
+    SparseMatrix,
     UntransformedCodeWarning,
 )
 from arraycontext.metadata import NameHint
 from arraycontext.typing import (
     Array,
     ArrayOrArithContainerOrScalarT,
+    ArrayOrContainer,
     ArrayOrContainerOrScalarT,
     ArrayOrScalar,
     ScalarLike,
@@ -138,6 +142,30 @@ def _preprocess_array_tags(tags: ToTagSetConvertible) -> frozenset[Tag]:
 
 class _NotOnlyDataWrappers(Exception):  # noqa: N818
     pass
+
+
+@dataclass(frozen=True, eq=False, repr=False)
+class CSRMatrix(_BaseCSRMatrix):
+    @cached_property
+    def _pt_matrix(self) -> pt.CSRMatrix:
+        import pytato as pt
+        assert isinstance(self.elem_values, pt.Array)
+        assert isinstance(self.elem_col_indices, pt.Array)
+        assert isinstance(self.row_starts, pt.Array)
+        return pt.make_csr_matrix(
+            self.shape, self.elem_values, self.elem_col_indices, self.row_starts,
+            tags=self.tags, axes=self.axes)
+
+    @override
+    def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
+        def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
+            # FIXME: Should this do something to scalars? e.g., promote to uniform
+            # array?
+            import pytato as pt
+            assert isinstance(ary, pt.Array)
+            return self._pt_matrix @ ary
+
+        return cast("ArrayOrContainer", rec_map_container(_matmul, other))
 
 
 # {{{ _BasePytatoArrayContext
@@ -832,6 +860,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         dag = pt.inline_calls(dag)
         return pt.transform.materialize_with_mpms(dag)
 
+    @override
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pytato as pt
 
@@ -874,6 +903,25 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             preprocess_arg(name, arg)
             for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
+
+    # FIXME: Not sure what type annotations to use for shape
+    @override
+    def make_csr_matrix(
+            self,
+            shape,
+            elem_values: Array,
+            elem_col_indices: Array,
+            row_starts: Array,
+            *,
+            tags: ToTagSetConvertible = _EMPTY_TAG_SET,
+            axes: tuple[ToTagSetConvertible, ...] | None = None) -> CSRMatrix:
+        if axes is None:
+            axes = (frozenset(), frozenset())
+        return CSRMatrix(
+            shape, elem_values, elem_col_indices, row_starts,
+            # FIXME: Do I need to call _preprocess_array_tags on axes?
+            tags=tags, axes=axes,
+            _actx=self)
 
     def clone(self):
         return type(self)(self.queue, self.allocator)
@@ -1112,6 +1160,24 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             preprocess_arg(name, arg)
             for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged)))
+
+    # FIXME: Not sure what type annotations to use for shape
+    @override
+    def make_csr_matrix(
+            self,
+            shape,
+            elem_values: Array,
+            elem_col_indices: Array,
+            row_starts: Array,
+            *,
+            tags: ToTagSetConvertible = _EMPTY_TAG_SET,
+            axes: tuple[ToTagSetConvertible, ...] | None = None) -> CSRMatrix:
+        raise NotImplementedError("Sparse matrices aren't yet supported with JAX.")
+
+    @override
+    def sparse_matmul(
+            self, x1: SparseMatrix, x2: ArrayOrContainer) -> ArrayOrContainer:
+        raise NotImplementedError("Sparse matrices aren't yet supported with JAX.")
 
     @override
     def clone(self):
