@@ -33,12 +33,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 from typing_extensions import override
 
 import loopy as lp
+from pytools.tag import normalize_tags
 
 from arraycontext.container.traversal import (
     rec_map_array_container as rec_map_array_container,
@@ -47,10 +50,12 @@ from arraycontext.container.traversal import (
 )
 from arraycontext.context import (
     ArrayContext,
+    CSRMatrix as _BaseCSRMatrix,
     UntransformedCodeWarning,
 )
 from arraycontext.typing import (
     Array,
+    ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
     ContainerOrScalarT,
@@ -60,10 +65,15 @@ from arraycontext.typing import (
 
 
 if TYPE_CHECKING:
+    import scipy.sparse
+
     from pymbolic import Scalar
-    from pytools.tag import ToTagSetConvertible
+    from pytools.tag import Tag, ToTagSetConvertible
 
     from arraycontext.typing import ArrayContainerT
+
+
+_EMPTY_TAG_SET: frozenset[Tag] = frozenset()
 
 
 class NumpyNonObjectArrayMetaclass(type):
@@ -74,6 +84,29 @@ class NumpyNonObjectArrayMetaclass(type):
 
 class NumpyNonObjectArray(metaclass=NumpyNonObjectArrayMetaclass):
     pass
+
+
+@dataclass(frozen=True, eq=False, repr=False)
+class CSRMatrix(_BaseCSRMatrix):
+    @cached_property
+    def _np_matrix(self) -> scipy.sparse.csr_matrix:
+        assert isinstance(self.elem_values, np.ndarray)
+        assert isinstance(self.elem_col_indices, np.ndarray)
+        assert isinstance(self.row_starts, np.ndarray)
+        # FIXME: Not sure if the scipy dependency is OK or if it should just use the
+        # call_loopy fallback? Currently getting errors with the loopy version:
+        #     loopy.diagnostic.LoopyError: One of the kernels in the program has
+        #         been preprocessed, cannot modify target now.
+        from scipy.sparse import csr_matrix
+        return csr_matrix(
+            (self.elem_values, self.elem_col_indices, self.row_starts),
+            shape=self.shape)
+
+    @override
+    def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
+        return cast(
+            "ArrayOrContainer",
+            rec_map_container(lambda ary: self._np_matrix @ ary, other))
 
 
 class NumpyArrayContext(ArrayContext):
@@ -198,6 +231,25 @@ class NumpyArrayContext(ArrayContext):
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         return np.einsum(spec, *args, optimize="optimal")
+
+    # FIXME: Not sure what type annotations to use for shape
+    @override
+    def make_csr_matrix(
+            self,
+            shape,
+            elem_values: Array,
+            elem_col_indices: Array,
+            row_starts: Array,
+            *,
+            tags: ToTagSetConvertible = _EMPTY_TAG_SET,
+            axes: tuple[ToTagSetConvertible, ...] | None = None) -> CSRMatrix:
+        tags = normalize_tags(tags)
+        if axes is None:
+            axes = (frozenset(), frozenset())
+        return CSRMatrix(
+            shape, elem_values, elem_col_indices, row_starts,
+            tags=tags, axes=axes,
+            _actx=self)
 
     @property
     def permits_inplace_modification(self):
