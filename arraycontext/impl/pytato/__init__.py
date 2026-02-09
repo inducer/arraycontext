@@ -54,13 +54,12 @@ THE SOFTWARE.
 import abc
 import sys
 from dataclasses import dataclass
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from typing_extensions import override
 
-from pytools import memoize_method
+from pytools import memoize_in, memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 
 from arraycontext.container.traversal import (
@@ -69,7 +68,7 @@ from arraycontext.container.traversal import (
 )
 from arraycontext.context import (
     ArrayContext,
-    CSRMatrix as _BaseCSRMatrix,
+    CSRMatrix,
     P,
     SparseMatrix,
     UntransformedCodeWarning,
@@ -142,28 +141,6 @@ def _preprocess_array_tags(tags: ToTagSetConvertible) -> frozenset[Tag]:
 
 class _NotOnlyDataWrappers(Exception):  # noqa: N818
     pass
-
-
-@dataclass(frozen=True, eq=False, repr=False)
-class CSRMatrix(_BaseCSRMatrix):
-    @cached_property
-    def _pt_matrix(self) -> pt.CSRMatrix:
-        import pytato as pt
-        assert isinstance(self.elem_values, pt.Array)
-        assert isinstance(self.elem_col_indices, pt.Array)
-        assert isinstance(self.row_starts, pt.Array)
-        return pt.make_csr_matrix(
-            self.shape, self.elem_values, self.elem_col_indices, self.row_starts,
-            tags=_preprocess_array_tags(self.tags), axes=self.axes)
-
-    @override
-    def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
-        def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
-            import pytato as pt
-            assert isinstance(ary, pt.Array)
-            return self._pt_matrix @ ary
-
-        return cast("ArrayOrContainer", rec_map_container(_matmul, other))
 
 
 # {{{ _BasePytatoArrayContext
@@ -903,21 +880,30 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             ]).tagged(_preprocess_array_tags(tagged))
 
     @override
-    def make_csr_matrix(
-            self,
-            shape: tuple[int, int],
-            elem_values: Array,
-            elem_col_indices: Array,
-            row_starts: Array,
-            *,
-            tags: ToTagSetConvertible = _EMPTY_TAG_SET,
-            axes: tuple[ToTagSetConvertible, ...] | None = None) -> CSRMatrix:
-        if axes is None:
-            axes = (frozenset(), frozenset())
-        return CSRMatrix(
-            shape, elem_values, elem_col_indices, row_starts,
-            tags=tags, axes=axes,
-            _actx=self)
+    def sparse_matmul(
+            self, x1: SparseMatrix, x2: ArrayOrContainer) -> ArrayOrContainer:
+        import pytato as pt
+
+        if isinstance(x1, CSRMatrix):
+            @memoize_in(x1, "pt_matrix")
+            def _get_pt_matrix() -> pt.CSRMatrix:
+                assert isinstance(x1.elem_values, pt.Array)
+                assert isinstance(x1.elem_col_indices, pt.Array)
+                assert isinstance(x1.row_starts, pt.Array)
+                return pt.make_csr_matrix(
+                    x1.shape, x1.elem_values, x1.elem_col_indices, x1.row_starts,
+                    tags=_preprocess_array_tags(x1.tags), axes=x1.axes)
+
+            pt_matrix: pt.CSRMatrix = _get_pt_matrix()
+
+            def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
+                assert isinstance(ary, pt.Array)
+                return pt_matrix @ ary
+
+            return cast("ArrayOrContainer", rec_map_container(_matmul, x2))
+
+        else:
+            raise TypeError(f"unrecognized sparse matrix type '{type(x1).__name__}'")
 
     def clone(self):
         return type(self)(self.queue, self.allocator)

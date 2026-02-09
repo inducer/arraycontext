@@ -173,9 +173,8 @@ class SparseMatrix(ABC):
     axes: tuple[ToTagSetConvertible, ...] = dataclasses.field(kw_only=True)
     _actx: ArrayContext = dataclasses.field(kw_only=True)
 
-    @abstractmethod
     def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
-        ...
+        return self._actx.sparse_matmul(self, other)
 
 
 @dataclasses.dataclass(frozen=True, eq=False, repr=False)
@@ -183,21 +182,6 @@ class CSRMatrix(SparseMatrix):
     elem_values: Array
     elem_col_indices: Array
     row_starts: Array
-
-    @override
-    def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
-        def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
-            assert self._actx.is_array_type(ary)
-            prg = self._actx._get_csr_matmul_prg(len(ary.shape))
-            out_ary = self._actx.call_loopy(
-                prg, elem_values=self.elem_values,
-                elem_col_indices=self.elem_col_indices,
-                row_starts=self.row_starts, array=ary)["out"]
-            # FIXME
-            # return self.tag(tagged, out_ary)
-            return out_ary
-
-        return cast("ArrayOrContainer", rec_map_container(_matmul, other))
 
 
 # {{{ ArrayContext
@@ -625,7 +609,22 @@ class ArrayContext(ABC):
         :arg x1: the sparse matrix.
         :arg x2: the array.
         """
-        return x1 @ x2
+        if isinstance(x1, CSRMatrix):
+            def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
+                assert self.is_array_type(ary)
+                prg = self._get_csr_matmul_prg(len(ary.shape))
+                out_ary = self.call_loopy(
+                    prg, elem_values=x1.elem_values,
+                    elem_col_indices=x1.elem_col_indices,
+                    row_starts=x1.row_starts, array=ary)["out"]
+                # FIXME
+                # return self.tag(tagged, out_ary)
+                return out_ary
+
+            return cast("ArrayOrContainer", rec_map_container(_matmul, x2))
+
+        else:
+            raise TypeError(f"unrecognized sparse matrix type '{type(x1).__name__}'")
 
     @abstractmethod
     def clone(self) -> Self:

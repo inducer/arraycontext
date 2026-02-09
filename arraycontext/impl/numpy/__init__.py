@@ -33,15 +33,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from dataclasses import dataclass
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 from typing_extensions import override
 
 import loopy as lp
-from pytools.tag import normalize_tags
 
 from arraycontext.container.traversal import (
     rec_map_array_container as rec_map_array_container,
@@ -50,7 +47,8 @@ from arraycontext.container.traversal import (
 )
 from arraycontext.context import (
     ArrayContext,
-    CSRMatrix as _BaseCSRMatrix,
+    CSRMatrix,
+    SparseMatrix,
     UntransformedCodeWarning,
 )
 from arraycontext.typing import (
@@ -58,6 +56,7 @@ from arraycontext.typing import (
     ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
+    ArrayOrScalar,
     ContainerOrScalarT,
     NumpyOrContainerOrScalar,
     is_scalar_like,
@@ -65,8 +64,6 @@ from arraycontext.typing import (
 
 
 if TYPE_CHECKING:
-    import scipy.sparse
-
     from pymbolic import Scalar
     from pytools.tag import Tag, ToTagSetConvertible
 
@@ -84,29 +81,6 @@ class NumpyNonObjectArrayMetaclass(type):
 
 class NumpyNonObjectArray(metaclass=NumpyNonObjectArrayMetaclass):
     pass
-
-
-@dataclass(frozen=True, eq=False, repr=False)
-class CSRMatrix(_BaseCSRMatrix):
-    @cached_property
-    def _np_matrix(self) -> scipy.sparse.csr_matrix:
-        assert isinstance(self.elem_values, np.ndarray)
-        assert isinstance(self.elem_col_indices, np.ndarray)
-        assert isinstance(self.row_starts, np.ndarray)
-        # FIXME: Not sure if the scipy dependency is OK or if it should just use the
-        # call_loopy fallback? Currently getting errors with the loopy version:
-        #     loopy.diagnostic.LoopyError: One of the kernels in the program has
-        #         been preprocessed, cannot modify target now.
-        from scipy.sparse import csr_matrix
-        return csr_matrix(
-            (self.elem_values, self.elem_col_indices, self.row_starts),
-            shape=self.shape)
-
-    @override
-    def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
-        return cast(
-            "ArrayOrContainer",
-            rec_map_container(lambda ary: self._np_matrix @ ary, other))
 
 
 class NumpyArrayContext(ArrayContext):
@@ -233,22 +207,30 @@ class NumpyArrayContext(ArrayContext):
         return np.einsum(spec, *args, optimize="optimal")
 
     @override
-    def make_csr_matrix(
-            self,
-            shape: tuple[int, int],
-            elem_values: Array,
-            elem_col_indices: Array,
-            row_starts: Array,
-            *,
-            tags: ToTagSetConvertible = _EMPTY_TAG_SET,
-            axes: tuple[ToTagSetConvertible, ...] | None = None) -> CSRMatrix:
-        tags = normalize_tags(tags)
-        if axes is None:
-            axes = (frozenset(), frozenset())
-        return CSRMatrix(
-            shape, elem_values, elem_col_indices, row_starts,
-            tags=tags, axes=axes,
-            _actx=self)
+    def sparse_matmul(
+            self, x1: SparseMatrix, x2: ArrayOrContainer) -> ArrayOrContainer:
+        if isinstance(x1, CSRMatrix):
+            assert isinstance(x1.elem_values, np.ndarray)
+            assert isinstance(x1.elem_col_indices, np.ndarray)
+            assert isinstance(x1.row_starts, np.ndarray)
+
+            # FIXME: Not sure if the scipy dependency is OK or if it should just use
+            # the call_loopy fallback? Currently getting errors with the loopy version:
+            #     loopy.diagnostic.LoopyError: One of the kernels in the program has
+            #         been preprocessed, cannot modify target now.
+            from scipy.sparse import csr_matrix
+            np_matrix = csr_matrix(
+                (x1.elem_values, x1.elem_col_indices, x1.row_starts),
+                shape=x1.shape)
+
+            def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
+                assert isinstance(ary, np.ndarray)
+                return np_matrix @ ary
+
+            return cast("ArrayOrContainer", rec_map_container(_matmul, x2))
+
+        else:
+            raise TypeError(f"unrecognized sparse matrix type '{type(x1).__name__}'")
 
     @property
     def permits_inplace_modification(self):
