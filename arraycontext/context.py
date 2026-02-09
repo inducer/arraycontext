@@ -133,7 +133,6 @@ from warnings import warn
 from typing_extensions import Self, TypeIs, override
 
 from pytools import memoize_method
-from pytools.tag import normalize_tags
 
 from arraycontext.container.traversal import (
     rec_map_container,
@@ -169,9 +168,8 @@ _EMPTY_TAG_SET: frozenset[Tag] = frozenset()
 
 @dataclasses.dataclass(frozen=True, eq=False, repr=False)
 class SparseMatrix(ABC):
-    # FIXME: Type for shape?
-    shape: Any
-    tags: frozenset[Tag] = dataclasses.field(kw_only=True)
+    shape: tuple[int, int]
+    tags: ToTagSetConvertible = dataclasses.field(kw_only=True)
     axes: tuple[ToTagSetConvertible, ...] = dataclasses.field(kw_only=True)
     _actx: ArrayContext = dataclasses.field(kw_only=True)
 
@@ -189,8 +187,6 @@ class CSRMatrix(SparseMatrix):
     @override
     def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
         def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
-            # FIXME: Should this do something to scalars? e.g., promote to uniform
-            # array?
             assert self._actx.is_array_type(ary)
             prg = self._actx._get_csr_matmul_prg(len(ary.shape))
             out_ary = self._actx.call_loopy(
@@ -474,10 +470,9 @@ class ArrayContext(ABC):
         )["out"]
         return self.tag(tagged, out_ary)
 
-    # FIXME: Not sure what type annotations to use for shape
     def make_csr_matrix(
             self,
-            shape,
+            shape: tuple[int, int],
             elem_values: Array,
             elem_col_indices: Array,
             row_starts: Array,
@@ -496,8 +491,6 @@ class ArrayContext(ABC):
             gives the starting index in *elem_values* and *elem_col_indices* for the
             given row, with the last entry being equal to `nrows`.
         """
-        tags = normalize_tags(tags)
-
         if axes is None:
             axes = (frozenset(), frozenset())
 

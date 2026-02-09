@@ -154,13 +154,11 @@ class CSRMatrix(_BaseCSRMatrix):
         assert isinstance(self.row_starts, pt.Array)
         return pt.make_csr_matrix(
             self.shape, self.elem_values, self.elem_col_indices, self.row_starts,
-            tags=self.tags, axes=self.axes)
+            tags=_preprocess_array_tags(self.tags), axes=self.axes)
 
     @override
     def __matmul__(self, other: ArrayOrContainer) -> ArrayOrContainer:
         def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
-            # FIXME: Should this do something to scalars? e.g., promote to uniform
-            # array?
             import pytato as pt
             assert isinstance(ary, pt.Array)
             return self._pt_matrix @ ary
@@ -904,11 +902,10 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
 
-    # FIXME: Not sure what type annotations to use for shape
     @override
     def make_csr_matrix(
             self,
-            shape,
+            shape: tuple[int, int],
             elem_values: Array,
             elem_col_indices: Array,
             row_starts: Array,
@@ -919,7 +916,6 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             axes = (frozenset(), frozenset())
         return CSRMatrix(
             shape, elem_values, elem_col_indices, row_starts,
-            # FIXME: Do I need to call _preprocess_array_tags on axes?
             tags=tags, axes=axes,
             _actx=self)
 
@@ -1161,11 +1157,10 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged)))
 
-    # FIXME: Not sure what type annotations to use for shape
     @override
     def make_csr_matrix(
             self,
-            shape,
+            shape: tuple[int, int],
             elem_values: Array,
             elem_col_indices: Array,
             row_starts: Array,

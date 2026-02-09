@@ -232,11 +232,10 @@ class NumpyArrayContext(ArrayContext):
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         return np.einsum(spec, *args, optimize="optimal")
 
-    # FIXME: Not sure what type annotations to use for shape
     @override
     def make_csr_matrix(
             self,
-            shape,
+            shape: tuple[int, int],
             elem_values: Array,
             elem_col_indices: Array,
             row_starts: Array,
