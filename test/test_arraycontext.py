@@ -311,12 +311,12 @@ def test_array_context_np_like(
 
         if sym_name == "zeros_like":
             if np.isscalar(result):
-                assert result == 0.0
+                assert result == 0.0  # noqa: RUF069
             else:
                 assert actx.to_numpy(actx.np.all(actx.np.equal(result, 0.0)))
         elif sym_name == "ones_like":
             if np.isscalar(result):
-                assert result == 1.0
+                assert result == 1.0  # noqa: RUF069
             else:
                 assert actx.to_numpy(actx.np.all(actx.np.equal(result, 1.0)))
         else:
