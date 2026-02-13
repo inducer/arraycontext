@@ -9106,6 +9106,32 @@
                 }
             }
         ],
+        "./arraycontext/impl/pytato/outline.py": [
+            {
+                "code": "reportReturnType",
+                "range": {
+                    "startColumn": 11,
+                    "endColumn": 39,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportUnknownVariableType",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 45,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportUnknownArgumentType",
+                "range": {
+                    "startColumn": 29,
+                    "endColumn": 44,
+                    "lineCount": 1
+                }
+            }
+        ],
         "./arraycontext/loopy.py": [
             {
                 "code": "reportUnknownMemberType",
