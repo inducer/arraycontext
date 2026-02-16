@@ -512,18 +512,15 @@ class ArrayContext(ABC):
                 "iel_lbound",
                 shape=(),
                 address_space=lp.AddressSpace.GLOBAL,
-                # FIXME: Need to do anything with tags?
                 ),
             "iel_ubound": lp.TemporaryVariable(
                 "iel_ubound",
                 shape=(),
                 address_space=lp.AddressSpace.GLOBAL,
-                # FIXME: Need to do anything with tags?
                 )}
 
         from loopy.kernel.instruction import make_assignment
         from pymbolic import var
-        # FIXME: Need tags for any of these?
         instructions: list[lp.Assignment | lp.CallInstruction] = [
             make_assignment(
                 (var("iel_lbound"),),
@@ -588,7 +585,6 @@ class ArrayContext(ABC):
             options=_DEFAULT_LOOPY_OPTIONS,
             default_order=lp.auto,
             default_offset=lp.auto,
-            # FIXME: Need to do anything with tags?
             )
 
         idx_dtype = knl.default_entrypoint.index_dtype
@@ -613,13 +609,10 @@ class ArrayContext(ABC):
             def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
                 assert self.is_array_type(ary)
                 prg = self._get_csr_matmul_prg(len(ary.shape))
-                out_ary = self.call_loopy(
+                return self.call_loopy(
                     prg, elem_values=x1.elem_values,
                     elem_col_indices=x1.elem_col_indices,
                     row_starts=x1.row_starts, array=ary)["out"]
-                # FIXME
-                # return self.tag(tagged, out_ary)
-                return out_ary
 
             return cast("ArrayOrContainer", rec_map_container(_matmul, x2))
 
