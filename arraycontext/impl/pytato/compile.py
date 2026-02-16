@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, cast
 
 import numpy as np
-from immutabledict import immutabledict
+from constantdict import constantdict
 
 import pytato as pt
 from pytools import ProcessLogger, to_identifier
@@ -167,7 +167,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: tuple[Any, ...],
                              " either a scalar, pt.Array or an array container. Got"
                              f" '{arg}'.")
 
-    return immutabledict(arg_id_to_arg), immutabledict(arg_id_to_descr)
+    return constantdict(arg_id_to_arg), constantdict(arg_id_to_descr)
 
 
 def _to_input_for_compiled(

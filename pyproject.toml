@@ -27,7 +27,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "immutabledict>=4.1",
+    "constantdict",
     "numpy",
     "pytools>=2025.2.2",
     # for TypeIs

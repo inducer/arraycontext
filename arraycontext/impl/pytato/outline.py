@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
 import numpy as np
-from immutabledict import immutabledict
+from constantdict import constantdict
 
 import pytato as pt
 
@@ -62,14 +62,14 @@ if TYPE_CHECKING:
 def _get_arg_id_to_arg(
             args: tuple[ArrayOrContainerOrScalar | None, ...],
             kwargs: Mapping[str, ArrayOrContainerOrScalar | None]
-        ) -> immutabledict[tuple[SerializationKey, ...], pt.Array]:
+        ) -> constantdict[tuple[SerializationKey, ...], pt.Array]:
     """
     Helper for :meth:`OutlinedCall.__call__`. Extracts mappings from argument id
     to argument values. See
     :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
     representation.
     """
-    arg_id_to_arg: dict[tuple[SerializationKey, ...], object] = {}
+    arg_id_to_arg: dict[tuple[SerializationKey, ...], pt.Array] = {}
 
     for kw, arg in itertools.chain(enumerate(args),
                                    kwargs.items()):
@@ -86,6 +86,7 @@ def _get_arg_id_to_arg(
                 if is_scalar_like(ary):
                     pass
                 else:
+                    assert isinstance(ary, pt.Array)
                     arg_id = (kw, *keys)  # noqa: B023
                     arg_id_to_arg[arg_id] = ary
                 return ary
@@ -99,7 +100,7 @@ def _get_arg_id_to_arg(
                              " either a scalar, pt.Array or an array container. Got"
                              f" '{arg}'.")
 
-    return immutabledict(arg_id_to_arg)
+    return constantdict(arg_id_to_arg)
 
 
 def _get_input_arg_id_str(
@@ -118,14 +119,14 @@ def _get_output_arg_id_str(arg_id: tuple[object, ...]) -> str:
 def _get_arg_id_to_placeholder(
             arg_id_to_arg: Mapping[tuple[SerializationKey, ...], pt.Array],
             prefix: str | None = None
-        ) -> immutabledict[tuple[SerializationKey, ...], pt.Placeholder]:
+        ) -> constantdict[tuple[SerializationKey, ...], pt.Placeholder]:
     """
     Helper for :meth:`OutlinedCall.__call__`. Constructs a :class:`pytato.Placeholder`
     for each argument in *arg_id_to_arg*. See
     :attr:`CompiledFunction.input_id_to_name_in_function` for argument-id's
     representation.
     """
-    return immutabledict({
+    return constantdict({
         arg_id: pt.make_placeholder(
             _get_input_arg_id_str(arg_id, prefix=prefix),
             arg.shape,
@@ -174,31 +175,32 @@ def _call_with_placeholders(
 
 
 def _unpack_output(
-        output: ArrayOrContainerOrScalar) -> immutabledict[str, pt.Array]:
+        output: ArrayOrContainerOrScalar) -> constantdict[str, pt.Array]:
     """Unpack any array containers in *output*."""
     if isinstance(output, pt.Array):
-        return immutabledict({"_": output})
+        return constantdict({"_": output})
     elif is_array_container_type(output.__class__):
-        unpacked_output = {}
+        unpacked_output: dict[str, pt.Array] = {}
 
         def _unpack_container(
                     key: tuple[SerializationKey, ...],
                     ary: ArrayOrScalar
                 ) -> ArrayOrScalar:
+            assert isinstance(ary, pt.Array)
             key_str = _get_output_arg_id_str(key)
             unpacked_output[key_str] = ary
             return ary
 
         rec_keyed_map_array_container(_unpack_container, output)
 
-        return immutabledict(unpacked_output)
+        return constantdict(unpacked_output)
     else:
         raise NotImplementedError(type(output))
 
 
 def _pack_output(
             output_template: ArrayOrContainerOrScalar,
-            unpacked_output: pt.Array | immutabledict[str, pt.Array]
+            unpacked_output: pt.Array | constantdict[str, pt.Array]
         ) -> ArrayOrContainerOrScalar:
     """
     Pack *unpacked_output* into array containers according to *output_template*.
@@ -207,12 +209,12 @@ def _pack_output(
         assert isinstance(unpacked_output, pt.Array)
         return unpacked_output
     elif is_array_container_type(output_template.__class__):
-        assert isinstance(unpacked_output, immutabledict)
+        assert isinstance(unpacked_output, constantdict)
 
         def _pack_into_container(
                     key: tuple[SerializationKey, ...],
                     ary: ArrayOrScalar  # pyright: ignore[reportUnusedParameter]
-                ) -> ArrayOrScalar:
+                ) -> pt.Array:
             key_str = _get_output_arg_id_str(key)
             return unpacked_output[key_str]
 
@@ -287,13 +289,13 @@ class OutlinedCall(Generic[P, OutlinedResultT]):
         func_def = pt.function.FunctionDefinition(
             parameters=frozenset(call_bindings.keys()),
             return_type=ret_type,
-            returns=immutabledict(unpacked_output._data),
+            returns=constantdict(unpacked_output._data),
             tags=self.tags,
         )
 
         call_site_output = func_def(**call_bindings)
 
-        assert isinstance(call_site_output, pt.Array | immutabledict)
+        assert isinstance(call_site_output, pt.Array | constantdict)
         return _pack_output(output, call_site_output)
 
 # vim: foldmethod=marker
