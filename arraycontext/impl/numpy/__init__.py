@@ -214,10 +214,6 @@ class NumpyArrayContext(ArrayContext):
             assert isinstance(x1.elem_col_indices, np.ndarray)
             assert isinstance(x1.row_starts, np.ndarray)
 
-            # FIXME: Not sure if the scipy dependency is OK or if it should just use
-            # the call_loopy fallback? Currently getting errors with the loopy version:
-            #     loopy.diagnostic.LoopyError: One of the kernels in the program has
-            #         been preprocessed, cannot modify target now.
             from scipy.sparse import csr_matrix
             np_matrix = csr_matrix(
                 (x1.elem_values, x1.elem_col_indices, x1.row_starts),
@@ -225,7 +221,7 @@ class NumpyArrayContext(ArrayContext):
 
             def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
                 assert isinstance(ary, np.ndarray)
-                return np_matrix @ ary
+                return cast("ArrayOrScalar", cast("object", np_matrix @ ary))
 
             return cast("ArrayOrContainer", rec_map_container(_matmul, x2))
 
