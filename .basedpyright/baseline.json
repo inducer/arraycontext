@@ -1674,6 +1674,14 @@
                 }
             },
             {
+                "code": "reportIncompatibleMethodOverride",
+                "range": {
+                    "startColumn": 8,
+                    "endColumn": 12,
+                    "lineCount": 1
+                }
+            },
+            {
                 "code": "reportUnknownParameterType",
                 "range": {
                     "startColumn": 19,
@@ -2722,6 +2730,14 @@
                 "range": {
                     "startColumn": 15,
                     "endColumn": 65,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportIncompatibleMethodOverride",
+                "range": {
+                    "startColumn": 8,
+                    "endColumn": 12,
                     "lineCount": 1
                 }
             },
@@ -3778,50 +3794,10 @@
                 }
             },
             {
-                "code": "reportUnknownParameterType",
+                "code": "reportIncompatibleMethodOverride",
                 "range": {
-                    "startColumn": 19,
-                    "endColumn": 20,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportMissingParameterType",
-                "range": {
-                    "startColumn": 19,
-                    "endColumn": 20,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportUnknownParameterType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 23,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportMissingParameterType",
-                "range": {
-                    "startColumn": 22,
-                    "endColumn": 23,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportUnknownParameterType",
-                "range": {
-                    "startColumn": 25,
-                    "endColumn": 30,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportMissingParameterType",
-                "range": {
-                    "startColumn": 25,
-                    "endColumn": 30,
+                    "startColumn": 8,
+                    "endColumn": 12,
                     "lineCount": 1
                 }
             },
@@ -6488,8 +6464,8 @@
             {
                 "code": "reportUnknownArgumentType",
                 "range": {
-                    "startColumn": 65,
-                    "endColumn": 68,
+                    "startColumn": 64,
+                    "endColumn": 67,
                     "lineCount": 1
                 }
             },
