@@ -117,7 +117,7 @@ ScalarLikeT = TypeVar("ScalarLikeT", bound=ScalarLike)
 
 # We won't support 'A' and 'K', since they depend on in-memory order; that is
 # not intended to be a meaningful concept for actx arrays.
-OrderCF: TypeAlias = Literal["C"] | Literal["F"]
+OrderCF: TypeAlias = Literal["C", "F"]
 
 
 class Array(Protocol):

@@ -740,7 +740,7 @@ def with_container_arithmetic(
         code = gen.get().rstrip()+"\n"
 
         result_dict = {"_MODULE_SOURCE_CODE": code, "cls": cls}
-        exec(compile(code, f"<container arithmetic for {cls.__name__}>", "exec"),
+        exec(compile(code, f"<container arithmetic for {cls.__name__}>", "exec"),  # noqa: S102
                 result_dict)
 
         return cls

@@ -7,7 +7,7 @@ import numpy as np
 from typing_extensions import override
 
 import pytato as pt
-import pytools.obj_array as obj_array
+from pytools import obj_array
 
 from arraycontext import (
     Array,
@@ -52,9 +52,7 @@ class PytatoJAXArrayContext(BasePytatoJAXArrayContext):
         # dag = pt.inline_calls(dag)
         # print("[Post-concatenation] Number of nodes =",
         #       pt.analysis.get_num_nodes(dag))
-        dag = pt.inline_calls(dag)
-
-        return dag
+        return pt.inline_calls(dag)
 
 
 actx = PytatoJAXArrayContext()
