@@ -129,9 +129,6 @@ from typing_extensions import Self, TypeIs, override
 
 from pytools import memoize_method
 
-# FIXME: remove sometime, this import was used in grudge in July 2025.
-from .typing import ArrayOrArithContainerTc as ArrayOrArithContainerTc
-
 
 if TYPE_CHECKING:
     import numpy as np

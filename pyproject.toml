@@ -93,6 +93,8 @@ extend-ignore = [
     "E226",     # missing whitespace around arithmetic operator
     "E402",     # module-level import not at top of file
     "RUF067",   # non-empty-init-module
+    "TRY300",
+    "TRY004",
 ]
 
 [tool.ruff.lint.flake8-quotes]
@@ -118,10 +120,11 @@ lines-after-imports = 2
 required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
-"doc/conf.py" = ["I002"]
+"doc/conf.py" = ["I002", "S102"]
 # To avoid a requirement of array container definitions being someplace importable
 # from @dataclass_array_container.
 "test/test_utils.py" = ["I002"]
+"test/*.py" = ["S102"]
 
 [tool.typos.default]
 extend-ignore-re = [

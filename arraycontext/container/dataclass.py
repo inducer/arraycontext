@@ -247,7 +247,7 @@ def _inject_dataclass_serialization(
         """)
 
     exec_dict = {"cls": cls, "_MODULE_SOURCE_CODE": serialize_code}
-    exec(compile(serialize_code, f"<container serialization for {cls.__name__}>",
+    exec(compile(serialize_code, f"<container serialization for {cls.__name__}>",  # noqa: S102
         "exec"), exec_dict)
 
     return cls

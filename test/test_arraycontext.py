@@ -31,8 +31,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import pytest
 
-import pytools.obj_array as obj_array
-from pytools import ndindex
+from pytools import ndindex, obj_array
 from pytools.tag import Tag
 
 from arraycontext import (

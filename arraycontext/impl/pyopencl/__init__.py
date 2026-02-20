@@ -389,9 +389,7 @@ class PyOpenCLArrayContext(ArrayContext):
 
         if inner_iname is not None:
             t_unit = lp.split_iname(t_unit, inner_iname, 16, inner_tag="l.0")
-        t_unit = lp.tag_inames(t_unit, {outer_iname: "g.0"})
-
-        return t_unit
+        return lp.tag_inames(t_unit, {outer_iname: "g.0"})
 
     # }}}
 

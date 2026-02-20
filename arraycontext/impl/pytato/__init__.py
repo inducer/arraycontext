@@ -830,8 +830,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         import pytato as pt
         dag = pt.tag_all_calls_to_be_inlined(dag)
         dag = pt.inline_calls(dag)
-        dag = pt.transform.materialize_with_mpms(dag)
-        return dag
+        return pt.transform.materialize_with_mpms(dag)
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pytato as pt
@@ -1047,8 +1046,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
                       ) -> pytato.AbstractResultWithNamedArrays:
         import pytato as pt
         dag = pt.tag_all_calls_to_be_inlined(dag)
-        dag = pt.inline_calls(dag)
-        return dag
+        return pt.inline_calls(dag)
 
     @override
     def tag(self,

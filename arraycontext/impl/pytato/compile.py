@@ -265,7 +265,7 @@ class BaseLazilyCompilingFunctionCaller:
     actx: _BasePytatoArrayContext
     f: Callable[..., Any]
     program_cache: dict[Mapping[tuple[Hashable, ...], AbstractInputDescriptor],
-                        CompiledFunction] = field(default_factory=lambda: {})
+                        CompiledFunction] = field(default_factory=dict)
 
     # {{{ abstract interface
 
@@ -610,7 +610,6 @@ class CompiledFunction(abc.ABC):
             :attr:`CompiledFunction.input_id_to_name_in_program` for input id's
             representation.
         """
-        pass
 
 # }}}
 

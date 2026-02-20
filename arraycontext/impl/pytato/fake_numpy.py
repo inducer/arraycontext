@@ -112,7 +112,6 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 ary: Array,
                 fill_value: Scalar,
             ) -> Array:
-        ...
         ary = cast("pt.Array", ary)
         return pt.full(ary.shape, fill_value, ary.dtype).copy(
                 axes=ary.axes, tags=ary.tags)

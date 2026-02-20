@@ -188,7 +188,7 @@ def empty(
             dtype: DTypeLike | None = None,
             *, axes: tuple[Axis, ...] | None = None,
             tags: frozenset[Tag] = _EMPTY_TAG_SET,
-            order: Literal["C"] | Literal["F"] = "C",
+            order: Literal["C", "F"] = "C",
             allocator: cla.Allocator | None = None,
         ) -> TaggableCLArray:
     if dtype is not None:
@@ -206,7 +206,7 @@ def zeros(
             dtype: DTypeLike = float,
             *, axes: tuple[Axis, ...] | None = None,
             tags: frozenset[Tag] = _EMPTY_TAG_SET,
-            order: Literal["C"] | Literal["F"] = "C",
+            order: Literal["C", "F"] = "C",
             allocator: cla.Allocator | None = None,
         ) -> TaggableCLArray:
     result = empty(
