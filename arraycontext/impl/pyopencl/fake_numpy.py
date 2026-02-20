@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from arraycontext.typing import (
         Array,
         ArrayOrContainerOrScalar,
+        ArrayOrContainerOrScalarT,
         ArrayOrScalar,
     )
 
@@ -187,11 +188,14 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
 
     # {{{ linear algebra
 
-    def vdot(self, x, y, dtype=None):
+    @override
+    def vdot(self,
+             a: ArrayOrContainerOrScalarT, b: ArrayOrContainerOrScalarT,
+             dtype: DTypeLike | None = None):
         return rec_multimap_reduce_array_container(
                 sum,
                 partial(cl_array.vdot, dtype=dtype, queue=self._array_context.queue),
-                x, y)
+                a, b)
 
     # }}}
 

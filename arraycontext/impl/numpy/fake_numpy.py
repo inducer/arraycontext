@@ -233,8 +233,9 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
         return rec_map_container(inner_ravel, a)
 
-    def vdot(self, x, y):
-        return rec_multimap_reduce_array_container(sum, np.vdot, x, y)
+    @override
+    def vdot(self, a, b):
+        return rec_multimap_reduce_array_container(sum, np.vdot, a, b)
 
     def any(self, a, /):
         return rec_map_reduce_array_container(partial(reduce, np.logical_or),

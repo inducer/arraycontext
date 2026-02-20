@@ -301,7 +301,8 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def absolute(self, a):
         return self.abs(a)
 
-    def vdot(self, a: Array, b: Array):
+    @override
+    def vdot(self, a: ArrayOrContainerOrScalar, b: ArrayOrContainerOrScalar):
         return rec_multimap_array_container(pt.vdot, a, b)
 
     # }}}
