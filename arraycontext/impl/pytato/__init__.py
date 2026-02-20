@@ -796,9 +796,9 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             elif isinstance(arg, TaggableCLArray):
                 arg = self.thaw(arg)
             else:
-                raise ValueError(f"call_loopy argument '{kw}' expected to be an"
-                                 " instance of 'pytato.Array', 'Number' or"
-                                 f"'TaggableCLArray', got '{type(arg)}'")
+                raise TypeError(f"call_loopy argument '{kw}' expected to be an"
+                                " instance of 'pytato.Array', 'Number' or"
+                                f"'TaggableCLArray', got '{type(arg)}'")
 
             processed_kwargs[kw] = arg
 

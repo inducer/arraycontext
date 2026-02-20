@@ -213,8 +213,8 @@ class TransferFromNumpyMapper(CopyMapper):
         import numpy as np
 
         if not isinstance(expr.data, np.ndarray):
-            raise ValueError("TransferFromNumpyMapper: tried to transfer data that "
-                             "is already on the device")
+            raise ValueError(f"{type(self).__name__}: tried to transfer data that "
+                            "is already on the device")
 
         # Ideally, this code should just do
         # return self.actx.from_numpy(expr.data).tagged(expr.tags),
@@ -245,7 +245,7 @@ class TransferToNumpyMapper(CopyMapper):
 
         import arraycontext.impl.pyopencl.taggable_cl_array as tga
         if not isinstance(expr.data, tga.TaggableCLArray):
-            raise ValueError("TransferToNumpyMapper: tried to transfer data that "
+            raise ValueError(f"{type(self).__name__}: tried to transfer data that "
                              "is already on the host")
 
         np_data = self.actx.to_numpy(expr.data)

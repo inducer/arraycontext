@@ -79,9 +79,10 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     def is_available(cls) -> bool:
         try:
             import pyopencl  # noqa: F401 # pyright: ignore[reportUnusedImport]
-            return True
         except ImportError:
             return False
+        else:
+            return True
 
     def get_command_queue(self) -> tuple[cl.Context, cl.CommandQueue]:
         # Get rid of leftovers from past tests.
@@ -155,9 +156,10 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
         try:
             import pyopencl  # noqa: F401 # pyright: ignore[reportUnusedImport]
             import pytato  # noqa: F401  # pyright: ignore[reportUnusedImport]
-            return True
         except ImportError:
             return False
+        else:
+            return True
 
     @property
     def actx_class(self) -> type[ArrayContext]:
@@ -203,9 +205,10 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
     def is_available(cls) -> bool:
         try:
             import jax  # noqa: F401 # pyright: ignore[reportUnusedImport]
-            return True
         except ImportError:
             return False
+        else:
+            return True
 
     @override
     def __call__(self) -> ArrayContext:
@@ -231,9 +234,10 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
         try:
             import jax  # noqa: F401 # pyright: ignore[reportUnusedImport]
             import pytato  # noqa: F401 # pyright: ignore[reportUnusedImport]
-            return True
         except ImportError:
             return False
+        else:
+            return True
 
     @override
     def __call__(self) -> ArrayContext:
