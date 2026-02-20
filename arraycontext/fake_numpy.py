@@ -312,6 +312,11 @@ class BaseFakeNumpyNamespace(ABC):
         # subclasses. Defining them as abstract methods would define them
         # as attributes, making __getattr__ fail to retrieve the intended function.
 
+        def vdot(self,
+                a: ArrayOrContainerOrScalarT,
+                b: ArrayOrContainerOrScalarT, /
+            ) -> ArrayOrScalar: ...
+
         def broadcast_to(self,
                 array: ArrayOrContainerOrScalar, /,
                 shape: tuple[int, ...]

@@ -140,7 +140,8 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     # {{{ linear algebra
 
-    def vdot(self, x, y, dtype=None):
+    @override
+    def vdot(self, a, b, dtype=None):
         from arraycontext import rec_multimap_reduce_array_container
 
         def _rec_vdot(ary1, ary2):
@@ -151,7 +152,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
             return jnp.vdot(ary1, ary2)
 
-        return rec_multimap_reduce_array_container(sum, _rec_vdot, x, y)
+        return rec_multimap_reduce_array_container(sum, _rec_vdot, a, b)
 
     # }}}
 
