@@ -471,9 +471,9 @@ class ArrayContext(ABC):
             nonzero entries of the matrix, grouped by row.
         :arg elem_col_indices: a one-dimensional array containing the column index
             values corresponding to each entry in *elem_values*.
-        :arg row_starts: a one-dimensional array of length `nrows+1`, where each entry
+        :arg row_starts: a one-dimensional array of length ``nrows+1``, where each entry
             gives the starting index in *elem_values* and *elem_col_indices* for the
-            given row, with the last entry being equal to `nrows`.
+            given row, with the last entry being equal to ``len(elem_values)``.
         """
         if axes is None:
             axes = (frozenset(), frozenset())
