@@ -509,12 +509,10 @@ class ArrayContext(ABC):
             "iel_lbound": lp.TemporaryVariable(
                 "iel_lbound",
                 shape=(),
-                address_space=lp.AddressSpace.GLOBAL,
                 ),
             "iel_ubound": lp.TemporaryVariable(
                 "iel_ubound",
                 shape=(),
-                address_space=lp.AddressSpace.GLOBAL,
                 )}
 
         from loopy.kernel.instruction import make_assignment
