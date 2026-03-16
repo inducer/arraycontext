@@ -663,6 +663,9 @@ def test_array_context_csr_matmul(actx_factory: ArrayContextFactory):
     if isinstance(actx, (EagerJAXArrayContext, PytatoJAXArrayContext)):
         pytest.skip(f"not implemented for '{type(actx).__name__}'")
 
+    if isinstance(actx, NumpyArrayContext):
+        pytest.importorskip("scipy")
+
     n = 100
 
     x = actx.from_numpy(np.arange(n, dtype=np.float64))
