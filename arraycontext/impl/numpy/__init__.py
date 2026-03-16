@@ -214,7 +214,14 @@ class NumpyArrayContext(ArrayContext):
             assert isinstance(x1.elem_col_indices, np.ndarray)
             assert isinstance(x1.row_starts, np.ndarray)
 
-            from scipy.sparse import csr_matrix
+            try:
+                from scipy.sparse import csr_matrix
+            except ImportError as exc:
+                raise ImportError(
+                    "sparse_matmul requires SciPy, which is not installed. "
+                    "Install the 'arraycontext[sparse]' extra to enable sparse "
+                    "matrix support.") from exc
+
             np_matrix = csr_matrix(
                 (x1.elem_values, x1.elem_col_indices, x1.row_starts),
                 shape=x1.shape)
