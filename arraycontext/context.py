@@ -485,8 +485,6 @@ class ArrayContext(ABC):
 
     @memoize_method
     def _get_csr_matmul_prg(self, out_ndim: int) -> loopy.TranslationUnit:
-        import numpy as np
-
         import loopy as lp
 
         out_extra_inames = tuple(f"i{n}" for n in range(1, out_ndim))
@@ -595,7 +593,6 @@ class ArrayContext(ABC):
                 ",".join([
                     "ncols", "nrows", "nels",
                     *out_extra_shape_comp_names]): idx_dtype,
-                "elem_values,array,out": np.float64,
                 "elem_col_indices,row_starts": idx_dtype})
 
     def sparse_matmul(
