@@ -1,7 +1,7 @@
 Python 3 POCL:
   script: |
     export PYOPENCL_TEST=portable:cpu
-    export EXTRA_INSTALL="jax[cpu]"
+    export EXTRA_INSTALL="jax[cpu] scipy"
     export JAX_PLATFORMS=cpu
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project.sh
     . ./build-and-test-py-project.sh
@@ -20,6 +20,7 @@ Python 3 Nvidia Titan V:
     curl -L -O https://tiker.net/ci-support-v0
     . ./ci-support-v0
     export PYOPENCL_TEST=nvi:titan
+    export EXTRA_INSTALL="scipy"
     build_py_project_in_venv
     pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html
     test_py_project
@@ -38,6 +39,7 @@ Python 3 POCL Nvidia Titan V:
     curl -L -O https://tiker.net/ci-support-v0
     . ./ci-support-v0
     export PYOPENCL_TEST=port:titan
+    export EXTRA_INSTALL="scipy"
     build_py_project_in_venv
     test_py_project
 
@@ -66,6 +68,7 @@ Python 3 POCL Examples:
 Python 3 Conda:
   script: |
     export PYOPENCL_TEST=portable:cpu
+    export EXTRA_INSTALL="scipy"
 
     # Avoid crashes like https://gitlab.tiker.net/inducer/arraycontext/-/jobs/536021
     sed -i 's/jax/jax !=0.4.6/' .test-conda-env-py3.yml

@@ -73,6 +73,8 @@ from .container.traversal import (
 from .context import (
     ArrayContext,
     ArrayContextFactory,
+    CSRMatrix,
+    SparseMatrix,
     tag_axes,
 )
 from .impl.jax import EagerJAXArrayContext
@@ -129,6 +131,7 @@ __all__ = (
     "ArrayOrScalarT",
     "ArrayT",
     "BcastUntilActxArray",
+    "CSRMatrix",
     "CommonSubexpressionTag",
     "ContainerOrScalarT",
     "EagerJAXArrayContext",
@@ -144,6 +147,7 @@ __all__ = (
     "ScalarLike",
     "SerializationKey",
     "SerializedContainer",
+    "SparseMatrix",
     "dataclass_array_container",
     "deserialize_container",
     "flat_size_and_dtype",

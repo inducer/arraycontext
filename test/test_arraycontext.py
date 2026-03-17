@@ -36,10 +36,12 @@ from pytools.tag import Tag
 
 from arraycontext import (
     ArrayContextFactory,
+    ArrayOrScalar,
     BcastUntilActxArray,
     EagerJAXArrayContext,
     NumpyArrayContext,
     PyOpenCLArrayContext,
+    PytatoJAXArrayContext,
     PytatoPyOpenCLArrayContext,
     dataclass_array_container,
     pytest_generate_tests_for_array_contexts,
@@ -653,6 +655,74 @@ def test_array_context_einsum_array_tripleprod(actx_factory: ArrayContextFactory
     assert np.allclose(res, ans)
 
 # }}}
+
+
+def test_array_context_csr_matmul(actx_factory: ArrayContextFactory):
+    actx = actx_factory()
+
+    if isinstance(actx, (EagerJAXArrayContext, PytatoJAXArrayContext)):
+        pytest.skip(f"not implemented for '{type(actx).__name__}'")
+
+    if isinstance(actx, NumpyArrayContext):
+        pytest.importorskip("scipy")
+
+    n = 100
+
+    x = actx.from_numpy(np.arange(n, dtype=np.float64))
+    ary_of_x = obj_array.new_1d([x] * 3)
+    dc_of_x = MyContainer(
+        name="container",
+        mass=x,
+        momentum=obj_array.new_1d([x] * 3),
+        enthalpy=x)
+
+    elem_values = actx.zeros((n//2,), dtype=np.float64) + 1.
+    elem_col_indices = actx.from_numpy(2*np.arange(n//2, dtype=np.int32))
+    row_starts = actx.from_numpy(np.arange(n//2 + 1, dtype=np.int32))
+
+    mat = actx.make_csr_matrix(
+        shape=(n//2, n),
+        elem_values=elem_values,
+        elem_col_indices=elem_col_indices,
+        row_starts=row_starts)
+
+    expected_mat_x = actx.from_numpy(2 * np.arange(n//2, dtype=np.float64))
+
+    def _check_allclose(
+            arg1: ArrayOrScalar, arg2: ArrayOrScalar, atol: float = 1.0e-14):
+        from arraycontext import NotAnArrayContainerError
+        try:
+            arg1_iterable = serialize_container(arg1)
+            arg2_iterable = serialize_container(arg2)
+        except NotAnArrayContainerError:
+            assert np.linalg.norm(actx.to_numpy(arg1 - arg2)) < atol
+        else:
+            arg1_subarrays = [
+                subarray for _, subarray in arg1_iterable]
+            arg2_subarrays = [
+                subarray for _, subarray in arg2_iterable]
+            for subarray1, subarray2 in zip(arg1_subarrays, arg2_subarrays,
+                                            strict=True):
+                _check_allclose(subarray1, subarray2)
+
+    # single array
+    res = mat @ x
+    expected_res = expected_mat_x
+    _check_allclose(res, expected_res)
+
+    # array of arrays
+    res = mat @ ary_of_x
+    expected_res = obj_array.new_1d([expected_mat_x] * 3)
+    _check_allclose(res, expected_res)
+
+    # container of arrays
+    res = mat @ dc_of_x
+    expected_res = MyContainer(
+        name="container",
+        mass=expected_mat_x,
+        momentum=obj_array.new_1d([expected_mat_x] * 3),
+        enthalpy=expected_mat_x)
+    _check_allclose(res, expected_res)
 
 
 # {{{ array container classes for test

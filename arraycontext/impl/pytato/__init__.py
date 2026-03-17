@@ -59,7 +59,7 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 from typing_extensions import override
 
-from pytools import memoize_method
+from pytools import memoize_in, memoize_method
 from pytools.tag import Tag, ToTagSetConvertible, normalize_tags
 
 from arraycontext.container.traversal import (
@@ -68,13 +68,16 @@ from arraycontext.container.traversal import (
 )
 from arraycontext.context import (
     ArrayContext,
+    CSRMatrix,
     P,
+    SparseMatrix,
     UntransformedCodeWarning,
 )
 from arraycontext.metadata import NameHint
 from arraycontext.typing import (
     Array,
     ArrayOrArithContainerOrScalarT,
+    ArrayOrContainer,
     ArrayOrContainerOrScalarT,
     ArrayOrScalar,
     ScalarLike,
@@ -832,6 +835,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         dag = pt.inline_calls(dag)
         return pt.transform.materialize_with_mpms(dag)
 
+    @override
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import pytato as pt
 
@@ -874,6 +878,32 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
             preprocess_arg(name, arg)
             for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged))
+
+    @override
+    def sparse_matmul(
+            self, x1: SparseMatrix, x2: ArrayOrContainer) -> ArrayOrContainer:
+        import pytato as pt
+
+        if isinstance(x1, CSRMatrix):
+            @memoize_in(x1, "pt_matrix")
+            def _get_pt_matrix() -> pt.CSRMatrix:
+                assert isinstance(x1.elem_values, pt.Array)
+                assert isinstance(x1.elem_col_indices, pt.Array)
+                assert isinstance(x1.row_starts, pt.Array)
+                return pt.make_csr_matrix(
+                    x1.shape, x1.elem_values, x1.elem_col_indices, x1.row_starts,
+                    tags=_preprocess_array_tags(x1.tags), axes=x1.axes)
+
+            pt_matrix: pt.CSRMatrix = _get_pt_matrix()
+
+            def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
+                assert isinstance(ary, pt.Array)
+                return pt_matrix @ ary
+
+            return cast("ArrayOrContainer", rec_map_container(_matmul, x2))
+
+        else:
+            raise TypeError(f"unrecognized sparse matrix type '{type(x1).__name__}'")
 
     def clone(self):
         return type(self)(self.queue, self.allocator)
@@ -1112,6 +1142,23 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
             preprocess_arg(name, arg)
             for name, arg in zip(arg_names, args, strict=True)
             ]).tagged(_preprocess_array_tags(tagged)))
+
+    @override
+    def make_csr_matrix(
+            self,
+            shape: tuple[int, int],
+            elem_values: Array,
+            elem_col_indices: Array,
+            row_starts: Array,
+            *,
+            tags: ToTagSetConvertible = _EMPTY_TAG_SET,
+            axes: tuple[ToTagSetConvertible, ...] | None = None) -> CSRMatrix:
+        raise NotImplementedError("Sparse matrices aren't yet supported with JAX.")
+
+    @override
+    def sparse_matmul(
+            self, x1: SparseMatrix, x2: ArrayOrContainer) -> ArrayOrContainer:
+        raise NotImplementedError("Sparse matrices aren't yet supported with JAX.")
 
     @override
     def clone(self):

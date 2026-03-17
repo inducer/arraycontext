@@ -33,14 +33,16 @@ THE SOFTWARE.
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+from typing_extensions import override
 
 from arraycontext.container.traversal import (
     rec_map_container,
     with_array_context,
 )
-from arraycontext.context import ArrayContext
+from arraycontext.context import ArrayContext, CSRMatrix, SparseMatrix
 from arraycontext.typing import (
     Array,
+    ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrScalar,
     ScalarLike,
@@ -51,7 +53,10 @@ from arraycontext.typing import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from pytools.tag import ToTagSetConvertible
+    from pytools.tag import Tag, ToTagSetConvertible
+
+
+_EMPTY_TAG_SET: frozenset[Tag] = frozenset()
 
 
 class EagerJAXArrayContext(ArrayContext):
@@ -149,6 +154,23 @@ class EagerJAXArrayContext(ArrayContext):
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         import jax.numpy as jnp
         return jnp.einsum(spec, *args)
+
+    @override
+    def make_csr_matrix(
+            self,
+            shape: tuple[int, int],
+            elem_values: Array,
+            elem_col_indices: Array,
+            row_starts: Array,
+            *,
+            tags: ToTagSetConvertible = _EMPTY_TAG_SET,
+            axes: tuple[ToTagSetConvertible, ...] | None = None) -> CSRMatrix:
+        raise NotImplementedError("Sparse matrices aren't yet supported with JAX.")
+
+    @override
+    def sparse_matmul(
+            self, x1: SparseMatrix, x2: ArrayOrContainer) -> ArrayOrContainer:
+        raise NotImplementedError("Sparse matrices aren't yet supported with JAX.")
 
     def clone(self):
         return type(self)()

@@ -46,6 +46,9 @@ pyopencl = [
 pytato = [
     "pytato>=2021.1",
 ]
+sparse = [
+    "scipy",
+]
 test = [
     "basedpyright",
     "pytest",

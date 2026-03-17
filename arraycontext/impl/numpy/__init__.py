@@ -47,12 +47,16 @@ from arraycontext.container.traversal import (
 )
 from arraycontext.context import (
     ArrayContext,
+    CSRMatrix,
+    SparseMatrix,
     UntransformedCodeWarning,
 )
 from arraycontext.typing import (
     Array,
+    ArrayOrContainer,
     ArrayOrContainerOrScalar,
     ArrayOrContainerOrScalarT,
+    ArrayOrScalar,
     ContainerOrScalarT,
     NumpyOrContainerOrScalar,
     is_scalar_like,
@@ -61,9 +65,12 @@ from arraycontext.typing import (
 
 if TYPE_CHECKING:
     from pymbolic import Scalar
-    from pytools.tag import ToTagSetConvertible
+    from pytools.tag import Tag, ToTagSetConvertible
 
     from arraycontext.typing import ArrayContainerT
+
+
+_EMPTY_TAG_SET: frozenset[Tag] = frozenset()
 
 
 class NumpyNonObjectArrayMetaclass(type):
@@ -198,6 +205,35 @@ class NumpyArrayContext(ArrayContext):
 
     def einsum(self, spec, *args, arg_names=None, tagged=()):
         return np.einsum(spec, *args, optimize="optimal")
+
+    @override
+    def sparse_matmul(
+            self, x1: SparseMatrix, x2: ArrayOrContainer) -> ArrayOrContainer:
+        if isinstance(x1, CSRMatrix):
+            assert isinstance(x1.elem_values, np.ndarray)
+            assert isinstance(x1.elem_col_indices, np.ndarray)
+            assert isinstance(x1.row_starts, np.ndarray)
+
+            try:
+                from scipy.sparse import csr_matrix
+            except ImportError as exc:
+                raise ImportError(
+                    "sparse_matmul requires SciPy, which is not installed. "
+                    "Install the 'arraycontext[sparse]' extra to enable sparse "
+                    "matrix support.") from exc
+
+            np_matrix = csr_matrix(
+                (x1.elem_values, x1.elem_col_indices, x1.row_starts),
+                shape=x1.shape)
+
+            def _matmul(ary: ArrayOrScalar) -> ArrayOrScalar:
+                assert isinstance(ary, np.ndarray)
+                return cast("ArrayOrScalar", cast("object", np_matrix @ ary))
+
+            return cast("ArrayOrContainer", rec_map_container(_matmul, x2))
+
+        else:
+            raise TypeError(f"unrecognized sparse matrix type '{type(x1).__name__}'")
 
     @property
     def permits_inplace_modification(self):
