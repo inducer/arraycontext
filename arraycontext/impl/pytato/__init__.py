@@ -52,7 +52,6 @@ THE SOFTWARE.
 """
 
 import abc
-import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -97,9 +96,6 @@ if TYPE_CHECKING:
     from loopy import TranslationUnit
 
     from arraycontext.container import SerializationKey
-
-if getattr(sys, "_BUILDING_SPHINX_DOCS", False):
-    pass
 
 import logging
 
