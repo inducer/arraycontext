@@ -19,6 +19,7 @@ a.out
 
 .cache
 .pytest_cache
+.venv
 
 test/nodal-dg
 
