@@ -162,6 +162,7 @@ exclude = [
     ".conda-root",
     "build",
     ".env",
+    ".venv",
 ]
 
 [[tool.basedpyright.executionEnvironments]]
@@ -193,4 +194,3 @@ reportMissingTypeArgument = "hint"
 reportPrivateUsage = "none"
 reportMissingTypeStubs = "hint"
 reportAny = "hint"
-
