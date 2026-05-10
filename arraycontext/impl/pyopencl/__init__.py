@@ -37,6 +37,8 @@ from warnings import warn
 import numpy as np
 from typing_extensions import Self, override
 
+from pytools import memoize_method
+
 from arraycontext.container.traversal import (
     rec_map_array_container,
     rec_map_container,
@@ -62,7 +64,7 @@ from arraycontext.typing import (
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
-    from numpy.typing import NDArray
+    from numpy.typing import DTypeLike, NDArray
 
     import loopy as lp
     import pyopencl as cl
@@ -263,12 +265,54 @@ class PyOpenCLArrayContext(ArrayContext):
     def to_numpy(self, array: ContainerOrScalarT) -> ContainerOrScalarT:
         ...
 
+    @memoize_method
+    def _get_to_numpy_noncontiguous_copy_kernel(
+        self, dtype: DTypeLike, ndim: int
+    ) -> lp.TranslationUnit:
+        """
+        Returns a translation unit containing a loopy kernel that:
+
+        - Accepts a PyOpenCL array ``inp`` with per-axis strides exposed as
+          ``s0, s1, ..., s{ndim-1}``.
+        - Produces a contiguous, row-major (C-order) output array ``output`` of
+          the same shape, with elements copied from the corresponding
+          coordinates in ``input``.
+        """
+
+        import loopy as lp
+
+        from arraycontext.loopy import _DEFAULT_LOOPY_OPTIONS
+
+        t_unit = lp.make_copy_kernel(
+            ["c"] * ndim, [f"stride:s{i}" for i in range(ndim)]
+        )
+        t_unit = lp.add_dtypes(t_unit, {"input": dtype})
+        new_args = [
+            *t_unit.default_entrypoint.args,
+            *[lp.ValueArg(f"s{i}", dtype=np.uint64) for i in range(ndim)],
+        ]
+        t_unit = t_unit.with_kernel(t_unit.default_entrypoint.copy(args=new_args))
+        t_unit = lp.set_options(t_unit, _DEFAULT_LOOPY_OPTIONS)
+        return t_unit
+
     @override
     def to_numpy(self,
                  array: ArrayOrContainerOrScalar
                  ) -> NumpyOrContainerOrScalar:
         def _to_numpy(ary):
-            return ary.get(queue=self.queue)
+            if ary.flags.forc:
+                # pyopencl supports host transfers only for contiguous arrays.
+                return ary.get(queue=self.queue)
+
+            result = self.call_loopy(
+                self._get_to_numpy_noncontiguous_copy_kernel(ary.dtype, ary.ndim),
+                input=ary,
+                **{
+                    f"s{i}": stride // ary.dtype.itemsize
+                    for i, stride in enumerate(ary.strides)
+                },
+            )["output"]
+            return result.get(queue=self.queue)
 
         return with_array_context(
             self._rec_map_container(_to_numpy, array),
