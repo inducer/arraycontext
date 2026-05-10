@@ -1659,6 +1659,25 @@ def test_linspace(actx_factory: ArrayContextFactory, args, kwargs):
     assert np.allclose(actx_linspace, np_linspace)
 
 
+# {{{ test_to_numpy_transpose
+
+def test_to_numpy_transpose(actx_factory: ArrayContextFactory):
+    # fails prior to <https://github.com/inducer/arraycontext/pull/357> for
+    # pyopencl actx -- cl_array.Array.transpose generates non-contiguous
+    # arrays requiring non-trivial logic for to host copies.
+    actx = actx_factory()
+    rng = np.random.default_rng()
+    np_ary = rng.random((256, 256, 256))
+    ary = actx.from_numpy(np_ary)
+    axis_perm = (0, 2, 1)
+
+    np.testing.assert_allclose(
+        actx.to_numpy(actx.np.transpose(ary, axis_perm)),
+        np.transpose(np_ary, axis_perm))
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
