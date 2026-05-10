@@ -460,9 +460,39 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     # {{{ sorting, searching, and counting
 
     def where(self, criterion, then, else_):
-        def where_inner(inner_crit, inner_then, inner_else):
+
+        def where_inner(
+            inner_crit: ArrayOrScalar,
+            inner_then: ArrayOrScalar,
+            inner_else: ArrayOrScalar,
+        ) -> ArrayOrScalar:
             if isinstance(inner_crit, bool | np.bool_):
                 return inner_then if inner_crit else inner_else
+
+            # pyopencl's if_positive does not support then, else branches with
+            # unequal dtypes -> cast them to a common dtype.
+            inner_then_dtype = (
+                inner_then.dtype
+                if isinstance(inner_then, cl_array.Array)
+                else np.dtype(type(inner_then))
+            )
+            inner_else_dtype = (
+                inner_else.dtype
+                if isinstance(inner_else, cl_array.Array)
+                else np.dtype(type(inner_else))
+            )
+            dtype = np.promote_types(inner_then_dtype, inner_else_dtype)
+            inner_then = (
+                inner_then.astype(dtype)
+                if isinstance(inner_then, cl_array.Array)
+                else dtype.type(inner_then)
+            )
+            inner_else = (
+                inner_else.astype(dtype)
+                if isinstance(inner_else, cl_array.Array)
+                else dtype.type(inner_else)
+            )
+
             return cl_array.if_positive(inner_crit != 0, inner_then, inner_else,
                     queue=self._array_context.queue)
 
