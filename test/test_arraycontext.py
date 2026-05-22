@@ -55,6 +55,7 @@ from arraycontext.pytest import (
     _PytestNumpyArrayContextFactory,
     _PytestPyOpenCLArrayContextFactoryWithClass,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestPytatoParallelPyOpenCLArrayContextFactory,
     _PytestPytatoPyOpenCLArrayContextFactory,
 )
 from testlib import DOFArray, MyContainer, MyContainerDOFBcast, Velocity2D
@@ -111,6 +112,7 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts([
     _PytatoPyOpenCLArrayContextForTestsFactory,
     _PytestEagerJaxArrayContextFactory,
     _PytestPytatoJaxArrayContextFactory,
+    _PytestPytatoParallelPyOpenCLArrayContextFactory,
     _PytestNumpyArrayContextFactory,
     ])
 
@@ -1644,12 +1646,14 @@ def test_compile_anonymous_function(actx_factory: ArrayContextFactory):
             ((1, 5, 20), {"dtype": np.int32}),
             ])
 def test_linspace(actx_factory: ArrayContextFactory, args, kwargs):
-    if "Jax" in actx_factory.__class__.__name__:
+    actx_name = actx_factory.__class__.__name__
+    if "Jax" in actx_name:
         pytest.xfail("jax actx does not have arange")
-    if ("PytatoPyOpenCL" in actx_factory.__class__.__name__
+    if (
+            "Pytato" in actx_name and "PyOpenCL" in actx_name
             and kwargs.get("dtype")
             and np.dtype(kwargs["dtype"]).kind == "i"):
-        pytest.xfail("jax pyopencl actx can't cast float to int")
+        pytest.xfail("pyopencl actx can't cast float to int")
 
     actx = actx_factory()
 

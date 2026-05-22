@@ -80,7 +80,11 @@ from .context import (
 from .impl.jax import EagerJAXArrayContext
 from .impl.numpy import NumpyArrayContext
 from .impl.pyopencl import PyOpenCLArrayContext
-from .impl.pytato import PytatoJAXArrayContext, PytatoPyOpenCLArrayContext
+from .impl.pytato import (
+    PytatoJAXArrayContext,
+    PytatoParallelPyOpenCLArrayContext,
+    PytatoPyOpenCLArrayContext,
+)
 from .loopy import make_loopy_program
 from .pytest import (
     PytestArrayContextFactory,
@@ -140,6 +144,7 @@ __all__ = (
     "NumpyArrayContext",
     "PyOpenCLArrayContext",
     "PytatoJAXArrayContext",
+    "PytatoParallelPyOpenCLArrayContext",
     "PytatoPyOpenCLArrayContext",
     "PytestArrayContextFactory",
     "PytestPyOpenCLArrayContextFactory",
