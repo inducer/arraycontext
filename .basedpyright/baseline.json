@@ -9266,6 +9266,16 @@
                 }
             }
         ],
+        "./arraycontext/impl/pytato/parallelize.py": [
+            {
+                "code": "reportUnknownVariableType",
+                "range": {
+                    "startColumn": 51,
+                    "endColumn": 79,
+                    "lineCount": 1
+                }
+            }
+        ],
         "./arraycontext/loopy.py": [
             {
                 "code": "reportUnknownMemberType",
