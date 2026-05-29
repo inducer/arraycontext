@@ -105,8 +105,6 @@ if TYPE_CHECKING:
 
     from numpy.typing import DTypeLike
 
-    from pymbolic.typing import Integer
-
 
 # deprecated, use ScalarLike instead
 Scalar: TypeAlias = _Scalar
