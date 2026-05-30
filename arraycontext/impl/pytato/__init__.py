@@ -141,6 +141,32 @@ class _NotOnlyDataWrappers(Exception):  # noqa: N818
     pass
 
 
+class _PaddedAllocator:
+    """Wraps a :mod:`pyopencl` allocator to over-allocate every buffer.
+
+    This works around a bug in the Intel CPU OpenCL runtime: it executes the
+    over-provisioned tail work-items of a partial work-group (those masked off
+    by the kernel's bounds guard) and still commits their global stores, writing
+    past the end of the output buffer and corrupting the host heap. The extra
+    padding gives those stray stores valid memory to land in. Buffers are
+    returned at least as large as requested, so results are unaffected.
+
+    The overrun is a fraction of the data extent, so padding by the requested
+    size covers it; a fixed floor handles buffers small enough that their
+    overrun exceeds their own size. This is a heuristic shield for a runtime
+    bug, not a provably tight bound.
+    """
+
+    def __init__(
+            self, allocator: cl_array.Allocator, *,
+            min_pad_bytes: int = 1 << 16) -> None:
+        self._allocator: cl_array.Allocator = allocator
+        self._min_pad_bytes: int = min_pad_bytes
+
+    def __call__(self, nbytes: int):
+        return self._allocator(nbytes + max(nbytes, self._min_pad_bytes))
+
+
 # {{{ _BasePytatoArrayContext
 
 class _BasePytatoArrayContext(ArrayContext, abc.ABC):
@@ -379,8 +405,25 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
         self.using_svm = None
 
         if allocator is None:
+            import pyopencl as cl
             from pyopencl.characterize import has_coarse_grain_buffer_svm
             has_svm = has_coarse_grain_buffer_svm(queue.device)
+
+            dev = queue.device
+            is_intel_cpu_cl = bool(
+                dev.type & cl.device_type.CPU
+                and "intel" in dev.platform.name.lower())
+
+            if has_svm and is_intel_cpu_cl:
+                # The Intel CPU OpenCL runtime writes past the end of output
+                # buffers (see the padding below), so we over-allocate to absorb
+                # those stray stores. That padding is incompatible with SVM:
+                # pyopencl's enqueue_svm_memcpy requires the source and
+                # destination sizes to match, so an over-allocated SVM array
+                # fails to transfer. Use buffer allocation, which tolerates an
+                # oversized backing buffer, instead.
+                has_svm = False
+
             if has_svm:
                 self.using_svm = True
 
@@ -399,6 +442,13 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                 if use_memory_pool:
                     from pyopencl.tools import MemoryPool
                     allocator = MemoryPool(allocator)
+
+            if is_intel_cpu_cl:
+                # The Intel CPU OpenCL runtime writes past the end of the output
+                # buffer when executing the over-provisioned tail of a partial
+                # work-group, corrupting the host heap. Pad allocations so those
+                # stray stores land in valid memory.
+                allocator = _PaddedAllocator(allocator)
         else:
             # Check whether the passed allocator allocates SVM
             try:

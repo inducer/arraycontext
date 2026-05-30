@@ -213,7 +213,15 @@ def test_pytato_actx_allocator(actx_factory: ArrayContextFactory, pass_allocator
                         allocator=alloc, use_memory_pool=use_memory_pool)
 
             from pyopencl.tools import ImmediateAllocator, MemoryPool
-            assert isinstance(actx.allocator,
+
+            from arraycontext.impl.pytato import _PaddedAllocator
+            alloc_to_check = actx.allocator
+            if isinstance(alloc_to_check, _PaddedAllocator):
+                # On the Intel CPU runtime the actx wraps its allocator to pad
+                # buffers (working around an out-of-bounds runtime store); check
+                # the wrapped allocator's type.
+                alloc_to_check = alloc_to_check._allocator
+            assert isinstance(alloc_to_check,
                               MemoryPool if use_memory_pool else ImmediateAllocator)
 
             f = actx.compile(twice)
@@ -395,6 +403,26 @@ def test_profiling_actx():
         actx2._enable_profiling(True)
 
 
+def _auto_test_vs_ref(
+        ref_t_unit: lp.TranslationUnit, cl_ctx: cl.Context,
+        t_unit: lp.TranslationUnit):
+    from pyopencl.tools import ImmediateAllocator
+
+    queue = cl.CommandQueue(cl_ctx)
+    allocator = ImmediateAllocator(queue)
+
+    # The Intel CPU OpenCL runtime writes out of bounds past kernel output
+    # buffers when executing partial work-groups, corrupting the host heap.
+    # auto_test_vs_ref allocates its own buffers, so on that runtime pad them
+    # (via _PaddedAllocator) so the stray stores land in valid memory.
+    dev = cl_ctx.devices[0]
+    if dev.type & cl.device_type.CPU and "intel" in dev.platform.name.lower():
+        from arraycontext.impl.pytato import _PaddedAllocator
+        allocator = _PaddedAllocator(allocator)
+
+    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit, allocator=allocator)
+
+
 def test_parallelize_disjoint_loop_sets_scalar():
     from loopy.kernel.data import GroupInameTag, LocalInameTag
 
@@ -482,7 +510,7 @@ def test_parallelize_disjoint_loop_sets_single_non_redn_iname():
         == {GroupInameTag(0)}
     assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
 
-    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 def test_parallelize_disjoint_loop_sets_multiple_non_redn_inames():
@@ -522,7 +550,7 @@ def test_parallelize_disjoint_loop_sets_multiple_non_redn_inames():
         == {LocalInameTag(0)}
     assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
 
-    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 def test_parallelize_disjoint_loop_sets_only_redn_iname():
@@ -561,7 +589,7 @@ def test_parallelize_disjoint_loop_sets_only_redn_iname():
         == {GroupInameTag(0)}
     assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
 
-    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 def test_parallelize_disjoint_loop_sets_mixed():
@@ -599,7 +627,7 @@ def test_parallelize_disjoint_loop_sets_mixed():
         == {LocalInameTag(0)}
     assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
 
-    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 def test_parallelize_disjoint_loop_sets_multiple_independent_loop_sets():
@@ -663,7 +691,7 @@ def test_parallelize_disjoint_loop_sets_multiple_independent_loop_sets():
                  and insn.synchronization_kind == "global"]
     assert len(gbarriers) == 1
 
-    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 def test_parallelize_disjoint_loop_sets_multiple_dependent_loop_sets():
@@ -731,7 +759,7 @@ def test_parallelize_disjoint_loop_sets_multiple_dependent_loop_sets():
     assert gbarrier.id in knl.id_to_insn["loopset2insn1"].depends_on
     assert gbarrier.id in knl.id_to_insn["loopset2insn2"].depends_on
 
-    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 def test_alias_global_temporaries():
@@ -787,7 +815,7 @@ def test_alias_global_temporaries():
     assert base_storages["tmp2"] != base_storages["tmp1"]
     assert len(set(base_storages.values())) == 2
 
-    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 if __name__ == "__main__":
