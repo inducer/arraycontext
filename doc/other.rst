@@ -10,6 +10,11 @@ Metadata ("tags") for Arrays and Array Axes
 
 .. automodule:: arraycontext.metadata
 
+Linear system solving
+---------------------
+
+.. automodule:: arraycontext.linalg.solve
+
 :class:`~arraycontext.ArrayContext`-generating fixture for :mod:`pytest`
 ------------------------------------------------------------------------
 
