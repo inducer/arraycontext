@@ -45,6 +45,7 @@ nitpick_ignore_regex = [
     ["py:class", r"arraycontext.typing._UserDefinedArithArrayContainer"],
     ["py:class", r"np.integer"],
     ["py:class", r".*\|.*"],
+    ["py:data", r"types.EllipsisType"],
     ]
 
 sphinxconfig_missing_reference_aliases = {
