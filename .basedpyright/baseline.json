@@ -1140,14 +1140,6 @@
                     "endColumn": 41,
                     "lineCount": 1
                 }
-            },
-            {
-                "code": "reportUnknownVariableType",
-                "range": {
-                    "startColumn": 15,
-                    "endColumn": 59,
-                    "lineCount": 1
-                }
             }
         ],
         "./arraycontext/impl/jax/__init__.py": [
@@ -2550,6 +2542,78 @@
         ],
         "./arraycontext/impl/numpy/fake_numpy.py": [
             {
+                "code": "reportCallIssue",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 48,
+                    "lineCount": 4
+                }
+            },
+            {
+                "code": "reportUnknownVariableType",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 48,
+                    "lineCount": 4
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 51,
+                    "endColumn": 71,
+                    "lineCount": 3
+                }
+            },
+            {
+                "code": "reportCallIssue",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 76,
+                    "lineCount": 2
+                }
+            },
+            {
+                "code": "reportUnknownVariableType",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 76,
+                    "lineCount": 2
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 45,
+                    "endColumn": 72,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportCallIssue",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 76,
+                    "lineCount": 2
+                }
+            },
+            {
+                "code": "reportUnknownVariableType",
+                "range": {
+                    "startColumn": 15,
+                    "endColumn": 76,
+                    "lineCount": 2
+                }
+            },
+            {
+                "code": "reportArgumentType",
+                "range": {
+                    "startColumn": 45,
+                    "endColumn": 72,
+                    "lineCount": 1
+                }
+            },
+            {
                 "code": "reportAny",
                 "range": {
                     "startColumn": 8,
@@ -3002,14 +3066,6 @@
                 "range": {
                     "startColumn": 23,
                     "endColumn": 32,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportUnknownMemberType",
-                "range": {
-                    "startColumn": 19,
-                    "endColumn": 40,
                     "lineCount": 1
                 }
             },
