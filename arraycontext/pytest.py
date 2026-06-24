@@ -196,6 +196,14 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
                 f"on '{self.device.platform.name.strip()}'>>")
 
 
+class _PytestPytatoParallelPyOpenCLArrayContextFactory(
+        _PytestPytatoPyOpenCLArrayContextFactory):
+    @property
+    def actx_class(self):
+        from arraycontext.impl.pytato import PytatoParallelPyOpenCLArrayContext
+        return PytatoParallelPyOpenCLArrayContext
+
+
 class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
     def __init__(self, *args, **kwargs) -> None:
         pass
@@ -274,6 +282,7 @@ _ARRAY_CONTEXT_FACTORY_REGISTRY: dict[str, type[PytestArrayContextFactory]] = {
     "pyopencl": _PytestPyOpenCLArrayContextFactoryWithClass,
     "pytato:pyopencl": _PytestPytatoPyOpenCLArrayContextFactory,
     "pytato:jax": _PytestPytatoJaxArrayContextFactory,
+    "pytato:parallel_pyopencl": _PytestPytatoParallelPyOpenCLArrayContextFactory,
     "eagerjax": _PytestEagerJaxArrayContextFactory,
     "numpy": _PytestNumpyArrayContextFactory,
     }

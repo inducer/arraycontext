@@ -23,6 +23,7 @@ References
 
 __copyright__ = """
 Copyright (C) 2021 University of Illinois Board of Trustees
+Copyright (C) 2022-3 Kaushik Kulkarni
 """
 
 __license__ = """
@@ -51,12 +52,15 @@ from typing import TYPE_CHECKING, cast
 from typing_extensions import override
 
 import pytools
+from pymbolic.mapper.optimize import optimize_mapper
 from pytato.analysis import get_num_call_sites
 from pytato.array import (
     Array,
     Axis as PtAxis,
     DataInterface,
     DataWrapper,
+    Einsum,
+    IndexLambda,
     Placeholder,
     SizeParam,
     make_placeholder,
@@ -65,6 +69,7 @@ from pytato.target.loopy import LoopyPyOpenCLTarget
 from pytato.transform import (
     ArrayOrNames,
     ArrayOrNamesTc,
+    CachedWalkMapper,
     CopyMapper,
     TransformMapperCache,
     deduplicate,
@@ -338,5 +343,77 @@ def _ary_container_key_stringifier(keys: tuple[SerializationKey, ...]) -> str:
     return "_".join(_rec_str(key) for key in keys)
 
 # }}}
+
+
+# {{{ EinsumInputOutputCollector
+
+@optimize_mapper(drop_args=True, drop_kwargs=True, inline_get_cache_key=True)
+class EinsumInputOutputCollector(CachedWalkMapper[[]]):
+    """
+    .. note::
+
+        We deliberately avoid using :class:`pytato.transform.CombineMapper` since
+        the mapper's caching structure would still lead to recomputing
+        the union of sets for the results of a revisited node.
+    """
+    def __init__(self) -> None:
+        self.collected_outputs: set[Array] = set()
+        self.collected_inputs: set[Array] = set()
+        super().__init__()
+
+    @override
+    def get_cache_key(self, expr: ArrayOrNames) -> ArrayOrNames:
+        return expr
+
+    @override
+    def post_visit(self, expr: ArrayOrNames | FunctionDefinition) -> None:
+        if isinstance(expr, Einsum):
+            self.collected_outputs.add(expr)
+            self.collected_inputs.update(expr.args)
+
+
+def get_inputs_and_outputs_of_einsum(
+        expr: AbstractResultWithNamedArrays
+        ) -> tuple[frozenset[Array], frozenset[Array]]:
+    mapper = EinsumInputOutputCollector()
+    mapper(expr)
+    return frozenset(mapper.collected_inputs), frozenset(mapper.collected_outputs)
+
+# }}}
+
+
+# {{{ ReductionInputOutputCollector
+
+class ReductionInputOutputCollector(CachedWalkMapper[[]]):
+    """
+    .. note::
+        We deliberately avoid using :class:`pytato.transform.CombineMapper` since
+        the mapper's caching structure would still lead to recomputing
+        the union of sets for the results of a revisited node.
+    """
+    def __init__(self) -> None:
+        self.collected_outputs: set[Array] = set()
+        self.collected_inputs: set[Array] = set()
+        super().__init__()
+
+    @override
+    def get_cache_key(self, expr: ArrayOrNames) -> ArrayOrNames:
+        return expr
+
+    def post_visit(self, expr: ArrayOrNames | FunctionDefinition) -> None:
+        if isinstance(expr, IndexLambda) and expr.var_to_reduction_descr:
+            self.collected_outputs.add(expr)
+            self.collected_inputs.update(expr.bindings.values())
+
+
+def get_inputs_and_outputs_of_reduction_nodes(
+        expr: AbstractResultWithNamedArrays
+        ) -> tuple[frozenset[Array], frozenset[Array]]:
+    mapper = ReductionInputOutputCollector()
+    mapper(expr)
+    return frozenset(mapper.collected_inputs), frozenset(mapper.collected_outputs)
+
+# }}}
+
 
 # vim: foldmethod=marker

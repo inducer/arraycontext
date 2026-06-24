@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 import pytest
 
+import loopy as lp
+import pyopencl as cl
 import pytato as pt
 from pytools.tag import Tag
 
@@ -211,7 +213,15 @@ def test_pytato_actx_allocator(actx_factory: ArrayContextFactory, pass_allocator
                         allocator=alloc, use_memory_pool=use_memory_pool)
 
             from pyopencl.tools import ImmediateAllocator, MemoryPool
-            assert isinstance(actx.allocator,
+
+            from arraycontext.impl.pytato import _PaddedAllocator
+            alloc_to_check = actx.allocator
+            if isinstance(alloc_to_check, _PaddedAllocator):
+                # On the Intel CPU runtime the actx wraps its allocator to pad
+                # buffers (working around an out-of-bounds runtime store); check
+                # the wrapped allocator's type.
+                alloc_to_check = alloc_to_check._allocator
+            assert isinstance(alloc_to_check,
                               MemoryPool if use_memory_pool else ImmediateAllocator)
 
             f = actx.compile(twice)
@@ -282,10 +292,6 @@ def test_pass_args_compiled_func(
             actx_factory: Callable[[], PytatoPyOpenCLArrayContext]):
     import numpy as np
 
-    import loopy as lp
-    import pyopencl as cl
-    import pyopencl.array
-
     def twice(x, y, a):
         return 2 * x * y * a
 
@@ -306,7 +312,6 @@ def test_pass_args_compiled_func(
 
 
 def test_profiling_actx():
-    import pyopencl as cl
     cl_ctx = cl.create_some_context()
     queue = cl.CommandQueue(cl_ctx,
                             properties=cl.command_queue_properties.PROFILING_ENABLE)
@@ -396,6 +401,421 @@ def test_profiling_actx():
 
     with pytest.raises(RuntimeError):
         actx2._enable_profiling(True)
+
+
+def _auto_test_vs_ref(
+        ref_t_unit: lp.TranslationUnit, cl_ctx: cl.Context,
+        t_unit: lp.TranslationUnit):
+    from pyopencl.tools import ImmediateAllocator
+
+    queue = cl.CommandQueue(cl_ctx)
+    allocator = ImmediateAllocator(queue)
+
+    # The Intel CPU OpenCL runtime writes out of bounds past kernel output
+    # buffers when executing partial work-groups, corrupting the host heap.
+    # auto_test_vs_ref allocates its own buffers, so on that runtime pad them
+    # (via _PaddedAllocator) so the stray stores land in valid memory.
+    dev = cl_ctx.devices[0]
+    if dev.type & cl.device_type.CPU and "intel" in dev.platform.name.lower():
+        from arraycontext.impl.pytato import _PaddedAllocator
+        allocator = _PaddedAllocator(allocator)
+
+    lp.auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit, allocator=allocator)
+
+
+def test_parallelize_disjoint_loop_sets_scalar():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    # Scalars only, nothing to parallelize
+    t_unit = lp.make_kernel(
+            "{:}",
+            "out = a + 1",
+            [
+                lp.GlobalArg("a,out", np.float32, shape=()),
+                ...,
+            ])
+
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    all_tags = {tag for iname in knl.all_inames()
+                for tag in knl.iname_tags(iname)}
+    assert not any(isinstance(t, (GroupInameTag, LocalInameTag)) for t in all_tags)
+
+
+def test_parallelize_disjoint_loop_sets_no_outer_inames():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    # No outer inames, nothing to parallelize
+    t_unit = lp.make_kernel(
+            "{[i, j]: 0<=i,j<n}",
+            """
+            a[i] = 1
+            b[i, j] = 2
+            c[j] = 3
+            """,
+            [
+                lp.GlobalArg("a,b,c", np.float32, shape=lp.auto),
+                ...,
+            ],
+            assumptions="n>0")
+
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    all_tags = {tag for iname in knl.all_inames()
+                for tag in knl.iname_tags(iname)}
+    assert not any(isinstance(t, (GroupInameTag, LocalInameTag)) for t in all_tags)
+
+
+def test_parallelize_disjoint_loop_sets_single_non_redn_iname():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    cl_ctx = cl.create_some_context()
+
+    n_par = 345
+    n_inner = 5
+
+    # Single non-reduction outer iname (i)
+    t_unit = lp.make_kernel(
+            f"{{[i, k]: 0<=i<{n_par} and 0<=k<{n_inner}}}",
+            """
+            out1[i] = 2*a[i]
+            out2[i, k] = b[i, k] + a[i]
+            """,
+            [
+                lp.GlobalArg("a,out1", np.float32, shape=(n_par,)),
+                lp.GlobalArg("b,out2", np.float32, shape=(n_par, n_inner)),
+            ])
+
+    ref_t_unit = t_unit
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    assert knl.iname_tags_of_type("i_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("i_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
+
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+
+
+def test_parallelize_disjoint_loop_sets_multiple_non_redn_inames():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    cl_ctx = cl.create_some_context()
+
+    n_par = 345
+    n_inner = 5
+
+    # Multiple non-reduction outer inames ({i, j})
+    t_unit = lp.make_kernel(
+            f"{{[i, j, k]: 0<=i,j<{n_par} and 0<=k<{n_inner}}}",
+            """
+            out1[i, j] = 2*a[i, j]
+            out2[i, j, k] = b[i, j, k] + c[k]
+            """,
+            [
+                lp.GlobalArg("a,out1", np.float32, shape=(n_par, n_par)),
+                lp.GlobalArg("b,out2", np.float32, shape=(n_par, n_par, n_inner)),
+                lp.GlobalArg("c", np.float32, shape=(n_inner,)),
+            ])
+
+    ref_t_unit = t_unit
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    assert knl.iname_tags_of_type("i_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("i_local_one", LocalInameTag) \
+        == {LocalInameTag(1)}
+    assert knl.iname_tags_of_type("j_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
+
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+
+
+def test_parallelize_disjoint_loop_sets_only_redn_iname():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    cl_ctx = cl.create_some_context()
+
+    n_par = 345
+    n_inner = 5
+
+    # Reduction outer iname(s) only (doesn't matter if there's one or multiple, only
+    # one gets parallelized)
+    t_unit = lp.make_kernel(
+            f"{{[i, k]: 0<=i<{n_par} and 0<=k<{n_inner}}}",
+            """
+            out1 = sum(i, a[i])
+            out2 = sum(i, sum(k, b[i, k]))
+            """,
+            [
+                lp.GlobalArg("a", np.float32, shape=(n_par,)),
+                lp.GlobalArg("b", np.float32, shape=(n_par, n_inner)),
+                lp.GlobalArg("out1,out2", np.float32, shape=()),
+            ])
+
+    ref_t_unit = t_unit
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    assert knl.iname_tags_of_type("i_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("iprcmpt_i_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
+
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+
+
+def test_parallelize_disjoint_loop_sets_mixed():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    cl_ctx = cl.create_some_context()
+
+    n_par = 345
+    n_inner = 5
+
+    # Two outer inames: one non-reduction (i), one reduction (j)
+    t_unit = lp.make_kernel(
+            f"{{[i, j, k]: 0<=i,j<{n_par} and 0<=k<{n_inner}}}",
+            """
+            out1[i] = sum(j, a[i, j])
+            out2[i] = sum(j, sum(k, b[i, j, k]))
+            """,
+            [
+                lp.GlobalArg("a", np.float32, shape=(n_par, n_par)),
+                lp.GlobalArg("b", np.float32, shape=(n_par, n_par, n_inner)),
+                lp.GlobalArg("out1,out2", np.float32, shape=(n_par,)),
+            ])
+
+    ref_t_unit = t_unit
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    assert knl.iname_tags_of_type("i_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("j_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("k", (GroupInameTag, LocalInameTag)) == set()
+
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+
+
+def test_parallelize_disjoint_loop_sets_multiple_independent_loop_sets():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    cl_ctx = cl.create_some_context()
+
+    n_par = 345
+    n_inner = 5
+
+    # Two independent parallelizable disjoint loop sets ({i, j} and {k, l})
+    t_unit = lp.make_kernel(
+            f"{{[i, j, k, l, m, p]:"
+            f" 0<=i,j,k,l<{n_par} and 0<=m,p<{n_inner}}}",
+            """
+            out1[i, j] = 2*a[i, j]
+            out2[i, j, m] = b[i, j, m] + c[m]
+            out3[k] = sum(l, d[k, l])
+            out4[k] = sum(l, sum(p, e[k, l, p]))
+            """,
+            [
+                lp.GlobalArg("a,out1", np.float32, shape=(n_par, n_par)),
+                lp.GlobalArg(
+                    "b,out2", np.float32, shape=(n_par, n_par, n_inner)),
+                lp.GlobalArg("c", np.float32, shape=(n_inner,)),
+                lp.GlobalArg("d", np.float32, shape=(n_par, n_par)),
+                lp.GlobalArg("e", np.float32, shape=(n_par, n_par, n_inner)),
+                lp.GlobalArg("out3,out4", np.float32, shape=(n_par,)),
+            ])
+
+    ref_t_unit = t_unit
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    assert knl.iname_tags_of_type("i_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("i_local_one", LocalInameTag) \
+        == {LocalInameTag(1)}
+    assert knl.iname_tags_of_type("j_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("m", (GroupInameTag, LocalInameTag)) == set()
+    assert knl.iname_tags_of_type("k_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("l_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("p", (GroupInameTag, LocalInameTag)) == set()
+
+    # Currently, each loop set gets its own call kernel, because they get parallelized
+    # independently and the launch configurations may end up being different between
+    # them. When running at small scales (where the cost of computation is negligible
+    # compared to that of kernel launches), it may be worthwhile to be able to force
+    # all of the loop sets to be parallelized according to the same configuration so
+    # that they can be merged into a smaller total number of kernels. That's not
+    # implemented yet, so for now there's a barrier here.
+    gbarriers = [insn for insn in knl.instructions
+                 if isinstance(insn, lp.BarrierInstruction)
+                 and insn.synchronization_kind == "global"]
+    assert len(gbarriers) == 1
+
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+
+
+def test_parallelize_disjoint_loop_sets_multiple_dependent_loop_sets():
+    from loopy.kernel.data import GroupInameTag, LocalInameTag
+
+    from arraycontext.impl.pytato.parallelize import (
+        parallelize_disjoint_loop_sets,
+    )
+
+    cl_ctx = cl.create_some_context()
+
+    n_par = 345
+    n_inner = 5
+
+    # Two parallelizable disjoint loop sets ({i, j} and {k, l}), where the second
+    # depends on the first
+    t_unit = lp.make_kernel(
+            f"{{[i, j, k, l, m, p]:"
+            f" 0<=i,j,k,l<{n_par} and 0<=m,p<{n_inner}}}",
+            """
+            tmp1[i, j] = 2*a[i, j] {id=loopset1insn1}
+            tmp2[i, j, m] = b[i, j, m] + c[m] {id=loopset1insn2}
+            out1[k] = sum(l, tmp1[k, l]) {id=loopset2insn1}
+            out2[k] = sum(l, sum(p, tmp2[k, l, p])) {id=loopset2insn2}
+            """,
+            [
+                lp.GlobalArg("a", np.float32, shape=(n_par, n_par)),
+                lp.GlobalArg("b", np.float32, shape=(n_par, n_par, n_inner)),
+                lp.GlobalArg("c", np.float32, shape=(n_inner,)),
+                lp.GlobalArg("out1,out2", np.float32, shape=(n_par,)),
+                lp.TemporaryVariable(
+                    "tmp1", np.float32, shape=(n_par, n_par),
+                    address_space=lp.AddressSpace.GLOBAL),
+                lp.TemporaryVariable(
+                    "tmp2", np.float32, shape=(n_par, n_par, n_inner),
+                    address_space=lp.AddressSpace.GLOBAL),
+            ])
+
+    ref_t_unit = t_unit
+    t_unit = parallelize_disjoint_loop_sets(t_unit, max_device_compute_units=4)
+
+    knl = t_unit.default_entrypoint
+    assert knl.iname_tags_of_type("i_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("i_local_one", LocalInameTag) \
+        == {LocalInameTag(1)}
+    assert knl.iname_tags_of_type("j_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("m", (GroupInameTag, LocalInameTag)) == set()
+    assert knl.iname_tags_of_type("k_group", GroupInameTag) \
+        == {GroupInameTag(0)}
+    assert knl.iname_tags_of_type("l_local_zero", LocalInameTag) \
+        == {LocalInameTag(0)}
+    assert knl.iname_tags_of_type("p", (GroupInameTag, LocalInameTag)) == set()
+
+    # The second loop set depends on the first, so they execute in separate call
+    # kernels separated by a single barrier.
+    gbarriers = [insn for insn in knl.instructions
+                 if isinstance(insn, lp.BarrierInstruction)
+                 and insn.synchronization_kind == "global"]
+    assert len(gbarriers) == 1
+    gbarrier, = gbarriers
+    assert "loopset1insn1" in gbarrier.depends_on
+    assert "loopset1insn2" in gbarrier.depends_on
+    assert gbarrier.id in knl.id_to_insn["loopset2insn1"].depends_on
+    assert gbarrier.id in knl.id_to_insn["loopset2insn2"].depends_on
+
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
+
+
+def test_alias_global_temporaries():
+    from arraycontext.impl.pytato.parallelize import alias_global_temporaries
+
+    cl_ctx = cl.create_some_context()
+
+    n = 256
+
+    def global_temp(name: str):
+        return lp.TemporaryVariable(
+            name, np.float32, shape=(n,), address_space=lp.AddressSpace.GLOBAL)
+
+    # A chain of four call kernels (over i, j, k, l), separated by explicit
+    # global barriers, each consuming the global temporary produced by the
+    # previous one. The temporaries have these (call-kernel-indexed) live
+    # intervals:
+    #   tmp1: [0, 1], tmp2: [1, 2], tmp3: [2, 3]
+    # so tmp1 is dead by the time tmp3 is born and the two can share storage.
+    t_unit = lp.make_kernel(
+            f"{{[i, j, k, l]: 0<=i,j,k,l<{n}}}",
+            """
+            tmp1[i] = a[i] + 1
+            ... gbarrier
+            tmp2[j] = tmp1[j] * 2
+            ... gbarrier
+            tmp3[k] = tmp2[k] + 3
+            ... gbarrier
+            out[l]  = tmp3[l] * 4
+            """,
+            [
+                lp.GlobalArg("a,out", np.float32, shape=(n,)),
+                global_temp("tmp1"),
+                global_temp("tmp2"),
+                global_temp("tmp3"),
+            ],
+            seq_dependencies=True)
+
+    ref_t_unit = t_unit
+    t_unit = alias_global_temporaries(t_unit)
+
+    knl = t_unit.default_entrypoint
+    base_storages = {
+        name: knl.temporary_variables[name].base_storage
+        for name in ("tmp1", "tmp2", "tmp3")}
+
+    # Every global temporary should have been assigned a base storage.
+    assert all(bs is not None for bs in base_storages.values())
+
+    # tmp1 and tmp3 have disjoint live intervals (and equal size), so they share
+    # base storage; tmp2 is alive in between, so it must be distinct.
+    assert base_storages["tmp1"] == base_storages["tmp3"]
+    assert base_storages["tmp2"] != base_storages["tmp1"]
+    assert len(set(base_storages.values())) == 2
+
+    _auto_test_vs_ref(ref_t_unit, cl_ctx, t_unit)
 
 
 if __name__ == "__main__":
