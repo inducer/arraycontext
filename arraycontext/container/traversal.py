@@ -1095,8 +1095,9 @@ def flat_size_and_dtype(
         try:
             iterable = serialize_container(subary)
         except NotAnArrayContainerError:
-            assert not is_array_container(subary)
-            assert not is_scalar_like(subary)
+            if TYPE_CHECKING:
+                assert not is_array_container(subary)
+                assert not is_scalar_like(subary)
 
             if common_dtype is None:
                 common_dtype = subary.dtype
