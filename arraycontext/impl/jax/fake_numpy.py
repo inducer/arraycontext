@@ -123,7 +123,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
             if is_scalar_like(ary):
                 return ary
             else:
-                assert isinstance(ary, np.ndarray)
+                assert isinstance(ary, jnp.ndarray)
                 return cast("Array", cast("object", jnp.broadcast_to(ary, shape)))
 
         return rec_map_container(inner_bcast, array)
@@ -145,7 +145,7 @@ class EagerJAXFakeNumpyNamespace(BaseFakeNumpyNamespace):
         from arraycontext import rec_multimap_reduce_array_container
 
         def _rec_vdot(ary1, ary2):
-            common_dtype = np.result_type(ary1, ary2)
+            common_dtype = jnp.result_type(ary1, ary2)
             if dtype not in (None, common_dtype):
                 raise NotImplementedError(
                     f"{type(self).__name__} cannot take dtype in vdot.")
