@@ -676,7 +676,7 @@ def test_array_context_csr_matmul(actx_factory: ArrayContextFactory):
         momentum=obj_array.new_1d([x] * 3),
         enthalpy=x)
 
-    elem_values = actx.zeros((n//2,), dtype=np.float64) + 1.
+    elem_values = actx.np.zeros((n//2,), dtype=np.float64) + 1.
     elem_col_indices = actx.from_numpy(2*np.arange(n//2, dtype=np.int32))
     row_starts = actx.from_numpy(np.arange(n//2 + 1, dtype=np.int32))
 
