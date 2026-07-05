@@ -15,3 +15,5 @@ dependencies:
 - islpy
 - pip
 - jax
+# https://github.com/inducer/arraycontext/pull/366
+- jaxlib !=0.10.2

@@ -36,7 +36,8 @@ dependencies = [
 
 [project.optional-dependencies]
 jax = [
-    "jax>=0.4",
+    # https://github.com/inducer/arraycontext/pull/366
+    "jax>=0.4,!=0.10.2",
 ]
 pyopencl = [
     "islpy>=2024.1",
