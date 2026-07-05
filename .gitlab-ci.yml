@@ -71,7 +71,7 @@ Python 3 Conda:
     export EXTRA_INSTALL="scipy"
 
     # Avoid crashes like https://gitlab.tiker.net/inducer/arraycontext/-/jobs/536021
-    sed -i 's/jax/jax !=0.4.6/' .test-conda-env-py3.yml
+    sed -i '/^- jax$/s/$/ !=0.4.6/' .test-conda-env-py3.yml
 
     curl -L -O https://gitlab.tiker.net/inducer/ci-support/raw/main/build-and-test-py-project-within-miniconda.sh
     . ./build-and-test-py-project-within-miniconda.sh
