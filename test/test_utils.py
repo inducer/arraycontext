@@ -39,6 +39,7 @@ from typing import (  # noqa: UP035
 )
 
 import numpy as np
+import numpy.linalg as la
 import pytest
 
 
@@ -245,6 +246,35 @@ def test_stringify_array_container_tree() -> None:
         extent=1)
 
     logger.info("\n%s", stringify_array_container_tree(ary))
+
+# }}}
+
+
+# {{{ test_gmres
+
+def test_gmres():
+    rng = np.random.default_rng(seed=42)
+
+    n = 200
+    a = (
+            n * (np.eye(n) + 2j * np.eye(n))
+            + rng.normal(size=(n, n)) + 1j * rng.normal(size=(n, n)))
+
+    true_sol = rng.normal(size=n) + 1j * rng.normal(size=n)
+    b = np.dot(a, true_sol)
+
+    A_func = lambda x: np.dot(a, x)  # noqa
+    A_func.shape = a.shape
+    A_func.dtype = a.dtype
+
+    from arraycontext.linalg.solve import ResidualPrinter, gmres
+    tol = 1e-6
+    sol = gmres(A_func, b, callback=ResidualPrinter(),
+            maxiter=5*n, tol=tol,
+            inner_product=np.vdot,
+    ).solution
+
+    assert la.norm(true_sol - sol) / la.norm(sol) < tol
 
 # }}}
 
