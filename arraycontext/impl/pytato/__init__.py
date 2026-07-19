@@ -135,7 +135,7 @@ def _preprocess_array_tags(tags: ToTagSetConvertible) -> frozenset[Tag]:
 # }}}
 
 
-class _NotOnlyDataWrappers(Exception):  # noqa: N818
+class _NotOnlyDataWrappers(Exception):  # ruff:ignore[error-suffix-on-exception-name]
     pass
 
 
@@ -858,7 +858,7 @@ class PytatoPyOpenCLArrayContext(_BasePytatoArrayContext):
                     f"array type: got '{type(arg).__name__}', but expected one "
                     f"of {self.array_types}")
 
-            if name is not None:  # noqa: SIM102
+            if name is not None:  # ruff:ignore[collapsible-if]
                 # Tagging Placeholders with naming-related tags is pointless:
                 # They already have names. It's also counterproductive, as
                 # multiple placeholders with the same name that are not
@@ -1122,7 +1122,7 @@ class PytatoJAXArrayContext(_BasePytatoArrayContext):
                     f"array type: got '{type(arg).__name__}', but expected one "
                     f"of {self.array_types}")
 
-            if name is not None:  # noqa: SIM102
+            if name is not None:  # ruff:ignore[collapsible-if]
                 # Tagging Placeholders with naming-related tags is pointless:
                 # They already have names. It's also counterproductive, as
                 # multiple placeholders with the same name that are not

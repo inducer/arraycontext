@@ -55,7 +55,7 @@ from typing_extensions import override
 from pytools.obj_array import (
     ObjectArray,
     # for backward compatibility
-    ObjectArray as NumpyObjectArray,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    ObjectArray as NumpyObjectArray,  # ruff:ignore[unused-import]  # pyright: ignore[reportUnusedImport]
 )
 
 from arraycontext.container import (
@@ -740,7 +740,7 @@ def with_container_arithmetic(
         code = gen.get().rstrip()+"\n"
 
         result_dict = {"_MODULE_SOURCE_CODE": code, "cls": cls}
-        exec(compile(code, f"<container arithmetic for {cls.__name__}>", "exec"),  # noqa: S102
+        exec(compile(code, f"<container arithmetic for {cls.__name__}>", "exec"),  # ruff:ignore[exec-builtin]
                 result_dict)
 
         return cls

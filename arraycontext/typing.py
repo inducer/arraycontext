@@ -190,7 +190,7 @@ class Array(Protocol):
     def reshape(self, shape: tuple[int, ...], /, *, order: OrderCF = "C") -> Array: ...
 
     @property
-    def T(self) -> Array: ...  # noqa: N802
+    def T(self) -> Array: ...  # ruff:ignore[invalid-function-name]
 
     def transpose(self, axes: tuple[int, ...]) -> Array: ...
 

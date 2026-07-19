@@ -87,7 +87,7 @@ def _get_arg_id_to_arg(
                     pass
                 else:
                     assert isinstance(ary, pt.Array)
-                    arg_id = (kw, *keys)  # noqa: B023
+                    arg_id = (kw, *keys)  # ruff:ignore[function-uses-loop-variable]
                     arg_id_to_arg[arg_id] = ary
                 return ary
 

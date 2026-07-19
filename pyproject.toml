@@ -93,12 +93,12 @@ extend-select = [
 ]
 extend-ignore = [
     "C90",      # McCabe complexity
-    "E221",     # multiple spaces before operator
-    "E226",     # missing whitespace around arithmetic operator
-    "E402",     # module-level import not at top of file
-    "RUF067",   # non-empty-init-module
-    "TRY300",
-    "TRY004",
+    "multiple-spaces-before-operator",
+    "missing-whitespace-around-arithmetic-operator",
+    "module-import-not-at-top-of-file",
+    "non-empty-init-module",
+    "try-consider-else",
+    "type-check-without-type-error",
 ]
 
 [tool.ruff.lint.flake8-quotes]
@@ -124,11 +124,11 @@ lines-after-imports = 2
 required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
-"doc/conf.py" = ["I002", "S102"]
+"doc/conf.py" = ["missing-required-import", "exec-builtin"]
 # To avoid a requirement of array container definitions being someplace importable
 # from @dataclass_array_container.
-"test/test_utils.py" = ["I002"]
-"test/*.py" = ["S102"]
+"test/test_utils.py" = ["missing-required-import"]
+"test/*.py" = ["exec-builtin"]
 
 [tool.typos.default]
 extend-ignore-re = [
