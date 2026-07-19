@@ -27,7 +27,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from pytools.obj_array import ObjectArray1D  # noqa: TC001
+from pytools.obj_array import (
+    ObjectArray1D,  # ruff:ignore[typing-only-first-party-import]
+)
 
 from arraycontext import (
     ArrayContext,
@@ -37,7 +39,10 @@ from arraycontext import (
     with_array_context,
     with_container_arithmetic,
 )
-from arraycontext.typing import ArrayOrContainer, ScalarLike  # noqa: TC001
+from arraycontext.typing import (  # ruff:ignore[typing-only-first-party-import]
+    ArrayOrContainer,
+    ScalarLike,
+)
 
 
 # Containers live here, because in order for get_annotations to work, they must

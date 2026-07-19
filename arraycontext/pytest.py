@@ -78,7 +78,7 @@ class PytestPyOpenCLArrayContextFactory(PytestArrayContextFactory):
     @override
     def is_available(cls) -> bool:
         try:
-            import pyopencl  # noqa: F401 # pyright: ignore[reportUnusedImport]
+            import pyopencl  # ruff:ignore[unused-import] # pyright: ignore[reportUnusedImport]
         except ImportError:
             return False
         else:
@@ -154,8 +154,8 @@ class _PytestPytatoPyOpenCLArrayContextFactory(PytestPyOpenCLArrayContextFactory
     @override
     def is_available(cls) -> bool:
         try:
-            import pyopencl  # noqa: F401 # pyright: ignore[reportUnusedImport]
-            import pytato  # noqa: F401  # pyright: ignore[reportUnusedImport]
+            import pyopencl  # ruff:ignore[unused-import] # pyright: ignore[reportUnusedImport]
+            import pytato  # ruff:ignore[unused-import]  # pyright: ignore[reportUnusedImport]
         except ImportError:
             return False
         else:
@@ -204,7 +204,7 @@ class _PytestEagerJaxArrayContextFactory(PytestArrayContextFactory):
     @override
     def is_available(cls) -> bool:
         try:
-            import jax  # noqa: F401 # pyright: ignore[reportUnusedImport]
+            import jax  # ruff:ignore[unused-import] # pyright: ignore[reportUnusedImport]
         except ImportError:
             return False
         else:
@@ -232,8 +232,8 @@ class _PytestPytatoJaxArrayContextFactory(PytestArrayContextFactory):
     @override
     def is_available(cls) -> bool:
         try:
-            import jax  # noqa: F401 # pyright: ignore[reportUnusedImport]
-            import pytato  # noqa: F401 # pyright: ignore[reportUnusedImport]
+            import jax  # ruff:ignore[unused-import] # pyright: ignore[reportUnusedImport]
+            import pytato  # ruff:ignore[unused-import] # pyright: ignore[reportUnusedImport]
         except ImportError:
             return False
         else:

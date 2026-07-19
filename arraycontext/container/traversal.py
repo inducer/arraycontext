@@ -242,7 +242,7 @@ def _multimap_array_container_impl(
         except NotAnArrayContainerError:
             return f(*args_)
 
-        if __debug__:  # noqa: SIM102
+        if __debug__:  # ruff:ignore[collapsible-if]
             if not all(
                         type(args_[i]) is type(template_ary)
                         for i in container_indices[1:]
@@ -1039,7 +1039,7 @@ def unflatten(
 
             # {{{ check strides
 
-            if strict and hasattr(template_subary_c, "strides"):  # noqa: SIM102
+            if strict and hasattr(template_subary_c, "strides"):  # ruff:ignore[collapsible-if]
                 # Checking strides for 0 sized arrays is ill-defined
                 # since they cannot be indexed
                 if (

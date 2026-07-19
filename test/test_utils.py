@@ -31,7 +31,7 @@ THE SOFTWARE.
 # deprecated types are used.
 
 import logging
-from typing import (  # noqa: UP035
+from typing import (  # ruff:ignore[deprecated-import]
     ClassVar,
     Optional,  # pyright: ignore[reportDeprecated]
     Tuple,  # pyright: ignore[reportDeprecated]
@@ -72,7 +72,7 @@ def test_dataclass_array_container() -> None:
     class ArrayContainerWithOptional:
         x: np.ndarray
         # Deliberately left as Optional to test compatibility.
-        y: Optional[np.ndarray]  # noqa: UP045  # pyright: ignore[reportDeprecated]
+        y: Optional[np.ndarray]  # ruff:ignore[non-pep604-annotation-optional]  # pyright: ignore[reportDeprecated]
 
     with pytest.raises(TypeError, match=r"Field 'y':.*non-homogeneous.*"):
         # NOTE: cannot have wrapped annotations (here by `Optional`)
@@ -86,7 +86,7 @@ def test_dataclass_array_container() -> None:
     class ArrayContainerWithTuple:
         x: Array
         # Deliberately left as Tuple to test compatibility.
-        y: Tuple[Array, Array]  # noqa: UP006
+        y: Tuple[Array, Array]  # ruff:ignore[non-pep585-annotation]
 
     with pytest.raises(TypeError, match=r"Field 'y':.*has an element type.*"):
         dataclass_array_container(ArrayContainerWithTuple)
