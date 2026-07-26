@@ -641,8 +641,7 @@ def with_container_arithmetic(
                 if bcast_actx_array_type:
                     if __debug__:
                         bcast_actx_ary_types: tuple[str, ...] = (
-                            "*_raise_if_actx_none("
-                            "arg1.array_context).array_types",)
+                            "*_raise_if_actx_none(arg1.array_context).array_types",)
                     else:
                         bcast_actx_ary_types = (
                                 "*arg1.array_context.array_types",)
@@ -689,8 +688,7 @@ def with_container_arithmetic(
                 if bcast_actx_array_type:
                     if __debug__:
                         bcast_actx_ary_types = (
-                            "*_raise_if_actx_none("
-                            "arg2.array_context).array_types",)
+                            "*_raise_if_actx_none(arg2.array_context).array_types",)
                     else:
                         bcast_actx_ary_types = (
                                 "*arg2.array_context.array_types",)
