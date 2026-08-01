@@ -51,6 +51,14 @@ nitpick_ignore_regex = [
 sphinxconfig_missing_reference_aliases = {
     # pyopencl
     "cl.Device": "obj:pyopencl.Device",
+    "cl.Allocator": "obj:pyopencl.array.Allocator",
+    "np.ndarray": "obj:numpy.ndarray",
+    "ToTagSetConvertible": "obj:pytools.tag.ToTagSetConvertible",
+    "ArrayOrNames": "obj:pytato.ArrayOrNames",
+    "Integer": "obj:python.int",
+    "ScalarLike": "obj:arraycontext.ScalarLike",
+    "ArrayOrContainerOrScalar": "obj:arraycontext.ArrayOrContainerOrScalar",
+    "arraycontext.typing.ArrayOrContainerT": "obj:arraycontext.ArrayOrContainerT",
 }
 
 
