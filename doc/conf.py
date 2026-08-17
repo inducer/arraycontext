@@ -13,7 +13,7 @@ release = metadata.version("arraycontext")
 version = ".".join(release.split(".")[:2])
 
 intersphinx_mapping = {
-    "jax": ("https://jax.readthedocs.io/en/latest/", None),
+    "jax": ("https://docs.jax.dev/en/latest/", None),
     "loopy": ("https://documen.tician.de/loopy", None),
     "meshmode": ("https://documen.tician.de/meshmode", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
