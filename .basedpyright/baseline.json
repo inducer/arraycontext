@@ -1916,22 +1916,6 @@
             {
                 "code": "reportUnknownArgumentType",
                 "range": {
-                    "startColumn": 42,
-                    "endColumn": 46,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportUnknownArgumentType",
-                "range": {
-                    "startColumn": 48,
-                    "endColumn": 52,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportUnknownArgumentType",
-                "range": {
                     "startColumn": 28,
                     "endColumn": 32,
                     "lineCount": 1
