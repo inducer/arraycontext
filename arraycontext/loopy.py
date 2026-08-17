@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from types import EllipsisType
 
-    import islpy as isl
+    import namedisl as nisl
 
     from loopy.kernel.data import (
         ArrayArg,
@@ -95,7 +95,7 @@ _DEFAULT_LOOPY_OPTIONS = lp.Options(
 
 
 def make_loopy_program(
-        domains: str | Sequence[str | isl.BasicSet],
+        domains: str | Sequence[str | nisl.Set],
         statements: str | Sequence[InstructionBase | SubstitutionRule | str],
         kernel_data: Sequence[
                 ValueArg | ArrayArg | TemporaryVariable | EllipsisType | str
@@ -142,14 +142,13 @@ def _get_scalar_func_loopy_program(
         size_names = [f"n{i}" for i in range(naxes)]
         subscript = tuple(Variable(vname) for vname in var_names)
 
-        from islpy import make_zero_and_vars
+        import namedisl as nisl
 
-        v = make_zero_and_vars(var_names, params=size_names)
-        domain = v[0].domain()
+        space = nisl.Space.from_names(out=var_names, param=size_names)
+        v = nisl.pw_affs_from_domain_space(space)
+        domain = v[0].aggregate_domain()
         for vname, sname in zip(var_names, size_names, strict=True):
-            domain = domain & v[0].le_set(v[vname]) & v[vname].lt_set(v[sname])
-
-        domain_bset, = domain.get_basic_sets()
+            domain = domain & v[0].where("<=", v[vname]) & v[vname].where("<", v[sname])
 
         import loopy as lp
 
@@ -159,7 +158,7 @@ def _get_scalar_func_loopy_program(
             return Subscript(Variable(name), subscript) if subscript else Variable(name)
 
         return make_loopy_program(
-                [domain_bset], [
+                [domain], [
                     lp.Assignment(
                         sub("out"),
                         Variable(c_name)(*[sub(f"inp{i}") for i in range(nargs)]))

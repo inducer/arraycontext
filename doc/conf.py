@@ -18,6 +18,7 @@ intersphinx_mapping = {
     "meshmode": ("https://documen.tician.de/meshmode", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "pymbolic": ("https://documen.tician.de/pymbolic", None),
+    "namedisl": ("https://documen.tician.de/namedisl", None),
     "pyopencl": ("https://documen.tician.de/pyopencl", None),
     "pytato": ("https://documen.tician.de/pytato", None),
     "pytest": ("https://docs.pytest.org/en/latest/", None),
@@ -51,6 +52,8 @@ nitpick_ignore_regex = [
 sphinxconfig_missing_reference_aliases = {
     # pyopencl
     "cl.Device": "obj:pyopencl.Device",
+    # namedisl
+    "nisl.Set": "obj:namedisl.Set",
 }
 
 
