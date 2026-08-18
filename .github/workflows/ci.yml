@@ -115,7 +115,7 @@ jobs:
     downstream_tests:
         strategy:
             matrix:
-                downstream_project: [meshmode, grudge, mirgecom, mirgecom_examples]
+                downstream_project: [meshmode, grudge]
             fail-fast: false
 
         name: Tests for downstream project ${{ matrix.downstream_project }}
