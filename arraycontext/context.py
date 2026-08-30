@@ -495,15 +495,11 @@ class ArrayContext(ABC):
         out_shape_comp_names = ("nrows", *out_extra_shape_comp_names)
 
         domains: list[str] = []
-        domains.append(
-            "{ [" + ",".join(out_inames) + "] : "
-            + " and ".join(
-                f"0 <= {iname} < {shape_comp_name}"
-                for iname, shape_comp_name in zip(
-                    out_inames, out_shape_comp_names, strict=True))
-            + " }")
-        domains.append(
-            "{ [iel] : iel_lbound <= iel < iel_ubound }")
+        domains.extend(("{ [" + ",".join(out_inames) + "] : " + " and ".join(
+            f"0 <= {iname} < {shape_comp_name}"
+            for iname, shape_comp_name
+            in zip(out_inames, out_shape_comp_names, strict=True))
+        + " }", "{ [iel] : iel_lbound <= iel < iel_ubound }"))
 
         temporary_variables: Mapping[str, lp.TemporaryVariable] = {
             "iel_lbound": lp.TemporaryVariable(

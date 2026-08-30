@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 import logging
+import math
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, cast
@@ -891,7 +892,7 @@ def test_container_arithmetic(actx_factory: ArrayContextFactory):
                 partial(_check_allclose, lambda x: 3 * x),
                 ary, 2 * ary + ary)
         rec_multimap_array_container(
-                partial(_check_allclose, lambda x: actx.np.sin(x)),
+                partial(_check_allclose, actx.np.sin),
                 ary, actx.np.sin(ary))
 
     with pytest.raises(TypeError):
@@ -1186,11 +1187,11 @@ def test_actx_compile(actx_factory: ArrayContextFactory):
 
     vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
-    scaled_speed = compiled_rhs(np.float64(3.14), vel)
+    scaled_speed = compiled_rhs(np.float64(math.pi), vel)
 
     result = actx.to_numpy(scaled_speed)
-    np.testing.assert_allclose(result.u, -3.14*v_y)
-    np.testing.assert_allclose(result.v, 3.14*v_x)
+    np.testing.assert_allclose(result.u, -math.pi*v_y)
+    np.testing.assert_allclose(result.v, math.pi*v_x)
 
 
 def test_actx_compile_python_scalar(actx_factory: ArrayContextFactory):
@@ -1204,11 +1205,11 @@ def test_actx_compile_python_scalar(actx_factory: ArrayContextFactory):
 
     vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
-    scaled_speed = compiled_rhs(3.14, vel)
+    scaled_speed = compiled_rhs(math.pi, vel)
 
     result = actx.to_numpy(scaled_speed)
-    np.testing.assert_allclose(result.u, -3.14*v_y)
-    np.testing.assert_allclose(result.v, 3.14*v_x)
+    np.testing.assert_allclose(result.u, -math.pi*v_y)
+    np.testing.assert_allclose(result.v, math.pi*v_x)
 
 
 def test_actx_compile_kwargs(actx_factory: ArrayContextFactory):
@@ -1222,11 +1223,11 @@ def test_actx_compile_kwargs(actx_factory: ArrayContextFactory):
 
     vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
-    scaled_speed = compiled_rhs(3.14, vel=vel)
+    scaled_speed = compiled_rhs(math.pi, vel=vel)
 
     result = actx.to_numpy(scaled_speed)
-    np.testing.assert_allclose(result.u, -3.14*v_y)
-    np.testing.assert_allclose(result.v, 3.14*v_x)
+    np.testing.assert_allclose(result.u, -math.pi*v_y)
+    np.testing.assert_allclose(result.v, math.pi*v_x)
 
 
 def test_actx_compile_with_tuple_output_keys(actx_factory: ArrayContextFactory):
@@ -1247,11 +1248,11 @@ def test_actx_compile_with_tuple_output_keys(actx_factory: ArrayContextFactory):
 
     vel = actx.from_numpy(Velocity2D(v_x, v_y, actx))
 
-    scaled_speed = compiled_rhs(3.14, vel=vel)
+    scaled_speed = compiled_rhs(math.pi, vel=vel)
 
     result = actx.to_numpy(scaled_speed)[0, 0]
-    np.testing.assert_allclose(result.u, -3.14*v_y)
-    np.testing.assert_allclose(result.v, 3.14*v_x)
+    np.testing.assert_allclose(result.u, -math.pi*v_y)
+    np.testing.assert_allclose(result.v, math.pi*v_x)
 
 
 def test_actx_compile_with_outlined_function(actx_factory: ArrayContextFactory):
@@ -1286,14 +1287,14 @@ def test_actx_compile_with_outlined_function(actx_factory: ArrayContextFactory):
     vel1 = Velocity2D(v1_x_actx, v1_y_actx, actx)
     vel2 = Velocity2D(v2_x_actx, v2_y_actx, actx)
 
-    scaled_speed1, scaled_speed2 = compiled_rhs(np.float64(3.14), vel1, vel2)
+    scaled_speed1, scaled_speed2 = compiled_rhs(np.float64(math.pi), vel1, vel2)
 
     result1 = actx.to_numpy(scaled_speed1)
     result2 = actx.to_numpy(scaled_speed2)
-    np.testing.assert_allclose(result1.u, -3.14*v1_y)
-    np.testing.assert_allclose(result1.v, 3.14*v1_x)
-    np.testing.assert_allclose(result2.u, -3.14*v2_y)
-    np.testing.assert_allclose(result2.v, 3.14*v2_x)
+    np.testing.assert_allclose(result1.u, -math.pi*v1_y)
+    np.testing.assert_allclose(result1.v, math.pi*v1_x)
+    np.testing.assert_allclose(result2.u, -math.pi*v2_y)
+    np.testing.assert_allclose(result2.v, math.pi*v2_x)
 
 # }}}
 
