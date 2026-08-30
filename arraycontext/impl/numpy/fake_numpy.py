@@ -239,11 +239,11 @@ class NumpyFakeNumpyNamespace(BaseFakeNumpyNamespace):
 
     def any(self, a, /):
         return rec_map_reduce_array_container(partial(reduce, np.logical_or),
-                                              lambda subary: np.any(subary), a)
+                                              np.any, a)
 
     def all(self, a, /):
         return rec_map_reduce_array_container(partial(reduce, np.logical_and),
-                                              lambda subary: np.all(subary), a)
+                                              np.all, a)
 
     @override
     def array_equal(self,

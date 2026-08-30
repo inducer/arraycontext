@@ -421,7 +421,7 @@ def pytest_generate_tests_for_array_contexts(
         arg_value_tuples = sorted([
                 tuple(arg_dict[name] for name in arg_names)
                 for arg_dict in arg_values_with_actx
-                ], key=lambda x: str(x))
+                ], key=str)
 
         metafunc.parametrize(arg_names, arg_value_tuples, ids=ids)
 

@@ -1209,7 +1209,7 @@ def outer(
             raise TypeError(
                 "both arguments must have the same type if they are both "
                 "non-object-array array containers.")
-        return multimap_array_container(lambda x, y: outer(x, y), a, b)
+        return multimap_array_container(outer, a, b)
 
 # }}}
 

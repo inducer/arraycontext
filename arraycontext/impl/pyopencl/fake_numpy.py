@@ -365,7 +365,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
                 dtype: DTypeLike | None = None,
             ) -> ArrayOrScalar:
         if isinstance(axis, int):
-            axis = axis,
+            axis = (axis,)
 
         def _rec_sum(ary):
             if axis not in [None, tuple(range(ary.ndim))]:
@@ -400,7 +400,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         queue = self._array_context.queue
 
         if isinstance(axis, int):
-            axis = axis,
+            axis = (axis,)
 
         def _rec_max(ary):
             if axis not in [None, tuple(range(ary.ndim))]:
@@ -438,7 +438,7 @@ class PyOpenCLFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
         queue = self._array_context.queue
 
         if isinstance(axis, int):
-            axis = axis,
+            axis = (axis,)
 
         def _rec_min(ary):
             if axis not in [None, tuple(range(ary.ndim))]:

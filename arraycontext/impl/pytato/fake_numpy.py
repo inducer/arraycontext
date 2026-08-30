@@ -175,12 +175,12 @@ class PytatoFakeNumpyNamespace(LoopyBasedFakeNumpyNamespace):
     def all(self, a, /):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.logical_and),
-                lambda subary: pt.all(subary), a)
+                pt.all, a)
 
     def any(self, a, /):
         return rec_map_reduce_array_container(
                 partial(reduce, pt.logical_or),
-                lambda subary: pt.any(subary), a)
+                pt.any, a)
 
     @override
     def array_equal(self,

@@ -173,7 +173,7 @@ def _get_arg_id_to_arg_and_arg_id_to_descr(args: tuple[Any, ...],
 def _to_input_for_compiled(
         ary: AllowedArrayTc,
         actx: _BasePytatoArrayContext) -> AllowedArrayTc:
-    """
+    r"""
     Preprocess *ary* before turning it into a :class:`pytato.array.Placeholder`
     in :meth:`LazilyCompilingFunctionCaller.__call__`.
 

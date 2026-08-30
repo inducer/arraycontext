@@ -152,7 +152,7 @@ class PyOpenCLArrayContext(ArrayContext):
         super().__init__()
         self.context = queue.context
         self.queue = queue
-        self.allocator = allocator if allocator else None
+        self.allocator = allocator or None
         if wait_event_queue_length is None:
             wait_event_queue_length = 10
 
