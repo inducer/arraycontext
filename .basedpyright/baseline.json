@@ -11652,14 +11652,6 @@
                 }
             },
             {
-                "code": "reportUnusedClass",
-                "range": {
-                    "startColumn": 10,
-                    "endColumn": 41,
-                    "lineCount": 1
-                }
-            },
-            {
                 "code": "reportInvalidCast",
                 "range": {
                     "startColumn": 25,
