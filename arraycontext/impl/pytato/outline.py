@@ -49,7 +49,6 @@ from arraycontext.typing import (
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
-    from pymbolic import Scalar
     from pytools.tag import Tag
 
     from arraycontext.impl.pytato import _BasePytatoArrayContext
@@ -152,7 +151,7 @@ def _call_with_placeholders(
         if arg is None:
             return None
         elif np.isscalar(arg):
-            return cast("Scalar", arg)
+            return arg
         elif isinstance(arg, pt.Array):
             return arg_id_to_placeholder[key]
         elif is_array_container_type(arg.__class__):
